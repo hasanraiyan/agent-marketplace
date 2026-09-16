@@ -25,7 +25,13 @@ function toBackendPath(path: string): string {
 export interface WorkspaceFilesDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  threadId: string | undefined;
+  /**
+   * The Agent whose `/workspace/` files to show — this store is scoped by
+   * Agent + Subject, not by Thread, so it's shared across every
+   * conversation this Subject has with that Agent (same model the
+   * platform's own Files panel uses).
+   */
+  agentId: string | undefined;
   /** Jump straight to this file once the dialog is showing — e.g. a present_file "Open" click. Leading slash optional. */
   initialOpenPath?: string | null;
 }
@@ -33,9 +39,13 @@ export interface WorkspaceFilesDialogProps {
 type WorkspaceItem = ExplorerItem;
 
 /**
- * File-explorer-style dialog over one Thread's workspace files (the
- * agent's own virtual filesystem) — the same VS Code-style tree/tabs/editor
- * shell as the platform's own Skill/Agent bundle editor
+ * File-explorer-style dialog over one Agent's `/workspace/` files — the SAME
+ * persistent store a `write_file`/`read_file` tool call under
+ * `/workspace/...` actually reads and writes (NOT the Thread's LangGraph
+ * checkpoint state, which is a different, much narrower thing — agents are
+ * instructed to write all real output under `/workspace/outputs/`, so that
+ * checkpoint channel is rarely populated). Same VS Code-style tree/tabs/
+ * editor shell as the platform's own Skill/Agent bundle editor
  * (`FileExplorerEditor`), backed directly by `@personaai/react`'s
  * `useWorkspaceFiles` instead of a parallel type/adapter layer. Always
  * exactly one item ("workspace"), so the Explorer's "+ new item" affordance
@@ -45,11 +55,11 @@ type WorkspaceItem = ExplorerItem;
 export function WorkspaceFilesDialog({
   open,
   onOpenChange,
-  threadId,
+  agentId,
   initialOpenPath,
 }: WorkspaceFilesDialogProps) {
   const isMobile = useIsMobile();
-  const { files, isLoading, writeFile, deleteFile } = useWorkspaceFiles(threadId, open);
+  const { files, isLoading, writeFile, deleteFile } = useWorkspaceFiles(agentId, open);
   const [openRequest, setOpenRequest] = React.useState<{ itemId: string; path: string | null } | null>(
     null
   );
@@ -136,7 +146,7 @@ export function WorkspaceFilesDialog({
                 Workspace files
               </SheetTitle>
               <SheetDescription className="text-xs text-muted-foreground">
-                The agent&apos;s own virtual filesystem for this conversation.
+                This agent&apos;s /workspace/ files — shared across every conversation with it.
               </SheetDescription>
             </div>
           </SheetHeader>
@@ -158,7 +168,7 @@ export function WorkspaceFilesDialog({
               Workspace files
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              The agent&apos;s own virtual filesystem for this conversation.
+              This agent&apos;s /workspace/ files — shared across every conversation with it.
             </DialogDescription>
           </div>
         </DialogHeader>

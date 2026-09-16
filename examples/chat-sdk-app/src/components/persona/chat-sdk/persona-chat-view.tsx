@@ -154,6 +154,19 @@ export function PersonaChatView({
   const [openSubagentFor, setOpenSubagentFor] = React.useState<string | null>(null);
   const [filesOpen, setFilesOpen] = React.useState(false);
   const isFilesSheetOpen = filesOpen || !!presentedFile;
+  // Workspace files are Agent-scoped, not Thread-scoped (shared across every
+  // conversation with that Agent) — prefer the active thread's own agentId
+  // (authoritative for which agent this conversation is actually with) over
+  // the `agentId` prop, which only matters before any thread exists yet.
+  const activeAgentId = React.useMemo(() => {
+    const thread = threads.find((t) => t._id === activeThreadId);
+    const threadAgentId = thread
+      ? typeof thread.agentId === "string"
+        ? thread.agentId
+        : thread.agentId?._id
+      : undefined;
+    return threadAgentId || agentId;
+  }, [threads, activeThreadId, agentId]);
   const subagentMessages: PersonaMessage[] = React.useMemo(() => {
     if (!openSubagentFor) return [];
     for (const { message } of messages) {
@@ -350,7 +363,7 @@ export function PersonaChatView({
             setFilesOpen(open);
             if (!open) dismissPresentedFile();
           }}
-          threadId={activeThreadId}
+          agentId={activeAgentId}
           initialOpenPath={presentedFile?.path}
         />
       )}
