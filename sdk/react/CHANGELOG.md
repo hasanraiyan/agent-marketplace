@@ -3,6 +3,17 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.17.1
+
+- **Fixed: the exported `VERSION` constant was hardcoded to `"0.10.0"`** and never updated across
+  seven releases since. Now `"0.17.1"`, and the test that used to assert the exact stale string
+  (silently passing against stale `dist/` output on every release) now just checks it's a semver
+  string.
+- **Docs only, otherwise.** README's Hooks table now lists every hook (`useWorkspaceFiles`,
+  `useSkills`, `useKnowledgeBases`, `useRcpSources`, `useMcpAdmin`, `useMcp`, `useMcpConnections` —
+  all shipped in earlier releases but never added to this table), plus new sections on memory
+  scopes / an Agent's `/workspace/` files and the sandbox terminal (`sandboxCommands`).
+
 ## 0.17.0
 
 - **`PersonaThread.agentId`'s populated shape gains `sandboxEnabled: boolean`.** `useThreads()`'s

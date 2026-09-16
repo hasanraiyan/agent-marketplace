@@ -59,12 +59,14 @@ const {
 } = await import('../dist/index.js');
 
 describe('Workflows exports & streaming', () => {
-  it('exports all workflow hooks and version 0.10.0', () => {
+  it('exports all workflow hooks and a semver VERSION string', () => {
     assert.equal(typeof useWorkflows, 'function');
     assert.equal(typeof useWorkflow, 'function');
     assert.equal(typeof useWorkflowStream, 'function');
     assert.equal(typeof useWorkflowRuns, 'function');
-    assert.equal(VERSION, '0.10.0');
+    // Not a hardcoded version — that goes stale on every release (this test
+    // itself used to assert '0.10.0' long after the package had moved on).
+    assert.match(VERSION, /^\d+\.\d+\.\d+$/);
   });
 
   it('supports GET method in openSSEStream for stream resumption', async () => {

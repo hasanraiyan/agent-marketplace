@@ -4309,7 +4309,7 @@ import {
   getLogLevel,
   isLevelEnabled
 } from "@personaai/logger";
-var VERSION = "0.10.0";
+var VERSION = "0.17.0";
 export {
   ARCHITECT_AGENT_ID,
   PersonaProvider,

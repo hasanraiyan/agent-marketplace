@@ -2,7 +2,7 @@
 
 React SDK for [Persona](https://persona.hasanraiyan.me) — hooks and a context provider for building chat UIs against any Persona backend.
 
-> **v0.9.0.** Requires React 18+. Client-side only — never holds a credential.
+> **v0.17.0.** Requires React 18+. Client-side only — never holds a credential.
 
 ## Install
 
@@ -48,7 +48,7 @@ function Chat() {
 
 | Hook                 | Purpose                                                                                         |
 | -------------------- | ----------------------------------------------------------------------------------------------- |
-| `useChat`            | Streaming chat — messages, send, stop, reload, interrupts, workspace files, ephemeral new chat  |
+| `useChat`            | Streaming chat — messages, send, stop, reload, interrupts, live workspace/todo state, sandbox commands, ephemeral new chat |
 | `useArchitectChat`   | Streaming chat with the Agent Architect co-pilot — same mechanics as `useChat`, no `agentId`     |
 | `useWorkflowStream`  | Live streaming workflow execution — real-time node state tracking, cancellation, and resume    |
 | `useWorkflows`       | Workflow discovery & creation — list, paginate, filter, and create workflows                    |
@@ -57,9 +57,50 @@ function Chat() {
 | `useVoice`           | Real-time voice calls (Gemini Live) — start/stop/mute, live transcript, tool calls             |
 | `useThreads`         | Thread CRUD — list, create, delete, rename, reset, archive                                     |
 | `useFiles`           | Upload management — list, upload, delete                                                        |
-| `useMemory`          | Persistent memory — read, write, delete                                                         |
-| `useAgents`          | Agent discovery — list available agents                                                         |
+| `useMemory`          | Persistent memory CRUD — `scope: "user" \| "agent" \| "workspace"` (an Agent's own `/workspace/` files) |
+| `useWorkspaceFiles`  | Thin wrapper over `useMemory` (`scope: "workspace"`) scoped to one Agent — list/get/write/delete |
+| `useAgents`          | Agent discovery — list available agents (`visibility: "public"` or self-owned only)             |
+| `useSkills`          | Skill CRUD — list, create, update, delete, usage                                                |
+| `useKnowledgeBases`  | Knowledge base CRUD + document upload/search                                                    |
+| `useRcpSources`      | RCP source CRUD + test connection                                                               |
+| `useMcpAdmin`        | Self-serve MCP connector CRUD (`scope: "mine"` only)                                            |
+| `useMcp`             | MCP discovery + tool listing                                                                    |
+| `useMcpConnections`  | End-user MCP OAuth connect/disconnect flow                                                      |
 | `useConnection`      | Health check — backend connectivity status                                                      |
+
+## Memory & an Agent's `/workspace/` files
+
+```tsx
+const { memory, getFile, writeFile, deleteFile } = useMemory();
+
+// memory.userFiles (shared across every Agent), memory.agentMemories, and
+// memory.agentWorkspaces are each PersonaMemoryAgentGroup[] — grouped one entry per Agent.
+await writeFile({ path: "/preferences.md", content: "Prefers concise answers.", scope: "user" });
+
+// An Agent's own /workspace/ files — the SAME persistent store its `write_file`/`read_file` tool
+// calls use (NOT a Thread's live/checkpointed state, a different, much narrower thing). Shared
+// across every Thread this Subject has with that Agent, not private to one conversation.
+const report = await getFile({ path: "/outputs/report.md", scope: "workspace", agentId });
+```
+
+`useWorkspaceFiles(agentId)` is a thinner wrapper over the same `scope: "workspace"` calls, scoped
+to one Agent up front — handy for a dedicated file-explorer UI that isn't inside an active chat:
+
+```tsx
+const { files, isLoading, writeFile, deleteFile } = useWorkspaceFiles(agentId);
+```
+
+`useChat()`'s own `files`/`todos` are a different, read-only, per-Thread live snapshot (from
+`STATE_SNAPSHOT` events during a run) — use `useWorkspaceFiles`/`useMemory` for CRUD independent of
+an active chat session.
+
+## Sandbox terminal
+
+If an Agent has `sandboxEnabled: true` (check the active Thread's populated `agentId` — see
+`@personaai/sdk`'s README), its `execute` tool calls are real shell commands in an isolated VM, not
+simulated. `useChat()`'s `sandboxCommands: PersonaSandboxCommand[]` is a pure derived view over the
+same tool-call stream already backing `messages` — `{ toolCallId, command, output, exitCode,
+status }` — enough to build a read-only terminal-style replay with no separate fetch or polling.
 
 ## Voice
 
