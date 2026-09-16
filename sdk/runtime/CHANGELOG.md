@@ -4,6 +4,13 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.15.0
+
+- Bumped `@personaai/sdk` to `^0.13.0` (`Thread.agentId`'s populated shape gains
+  `sandboxEnabled: boolean`) — no code changes, this runtime never destructures that shape itself,
+  just proxies it as opaque JSON. Bumped purely to keep the dependency range current and avoid a
+  stale nested copy being installed alongside a consumer's own newer `@personaai/sdk`.
+
 ## 0.14.0
 
 **Breaking:** removes the Thread workspace-file routes added in 0.13.0 (`GET /threads/:id/files`,

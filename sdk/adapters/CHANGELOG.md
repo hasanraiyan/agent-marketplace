@@ -5,6 +5,26 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-09-16
+
+### Changed
+
+- Also bumped `@personaai/sdk` to `^0.13.0` and `@personaai/runtime` to `^0.15.0` (both already at
+  the latest release for the same "keep every range current" reason as the react fix below) — no
+  code changes needed for either, this package doesn't touch the shape either one changed.
+
+### Fixed
+
+- Bumped `@personaai/react` to `^0.17.0` — `^0.16.0` (never updated when a consumer app bumped its
+  own direct `@personaai/react` dependency past 0.16.x) left npm/pnpm unable to dedupe: the
+  consumer got a top-level copy of `@personaai/react` while `@personaai/adapters/nextjs/client.ts`
+  (a bare `export * from '@personaai/react'`, used for `PersonaProvider`) resolved its own nested
+  copy. Two separate module instances means two separate `React.createContext()` objects for
+  `PersonaContext` — a `<PersonaProvider>` from one copy can never satisfy `usePersonaContext()`
+  reading from the other, so every hook (`useThreads`, `useChat`, ...) threw "must be used within a
+  `<PersonaProvider>`" even though the Provider was correctly mounted. Always keep this range at
+  the latest `@personaai/react` going forward to avoid this class of bug recurring.
+
 ## [0.6.0] - 2026-09-16
 
 ### Changed
