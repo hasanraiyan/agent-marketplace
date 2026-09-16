@@ -5,6 +5,16 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-09-16
+
+### Changed
+
+- Bumped `@personaai/react` to `^0.15.0`, `@personaai/runtime` to `^0.13.0`, and `@personaai/sdk`
+  to `^0.11.0` — brings in the new Thread workspace-file CRUD (`threads.listFiles/getFile/writeFile/deleteFile`
+  in the SDK, the matching `/threads/:id/files` and `/threads/:id/file` runtime routes, and the
+  `useWorkspaceFiles()` React hook). No adapter-level code changes — the mount/translate layer is
+  unaffected since these are just more routes proxied the same way as everything else.
+
 ## [0.4.0] - 2026-09-15
 
 ### Changed
