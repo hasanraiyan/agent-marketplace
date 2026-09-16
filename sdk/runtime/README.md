@@ -5,7 +5,12 @@ shared engine every framework adapter (`@personaai/adapters/express`, `@personaa
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.10.0.** Added full Workflows engine support (`POST /workflows/:id/stream`, `GET /workflows`, `POST /workflows/runs/:runId/cancel`, `GET /workflows/runs/:runId/resume`), `workflowsWrite` gated authoring capability, and `beforeWorkflowNode`/`afterWorkflowNode` lifecycle hooks. Unified adapter [`@personaai/adapters`](https://persona.hasanraiyan.me/guides/express/quickstart) provides `express`/`nextjs`/`nestjs` bindings. For non-covered hosts, see
+**v0.15.0.** `/memory` and `/memory/file` now accept/return `scope: "workspace"` — an Agent's own
+`/workspace/` files (the same persistent store its `write_file`/`read_file` tool calls use), scoped
+by Agent + Subject rather than by Thread. Also includes full Workflows engine support
+(`POST /workflows/:id/stream`, `GET /workflows`, `POST /workflows/runs/:runId/cancel`,
+`GET /workflows/runs/:runId/resume`), `workflowsWrite` gated authoring capability, and
+`beforeWorkflowNode`/`afterWorkflowNode` lifecycle hooks. Unified adapter [`@personaai/adapters`](https://persona.hasanraiyan.me/guides/express/quickstart) provides `express`/`nextjs`/`nestjs` bindings. For non-covered hosts, see
 [Quickstart](#quickstart) for how to run it directly against raw Node `http`, and
 [Not yet implemented](#not-yet-implemented) for what's missing before it's a complete Level 2
 runtime.
@@ -81,10 +86,10 @@ user; `resolveUser` returning `null` or throwing responds `401`.
 | --- | --- | --- |
 | `POST` | `/chat` | `client.chat.stream(agentId, {messages, threadId, resume, contextOverride})`, streamed out as SSE. `agentId`/`messages` required in the body. Response carries an `x-persona-run-id` header — see [Reconnect and resume](#reconnect-and-resume). |
 | `GET` | `/chat/:runId/resume` | Reattaches to the run started by the matching `POST /chat`. See [Reconnect and resume](#reconnect-and-resume). |
-| `GET` | `/threads` | `client.threads.list({page, limit})` |
+| `GET` | `/threads` | `client.threads.list({page, limit})` — each item's `agentId` is populated as `{_id, name, avatar, slug, sandboxEnabled}` |
 | `POST` | `/threads` | `client.threads.create({agentId})` |
 | `POST` | `/threads/bulk-delete` | `client.threads.bulkDelete(ids)` |
-| `GET` | `/threads/:id` | `client.threads.get(id)` |
+| `GET` | `/threads/:id` | `client.threads.get(id)` — `agentId` populated the same way as `list()`; check `sandboxEnabled` here to decide whether to show a Terminal-style UI for this Thread's Agent |
 | `PATCH` | `/threads/:id` | `client.threads.update(id, {title?, isArchived?})` |
 | `DELETE` | `/threads/:id` | `client.threads.delete(id)` → `204` |
 | `GET` | `/threads/:id/messages` | `client.threads.getMessages(id)` — full history + graph state, the same data `chat.stream()` resumes from; load a past conversation on page reopen. |
@@ -96,8 +101,8 @@ user; `resolveUser` returning `null` or throwing responds `401`.
 | `POST` | `/files/bulk-delete` | `client.files.bulkDelete(ids)` |
 | `GET` | `/files/:id` | `client.files.download(id)` — raw bytes, streamed through as `kind: 'binary'` |
 | `DELETE` | `/files/:id` | `client.files.delete(id)` → `204` |
-| `GET` | `/memory` | `client.memory.list()` |
-| `GET` | `/memory/file` | `client.memory.getFile({path, scope?, agentId?})` — `path` query param required |
+| `GET` | `/memory` | `client.memory.list()` → `{userFiles, agentMemories, agentWorkspaces}` |
+| `GET` | `/memory/file` | `client.memory.getFile({path, scope?, agentId?})` — `path` query param required. `scope` is `"user"` (default), `"agent"`, or `"workspace"` (an Agent's own `/workspace/` files); `"agent"`/`"workspace"` require `agentId`. |
 | `PUT` | `/memory/file` | `client.memory.writeFile({path, content, scope?, agentId?})` — creates or overwrites |
 | `DELETE` | `/memory/file` | `client.memory.deleteFile({path, scope?, agentId?})` → `204` |
 | `GET` | `/mcps/:id/oauth/owner/authorize` | `client.mcps.oauth.getOwnerAuthorizeUrl(id)` → `{url}` to redirect the Project owner to |
@@ -415,7 +420,7 @@ modes (`mode: 'development' | 'production'`, default `'production'` unless
 
 ## Not yet implemented
 
-This is v0.5.1. Every SDK resource now has a route (see [Routes](#routes)); what's left is either a
+This is v0.15.0. Every SDK resource now has a route (see [Routes](#routes)); what's left is either a
 genuine unclosed gap or an intentional package boundary, not an oversight:
 
 - **Multi-instance reconnect/resume** — see
