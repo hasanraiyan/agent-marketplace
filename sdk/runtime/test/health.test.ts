@@ -63,6 +63,7 @@ describe('GET /health', () => {
         skills: false,
         knowledge: false,
         stores: false,
+        rcpSources: false,
         auditLogs: false,
         architect: false,
         workflowsWrite: false,

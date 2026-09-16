@@ -4,6 +4,16 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.13.0
+
+- **New: Thread workspace file routes.** `GET /threads/:id/files`, `GET/PUT/DELETE
+  /threads/:id/file` (path passed as a `?path=` query param, matching the existing `/memory/file`
+  convention) — always on, end-user-scoped, same tier as `/threads/:id/messages`. Backed by
+  `@personaai/sdk` 0.11.0's `threads.listFiles()/getFile()/writeFile()/deleteFile()`. **Known
+  limitation** (inherited from the SDK): no lock exists against a concurrent live run on the same
+  Thread, so a write while the agent is actively mid-run could race with its own file writes.
+  Requires `@personaai/sdk ^0.11.0`.
+
 ## 0.12.0
 
 - **New: `capabilities.rcpSources`.** Full RCP (REST Connector Protocol, npm `rcp-sdk`) source
