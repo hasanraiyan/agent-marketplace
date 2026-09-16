@@ -25,7 +25,7 @@ class ThreadRepository {
   async findById(id) {
     // Allows searching by either Mongoose _id or the custom threadId string
     const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
-    return await Conversation.findOne(query).populate('agentId', 'name avatar slug');
+    return await Conversation.findOne(query).populate('agentId', 'name avatar slug sandboxEnabled');
   }
 
   /**
@@ -53,7 +53,7 @@ class ThreadRepository {
       .sort({ lastMessageAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('agentId', 'name avatar slug');
+      .populate('agentId', 'name avatar slug sandboxEnabled');
   }
 
   async update(id, updateData) {
