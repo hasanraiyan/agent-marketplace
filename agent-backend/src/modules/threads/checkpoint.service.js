@@ -15,6 +15,29 @@ import ValidationError from '../../utils/errors/ValidationError.js';
 
 const logger = loggerService.getLogger();
 
+const EXTENSION_MIME_MAP = {
+  js: 'application/javascript',
+  mjs: 'application/javascript',
+  cjs: 'application/javascript',
+  jsx: 'application/javascript',
+  ts: 'application/javascript',
+  tsx: 'application/javascript',
+  json: 'application/json',
+  md: 'text/markdown',
+  markdown: 'text/markdown',
+  html: 'text/html',
+  css: 'text/css',
+  csv: 'text/csv',
+  svg: 'image/svg+xml',
+  yml: 'text/plain',
+  yaml: 'text/plain',
+};
+
+function mimeTypeForPath(path) {
+  const ext = path.split('.').pop()?.toLowerCase();
+  return EXTENSION_MIME_MAP[ext] || 'text/plain';
+}
+
 function extractContentText(content) {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
@@ -192,6 +215,11 @@ class CheckpointService {
     const subagentTraces = thread.subagentTraces || {};
 
     let pendingInterrupt;
+    // The compiled graph's own state.values, when available — correctly
+    // merges subgraph-scoped channels (e.g. a delegated subagent's
+    // write_file calls) that the raw checkpoint tuple below does not
+    // include; preferred as the files/todos source once fetched.
+    let graphStateValues;
     if (thread.agentId) {
       try {
         const { agentInstance } = await agentFactory.buildAgent(
@@ -203,6 +231,7 @@ class CheckpointService {
         const state = await agentInstance.getState({
           configurable: { thread_id: thread.threadId },
         });
+        graphStateValues = state?.values;
         const interrupts = (state?.tasks || []).flatMap((t) => t.interrupts || []);
         if (interrupts.length > 0) {
           const info = describeInterrupt(interrupts);
@@ -228,16 +257,20 @@ class CheckpointService {
     }
 
     if (!snapshot || !snapshot.checkpoint || !snapshot.checkpoint.channel_values) {
-      return { messages: [], state: {}, subagentTraces, pendingInterrupt };
+      const cleanedFilesTodos = buildFilesTodosSnapshot(graphStateValues ?? {});
+      return { messages: [], state: cleanedFilesTodos, subagentTraces, pendingInterrupt };
     }
 
     const { messages = [], ...state } = snapshot.checkpoint.channel_values;
-    // Reshape the raw deepagents virtual filesystem (files as arrays of
-    // lines, unfiltered /skills/ entries, directory markers) into the same
-    // clean { files, todos } shape the live STATE_SNAPSHOT event carries —
-    // otherwise a reloaded thread's workspace files look nothing like the
-    // ones a live stream produces for the same agent.
-    const cleanedFilesTodos = buildFilesTodosSnapshot(state);
+    // Reshape the raw deepagents virtual filesystem (files as v1 line-array
+    // or v2 string+mimeType FileData, unfiltered /skills/ entries, directory
+    // markers) into the same clean { files, todos } shape the live
+    // STATE_SNAPSHOT event carries — otherwise a reloaded thread's workspace
+    // files look nothing like the ones a live stream produces for the same
+    // agent. Sourced from `graphStateValues` (the compiled graph's own
+    // state) when available, since the raw channel_values above don't
+    // include subgraph-scoped channels a delegated subagent wrote to.
+    const cleanedFilesTodos = buildFilesTodosSnapshot(graphStateValues ?? state);
     return {
       messages: normalizeMessages(messages),
       state: { ...state, ...cleanedFilesTodos },
@@ -250,21 +283,31 @@ class CheckpointService {
    * A thread's workspace files are already embedded in `getMessages()`'s
    * `state.files` (SDK consumers get this via a normal history reload) —
    * this is a lighter, dedicated read for a caller that only wants the
-   * files, not the whole message history. Uses the same fast path
-   * `getMessages` does for the historical case: the raw checkpoint tuple,
-   * no compiled agent instance needed (that's only required to inspect
-   * `.tasks` for pending interrupts, irrelevant here).
+   * files, not the whole message history.
+   *
+   * Reads via `agentInstance.getState()` (same as `writeWorkspaceFile`),
+   * NOT the raw checkpoint tuple `getMessages` uses for messages — a file
+   * written by a delegated subagent (the `task` tool's own nested graph)
+   * lands in a subgraph-scoped checkpoint that the parent's raw tuple
+   * alone does not include; only the compiled graph's own state read
+   * correctly merges it in.
    */
   async listWorkspaceFiles(threadId, userId, context = personaExecutionContext(userId)) {
     const thread = await threadRepository.findById(threadId);
     if (!thread) throw new NotFoundError('Thread not found');
     if (!isThreadSubject(thread, context)) throw new NotFoundError('Thread not found');
+    if (!thread.agentId) return {};
 
-    const snapshot = await this.checkpointer.getTuple({
+    const { agentInstance } = await agentFactory.buildAgent(
+      thread.agentId,
+      userId,
+      this.checkpointer,
+      context
+    );
+    const state = await agentInstance.getState({
       configurable: { thread_id: thread.threadId },
     });
-    if (!snapshot?.checkpoint?.channel_values) return {};
-    return buildFilesTodosSnapshot(snapshot.checkpoint.channel_values).files;
+    return buildFilesTodosSnapshot(state?.values ?? {}).files;
   }
 
   async getWorkspaceFile(threadId, path, userId, context = personaExecutionContext(userId)) {
@@ -313,8 +356,13 @@ class CheckpointService {
     const rawFiles = { ...(state?.values?.files || {}) };
     const existing = rawFiles[path];
     const now = new Date().toISOString();
+    // deepagents' FileData is a v2 object — `{ content: string, mimeType,
+    // created_at, modified_at }` (v1's `content: string[]` line array is
+    // only for legacy checkpoints) — writing a bare string here fails the
+    // graph's own state-channel validation on updateState.
     rawFiles[path] = {
       content: String(content ?? ''),
+      mimeType: existing?.mimeType || mimeTypeForPath(path),
       created_at: existing?.created_at ?? existing?.createdAt ?? now,
       modified_at: now,
     };

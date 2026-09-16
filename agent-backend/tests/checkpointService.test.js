@@ -138,19 +138,45 @@ describe('Checkpoint Service', () => {
         'Unauthorized'
       );
     });
+
+    test('sources files/todos from the compiled graph state, not the raw checkpoint tuple, when both are available', async () => {
+      checkpointService.checkpointer = { getTuple: mockGetTuple };
+      threadRepository.findById.mockResolvedValue(mockThread);
+      // The raw tuple (what a subgraph-unaware read sees) is missing a file
+      // a delegated subagent wrote — the graph state read should win.
+      mockGetTuple.mockResolvedValue({
+        checkpoint: {
+          channel_values: { messages: [], files: {} },
+        },
+      });
+      mockGetState.mockResolvedValue({
+        values: {
+          files: { '/subagent-output.md': { content: 'from a subagent', mimeType: 'text/markdown' } },
+        },
+        tasks: [],
+      });
+
+      const result = await checkpointService.getMessages('thread_1', 'user_1');
+
+      expect(result.state.files).toEqual({
+        '/subagent-output.md': {
+          content: 'from a subagent',
+          size: 15,
+          created_at: null,
+          modified_at: null,
+        },
+      });
+    });
   });
 
   describe('listWorkspaceFiles / getWorkspaceFile', () => {
-    test('lists files from the raw checkpoint, filtering /skills/ and directory markers', async () => {
-      checkpointService.checkpointer = { getTuple: mockGetTuple };
+    test('lists files via the compiled graph state, filtering /skills/ and directory markers', async () => {
       threadRepository.findById.mockResolvedValue(mockThread);
-      mockGetTuple.mockResolvedValue({
-        checkpoint: {
-          channel_values: {
-            files: {
-              '/notes.md': { content: 'hello', created_at: '2024-01-01', modified_at: '2024-01-02' },
-              '/skills/ignored.md': { content: 'skill seed' },
-            },
+      mockGetState.mockResolvedValue({
+        values: {
+          files: {
+            '/notes.md': { content: 'hello', created_at: '2024-01-01', modified_at: '2024-01-02' },
+            '/skills/ignored.md': { content: 'skill seed' },
           },
         },
       });
@@ -159,12 +185,17 @@ describe('Checkpoint Service', () => {
       expect(files).toEqual({
         '/notes.md': { content: 'hello', size: 5, created_at: '2024-01-01', modified_at: '2024-01-02' },
       });
+      expect(agentFactory.buildAgent).toHaveBeenCalledWith(
+        'agent_1',
+        'user_1',
+        checkpointService.checkpointer,
+        expect.any(Object),
+      );
     });
 
     test('getWorkspaceFile throws NotFoundError for a missing path', async () => {
-      checkpointService.checkpointer = { getTuple: mockGetTuple };
       threadRepository.findById.mockResolvedValue(mockThread);
-      mockGetTuple.mockResolvedValue({ checkpoint: { channel_values: { files: {} } } });
+      mockGetState.mockResolvedValue({ values: { files: {} } });
 
       await expect(
         checkpointService.getWorkspaceFile('thread_1', '/missing.md', 'user_1'),
@@ -204,11 +235,26 @@ describe('Checkpoint Service', () => {
         {
           files: expect.objectContaining({
             '/existing.md': expect.objectContaining({ content: 'old' }),
-            '/notes.md': expect.objectContaining({ content: 'new content' }),
+            '/notes.md': expect.objectContaining({ content: 'new content', mimeType: 'text/markdown' }),
           }),
         },
       );
       expect(result.content).toBe('new content');
+    });
+
+    test('writes deepagents v2 FileData — a string content plus a mimeType, never a bare string', async () => {
+      // deepagents' own file-channel reducer validates each entry against a
+      // Zod union (v1 line-array vs v2 string+mimeType); a bare string with
+      // no mimeType satisfies neither branch and updateState rejects it.
+      threadRepository.findById.mockResolvedValue(mockThread);
+      mockGetState.mockResolvedValue({ values: { files: {} } });
+
+      await checkpointService.writeWorkspaceFile('thread_1', '/report.json', '{}', 'user_1');
+
+      const [, patch] = mockUpdateState.mock.calls[0];
+      expect(patch.files['/report.json']).toEqual(
+        expect.objectContaining({ content: '{}', mimeType: 'application/json' }),
+      );
     });
 
     test('preserves the original created_at when overwriting an existing file', async () => {
