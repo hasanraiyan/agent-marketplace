@@ -5,6 +5,8 @@ import type {
   Thread,
   ThreadMessages,
   UpdateThreadInput,
+  WorkspaceFile,
+  WorkspaceFiles,
 } from '../types/thread.js';
 import type { BulkDeleteResult } from '../types/bulkDelete.js';
 import type { PaginatedResult } from '../types/pagination.js';
@@ -124,5 +126,63 @@ export class ThreadsResource {
       'GET',
       `/api/v1/developer/threads/${threadId}/messages`
     );
+  }
+
+  /**
+   * Lists a Thread's workspace files (the agent's own virtual filesystem) —
+   * the same data embedded in `getMessages()`'s `state.files`, as a
+   * lighter, dedicated read for a caller that only wants the files.
+   * @param threadId - The Thread's `_id`.
+   */
+  async listFiles(threadId: string): Promise<WorkspaceFiles> {
+    return this.http.request<WorkspaceFiles>(
+      'GET',
+      `/api/v1/developer/threads/${threadId}/files`
+    );
+  }
+
+  /**
+   * Fetches one workspace file's content and metadata.
+   * @param threadId - The Thread's `_id`.
+   * @param path - The file's absolute path, e.g. `/notes.md`.
+   */
+  async getFile(threadId: string, path: string): Promise<WorkspaceFile> {
+    return this.http.request<WorkspaceFile>(
+      'GET',
+      `/api/v1/developer/threads/${threadId}/file`,
+      { query: { path } }
+    );
+  }
+
+  /**
+   * Creates or overwrites one workspace file. Writes directly into the
+   * Thread's live agent checkpoint — KNOWN LIMITATION: no lock exists
+   * against a concurrent live run on this same Thread, so a write here
+   * while the agent is actively mid-run could race with its own file
+   * writes.
+   * @param threadId - The Thread's `_id`.
+   * @param path - The file's absolute path. Paths under `/skills/` are
+   *   rejected (system-seeded, not writable).
+   * @param content - The full new file content (this replaces the file,
+   *   it does not append).
+   */
+  async writeFile(threadId: string, path: string, content: string): Promise<WorkspaceFile> {
+    return this.http.request<WorkspaceFile>(
+      'PUT',
+      `/api/v1/developer/threads/${threadId}/file`,
+      { body: { path, content } }
+    );
+  }
+
+  /**
+   * Deletes one workspace file. Same live-checkpoint write and concurrency
+   * caveat as {@link ThreadsResource.writeFile}.
+   * @param threadId - The Thread's `_id`.
+   * @param path - The file's absolute path.
+   */
+  async deleteFile(threadId: string, path: string): Promise<void> {
+    await this.http.request<unknown>('DELETE', `/api/v1/developer/threads/${threadId}/file`, {
+      query: { path },
+    });
   }
 }

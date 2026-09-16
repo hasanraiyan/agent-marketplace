@@ -3,6 +3,17 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.11.0
+
+- **New: `ThreadsResource` workspace file CRUD.** `listFiles()`, `getFile()`, `writeFile()`, and
+  `deleteFile()` expose a Thread's workspace files — the agent's own virtual filesystem, previously
+  only readable as a side effect of `getMessages()`'s `state.files`. Writes go directly through the
+  Thread's live agent checkpoint (the same pattern the voice feature already uses for its messages
+  channel) — **known limitation**: no lock exists against a concurrent live run on the same Thread,
+  so a write here while the agent is actively mid-run could race with its own file writes. Paths
+  under `/skills/` are rejected server-side (system-seeded, not writable). New types:
+  `WorkspaceFile`, `WorkspaceFiles`.
+
 ## 0.10.0
 
 - **New: `RcpSourcesResource` (`client.rcpSources`).** Full CRUD for RCP (REST Connector Protocol,

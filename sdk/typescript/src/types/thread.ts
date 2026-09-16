@@ -38,6 +38,23 @@ export interface ListThreadsParams {
 }
 
 /**
+ * One entry of a Thread's workspace files (the agent's own virtual
+ * filesystem, persisted in the LangGraph checkpoint's `files` channel).
+ * System-seeded skill files (`/skills/...`) and directory markers are
+ * already filtered out server-side.
+ */
+export interface WorkspaceFile {
+  content: string;
+  /** `content.length` — computed server-side, not separately stored. */
+  size: number;
+  created_at: string | null;
+  modified_at: string | null;
+}
+
+/** Keyed by absolute path, e.g. `/notes.md`. */
+export type WorkspaceFiles = Record<string, WorkspaceFile>;
+
+/**
  * `messages` holds raw LangChain message objects (role/content/tool_calls
  * vary by message type) — intentionally untyped rather than guessing at
  * a shape this SDK doesn't own.
