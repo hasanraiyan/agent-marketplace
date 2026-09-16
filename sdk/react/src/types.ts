@@ -171,7 +171,8 @@ export interface PersonaFileItem {
 }
 
 export interface PersonaMemoryFile {
-  scope?: "user" | "agent";
+  scope?: "user" | "agent" | "workspace";
+  /** Set when `scope` is `"agent"` or `"workspace"`. */
   agentId?: string;
   path: string;
   content: string;
@@ -180,7 +181,11 @@ export interface PersonaMemoryFile {
   updatedAt?: string;
 }
 
-/** One agent's group of agent-scoped memory files, as returned by `GET /memory`. */
+/**
+ * One agent's group of scoped memory files, as returned by `GET /memory` —
+ * used for both `agentMemories` (`scope: "agent"`) and `agentWorkspaces`
+ * (`scope: "workspace"`).
+ */
 export interface PersonaMemoryAgentGroup {
   agentId: string;
   /** `null` if the agent no longer exists. */
@@ -191,6 +196,14 @@ export interface PersonaMemoryAgentGroup {
 export interface PersonaMemoryList {
   userFiles: PersonaMemoryFile[];
   agentMemories: PersonaMemoryAgentGroup[];
+  /**
+   * Files under an Agent's own `/workspace/` filesystem route — the SAME
+   * persistent store `write_file`/`read_file` tool calls under
+   * `/workspace/...` actually read and write. Scoped by Agent + Subject,
+   * shared across every Thread that Subject has with that Agent (not
+   * private to one conversation).
+   */
+  agentWorkspaces: PersonaMemoryAgentGroup[];
 }
 
 /**

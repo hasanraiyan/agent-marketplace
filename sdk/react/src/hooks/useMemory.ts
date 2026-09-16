@@ -9,6 +9,7 @@ export function useMemory(autoFetch = true) {
   const [memory, setMemory] = useState<PersonaMemoryList>({
     userFiles: [],
     agentMemories: [],
+    agentWorkspaces: [],
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -27,7 +28,7 @@ export function useMemory(autoFetch = true) {
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error(String(err));
       setError(errorObj);
-      return { userFiles: [], agentMemories: [] };
+      return { userFiles: [], agentMemories: [], agentWorkspaces: [] };
     } finally {
       setIsLoading(false);
     }
@@ -36,7 +37,7 @@ export function useMemory(autoFetch = true) {
   const getFile = useCallback(
     async (params: {
       path: string;
-      scope?: "user" | "agent";
+      scope?: "user" | "agent" | "workspace";
       agentId?: string;
     }) => {
       const query = new URLSearchParams({ path: params.path });
@@ -55,7 +56,7 @@ export function useMemory(autoFetch = true) {
     async (params: {
       path: string;
       content: string;
-      scope?: "user" | "agent";
+      scope?: "user" | "agent" | "workspace";
       agentId?: string;
     }) => {
       const res = await fetchWithAuth("/memory/file", {
@@ -75,7 +76,7 @@ export function useMemory(autoFetch = true) {
   const deleteFile = useCallback(
     async (params: {
       path: string;
-      scope?: "user" | "agent";
+      scope?: "user" | "agent" | "workspace";
       agentId?: string;
     }) => {
       const query = new URLSearchParams({ path: params.path });

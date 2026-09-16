@@ -170,7 +170,8 @@ interface PersonaFileItem {
     createdAt: string;
 }
 interface PersonaMemoryFile {
-    scope?: "user" | "agent";
+    scope?: "user" | "agent" | "workspace";
+    /** Set when `scope` is `"agent"` or `"workspace"`. */
     agentId?: string;
     path: string;
     content: string;
@@ -178,7 +179,11 @@ interface PersonaMemoryFile {
     createdAt?: string;
     updatedAt?: string;
 }
-/** One agent's group of agent-scoped memory files, as returned by `GET /memory`. */
+/**
+ * One agent's group of scoped memory files, as returned by `GET /memory` —
+ * used for both `agentMemories` (`scope: "agent"`) and `agentWorkspaces`
+ * (`scope: "workspace"`).
+ */
 interface PersonaMemoryAgentGroup {
     agentId: string;
     /** `null` if the agent no longer exists. */
@@ -188,6 +193,14 @@ interface PersonaMemoryAgentGroup {
 interface PersonaMemoryList {
     userFiles: PersonaMemoryFile[];
     agentMemories: PersonaMemoryAgentGroup[];
+    /**
+     * Files under an Agent's own `/workspace/` filesystem route — the SAME
+     * persistent store `write_file`/`read_file` tool calls under
+     * `/workspace/...` actually read and write. Scoped by Agent + Subject,
+     * shared across every Thread that Subject has with that Agent (not
+     * private to one conversation).
+     */
+    agentWorkspaces: PersonaMemoryAgentGroup[];
 }
 /**
  * AG-UI protocol events emitted during streaming — mirrors exactly what
@@ -1296,18 +1309,18 @@ declare function useMemory(autoFetch?: boolean): {
     refetch: () => Promise<PersonaMemoryList>;
     getFile: (params: {
         path: string;
-        scope?: "user" | "agent";
+        scope?: "user" | "agent" | "workspace";
         agentId?: string;
     }) => Promise<PersonaMemoryFile>;
     writeFile: (params: {
         path: string;
         content: string;
-        scope?: "user" | "agent";
+        scope?: "user" | "agent" | "workspace";
         agentId?: string;
     }) => Promise<PersonaMemoryFile>;
     deleteFile: (params: {
         path: string;
-        scope?: "user" | "agent";
+        scope?: "user" | "agent" | "workspace";
         agentId?: string;
     }) => Promise<void>;
 };
@@ -1337,17 +1350,22 @@ declare function useThreads(autoFetch?: boolean): {
 };
 
 /**
- * CRUD over one Thread's workspace files (the agent's own virtual
- * filesystem) — `useChat()` already exposes a read-only `files` snapshot
- * tied to that thread's live/loaded messages; this hook is for a
- * standalone file-explorer UI that needs to list, read, write, and delete
- * files independently of an active chat session.
+ * CRUD over one Agent's `/workspace/` files — the SAME persistent store a
+ * `write_file`/`read_file` tool call under `/workspace/...` actually reads
+ * and writes (deepagents routes that path prefix to a Mongo-backed memory
+ * store, NOT the LangGraph checkpoint's `files` state channel — a Thread's
+ * live/checkpointed state is a different, much narrower thing that rarely
+ * has anything in it, since agents are instructed to write all real output
+ * under `/workspace/outputs/`). Scoped by Agent + Subject: shared across
+ * every Thread that Subject has with that Agent, not private to one
+ * conversation — the same model the platform's own Files panel uses.
  *
- * KNOWN LIMITATION (inherited from the backend): no lock exists against a
- * concurrent live run on the same Thread — writing here while the agent is
- * actively mid-run could race with its own file writes.
+ * Thin wrapper over `client.memory` (`scope: "workspace"`) — no parallel
+ * type vocabulary, `PersonaWorkspaceFile` here is just `PersonaMemoryFile`
+ * reshaped to the `{content, size, createdAt, modifiedAt}` display shape
+ * `useChat()`'s own (read-only, live-run) `files` snapshot already uses.
  */
-declare function useWorkspaceFiles(threadId: string | undefined, autoFetch?: boolean): {
+declare function useWorkspaceFiles(agentId: string | undefined, autoFetch?: boolean): {
     files: Record<string, PersonaWorkspaceFile>;
     isLoading: boolean;
     isSaving: boolean;

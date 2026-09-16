@@ -1666,7 +1666,8 @@ function useMemory(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
   const [memory, setMemory] = useState3({
     userFiles: [],
-    agentMemories: []
+    agentMemories: [],
+    agentWorkspaces: []
   });
   const [isLoading, setIsLoading] = useState3(false);
   const [error, setError] = useState3(null);
@@ -1684,7 +1685,7 @@ function useMemory(autoFetch = true) {
     } catch (err) {
       const errorObj = err instanceof Error ? err : new Error(String(err));
       setError(errorObj);
-      return { userFiles: [], agentMemories: [] };
+      return { userFiles: [], agentMemories: [], agentWorkspaces: [] };
     } finally {
       setIsLoading(false);
     }
@@ -1891,21 +1892,36 @@ function useThreads(autoFetch = true) {
 
 // src/hooks/useWorkspaceFiles.ts
 import { useCallback as useCallback5, useEffect as useEffect5, useState as useState5 } from "react";
-function useWorkspaceFiles(threadId, autoFetch = true) {
+function toWorkspaceFile(file) {
+  return {
+    content: file.content,
+    size: file.content.length,
+    createdAt: file.createdAt ?? null,
+    modifiedAt: file.updatedAt ?? null
+  };
+}
+function useWorkspaceFiles(agentId, autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
   const [files, setFiles] = useState5({});
   const [isLoading, setIsLoading] = useState5(false);
   const [isSaving, setIsSaving] = useState5(false);
   const [error, setError] = useState5(null);
   const fetchFiles = useCallback5(async () => {
-    if (!threadId) return {};
+    if (!agentId) return {};
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchWithAuth(`/threads/${threadId}/files`);
+      const res = await fetchWithAuth("/memory");
       if (!res.ok) throw new Error(`Failed to list workspace files: ${res.statusText}`);
       const data = await res.json();
-      const normalized = normalizeWorkspaceFiles(data?.data ?? data ?? {});
+      const body = data?.data ?? data;
+      const group = (body?.agentWorkspaces ?? []).find(
+        (g) => g.agentId === agentId
+      );
+      const normalized = {};
+      for (const file of group?.files ?? []) {
+        normalized[file.path] = toWorkspaceFile(file);
+      }
       setFiles(normalized);
       return normalized;
     } catch (err) {
@@ -1915,35 +1931,34 @@ function useWorkspaceFiles(threadId, autoFetch = true) {
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth, threadId]);
+  }, [fetchWithAuth, agentId]);
   const getFile = useCallback5(
     async (path) => {
-      if (!threadId) throw new Error("useWorkspaceFiles: no threadId set");
-      const res = await fetchWithAuth(
-        `/threads/${threadId}/file?path=${encodeURIComponent(path)}`
-      );
+      if (!agentId) throw new Error("useWorkspaceFiles: no agentId set");
+      const query = new URLSearchParams({ path, scope: "workspace", agentId });
+      const res = await fetchWithAuth(`/memory/file?${query.toString()}`);
       if (!res.ok) throw new Error(`Failed to read workspace file: ${res.statusText}`);
       const data = await res.json();
       const raw = data?.data ?? data;
-      return normalizeWorkspaceFiles({ [path]: raw })[path];
+      return toWorkspaceFile(raw);
     },
-    [fetchWithAuth, threadId]
+    [fetchWithAuth, agentId]
   );
   const writeFile = useCallback5(
     async (path, content) => {
-      if (!threadId) throw new Error("useWorkspaceFiles: no threadId set");
+      if (!agentId) throw new Error("useWorkspaceFiles: no agentId set");
       setIsSaving(true);
       setError(null);
       try {
-        const res = await fetchWithAuth(`/threads/${threadId}/file`, {
+        const res = await fetchWithAuth("/memory/file", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path, content })
+          body: JSON.stringify({ path, content, scope: "workspace", agentId })
         });
         if (!res.ok) throw new Error(`Failed to write workspace file: ${res.statusText}`);
         const data = await res.json();
         const raw = data?.data ?? data;
-        const file = normalizeWorkspaceFiles({ [path]: raw })[path];
+        const file = toWorkspaceFile(raw);
         setFiles((prev) => ({ ...prev, [path]: file }));
         return file;
       } catch (err) {
@@ -1954,15 +1969,13 @@ function useWorkspaceFiles(threadId, autoFetch = true) {
         setIsSaving(false);
       }
     },
-    [fetchWithAuth, threadId]
+    [fetchWithAuth, agentId]
   );
   const deleteFile = useCallback5(
     async (path) => {
-      if (!threadId) throw new Error("useWorkspaceFiles: no threadId set");
-      const res = await fetchWithAuth(
-        `/threads/${threadId}/file?path=${encodeURIComponent(path)}`,
-        { method: "DELETE" }
-      );
+      if (!agentId) throw new Error("useWorkspaceFiles: no agentId set");
+      const query = new URLSearchParams({ path, scope: "workspace", agentId });
+      const res = await fetchWithAuth(`/memory/file?${query.toString()}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete workspace file: ${res.statusText}`);
       setFiles((prev) => {
         const next = { ...prev };
@@ -1970,15 +1983,15 @@ function useWorkspaceFiles(threadId, autoFetch = true) {
         return next;
       });
     },
-    [fetchWithAuth, threadId]
+    [fetchWithAuth, agentId]
   );
   useEffect5(() => {
-    if (autoFetch && threadId) {
+    if (autoFetch && agentId) {
       void fetchFiles();
-    } else if (!threadId) {
+    } else if (!agentId) {
       setFiles({});
     }
-  }, [autoFetch, threadId, fetchFiles]);
+  }, [autoFetch, agentId, fetchFiles]);
   return {
     files,
     isLoading,

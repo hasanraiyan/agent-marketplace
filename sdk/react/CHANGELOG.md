@@ -3,6 +3,23 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.16.0
+
+**Breaking:** `useWorkspaceFiles` is now `useWorkspaceFiles(agentId, autoFetch)`, not
+`useWorkspaceFiles(threadId, autoFetch)`. The Thread-scoped LangGraph-checkpoint data source it read
+from in 0.15.0 turned out to be the wrong one — deepagents routes any `/workspace/...` path (which
+every agent's own instructions require all real output to use) through a separate, persistent,
+Mongo-backed store keyed by Agent + Subject, never through a Thread's checkpoint state, so the
+0.15.0 hook always returned empty for real files and its writes failed server-side. It's now a thin
+wrapper over `client.memory` (`scope: "workspace"`) — the CORRECT, already-existing store — via
+`useMemory`'s same underlying `/memory` routes. Files are Agent-scoped: shared across every Thread
+that Subject has with that Agent, not private to one conversation (same model the platform's own
+Files panel already uses). Requires `@personaai/runtime ^0.14.0`.
+
+- `useMemory`'s `getFile`/`writeFile`/`deleteFile` scope params, and `PersonaMemoryFile`/
+  `PersonaMemoryList`, now accept/return `scope: "workspace"` — `PersonaMemoryList` gains
+  `agentWorkspaces: PersonaMemoryAgentGroup[]`.
+
 ## 0.15.0
 
 - **New: `useWorkspaceFiles(threadId)`.** CRUD over one Thread's workspace files (the agent's own

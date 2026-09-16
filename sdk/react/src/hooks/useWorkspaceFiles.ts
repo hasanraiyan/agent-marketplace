@@ -2,23 +2,36 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { usePersonaContext } from "../context/PersonaContext.js";
-import type { PersonaWorkspaceFile } from "../types.js";
-import { normalizeWorkspaceFiles } from "./streamEventHelpers.js";
+import type { PersonaMemoryFile, PersonaWorkspaceFile } from "../types.js";
 
 export type { PersonaWorkspaceFile };
 
+function toWorkspaceFile(file: PersonaMemoryFile): PersonaWorkspaceFile {
+  return {
+    content: file.content,
+    size: file.content.length,
+    createdAt: file.createdAt ?? null,
+    modifiedAt: file.updatedAt ?? null,
+  };
+}
+
 /**
- * CRUD over one Thread's workspace files (the agent's own virtual
- * filesystem) — `useChat()` already exposes a read-only `files` snapshot
- * tied to that thread's live/loaded messages; this hook is for a
- * standalone file-explorer UI that needs to list, read, write, and delete
- * files independently of an active chat session.
+ * CRUD over one Agent's `/workspace/` files — the SAME persistent store a
+ * `write_file`/`read_file` tool call under `/workspace/...` actually reads
+ * and writes (deepagents routes that path prefix to a Mongo-backed memory
+ * store, NOT the LangGraph checkpoint's `files` state channel — a Thread's
+ * live/checkpointed state is a different, much narrower thing that rarely
+ * has anything in it, since agents are instructed to write all real output
+ * under `/workspace/outputs/`). Scoped by Agent + Subject: shared across
+ * every Thread that Subject has with that Agent, not private to one
+ * conversation — the same model the platform's own Files panel uses.
  *
- * KNOWN LIMITATION (inherited from the backend): no lock exists against a
- * concurrent live run on the same Thread — writing here while the agent is
- * actively mid-run could race with its own file writes.
+ * Thin wrapper over `client.memory` (`scope: "workspace"`) — no parallel
+ * type vocabulary, `PersonaWorkspaceFile` here is just `PersonaMemoryFile`
+ * reshaped to the `{content, size, createdAt, modifiedAt}` display shape
+ * `useChat()`'s own (read-only, live-run) `files` snapshot already uses.
  */
-export function useWorkspaceFiles(threadId: string | undefined, autoFetch = true) {
+export function useWorkspaceFiles(agentId: string | undefined, autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
   const [files, setFiles] = useState<Record<string, PersonaWorkspaceFile>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -26,14 +39,21 @@ export function useWorkspaceFiles(threadId: string | undefined, autoFetch = true
   const [error, setError] = useState<Error | null>(null);
 
   const fetchFiles = useCallback(async () => {
-    if (!threadId) return {};
+    if (!agentId) return {};
     setIsLoading(true);
     setError(null);
     try {
-      const res = await fetchWithAuth(`/threads/${threadId}/files`);
+      const res = await fetchWithAuth("/memory");
       if (!res.ok) throw new Error(`Failed to list workspace files: ${res.statusText}`);
       const data = await res.json();
-      const normalized = normalizeWorkspaceFiles(data?.data ?? data ?? {});
+      const body = data?.data ?? data;
+      const group = (body?.agentWorkspaces ?? []).find(
+        (g: { agentId: string }) => g.agentId === agentId,
+      );
+      const normalized: Record<string, PersonaWorkspaceFile> = {};
+      for (const file of group?.files ?? []) {
+        normalized[file.path] = toWorkspaceFile(file);
+      }
       setFiles(normalized);
       return normalized;
     } catch (err) {
@@ -43,37 +63,36 @@ export function useWorkspaceFiles(threadId: string | undefined, autoFetch = true
     } finally {
       setIsLoading(false);
     }
-  }, [fetchWithAuth, threadId]);
+  }, [fetchWithAuth, agentId]);
 
   const getFile = useCallback(
     async (path: string) => {
-      if (!threadId) throw new Error("useWorkspaceFiles: no threadId set");
-      const res = await fetchWithAuth(
-        `/threads/${threadId}/file?path=${encodeURIComponent(path)}`,
-      );
+      if (!agentId) throw new Error("useWorkspaceFiles: no agentId set");
+      const query = new URLSearchParams({ path, scope: "workspace", agentId });
+      const res = await fetchWithAuth(`/memory/file?${query.toString()}`);
       if (!res.ok) throw new Error(`Failed to read workspace file: ${res.statusText}`);
       const data = await res.json();
-      const raw = data?.data ?? data;
-      return normalizeWorkspaceFiles({ [path]: raw })[path];
+      const raw = (data?.data ?? data) as PersonaMemoryFile;
+      return toWorkspaceFile(raw);
     },
-    [fetchWithAuth, threadId],
+    [fetchWithAuth, agentId],
   );
 
   const writeFile = useCallback(
     async (path: string, content: string) => {
-      if (!threadId) throw new Error("useWorkspaceFiles: no threadId set");
+      if (!agentId) throw new Error("useWorkspaceFiles: no agentId set");
       setIsSaving(true);
       setError(null);
       try {
-        const res = await fetchWithAuth(`/threads/${threadId}/file`, {
+        const res = await fetchWithAuth("/memory/file", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ path, content }),
+          body: JSON.stringify({ path, content, scope: "workspace", agentId }),
         });
         if (!res.ok) throw new Error(`Failed to write workspace file: ${res.statusText}`);
         const data = await res.json();
-        const raw = data?.data ?? data;
-        const file = normalizeWorkspaceFiles({ [path]: raw })[path];
+        const raw = (data?.data ?? data) as PersonaMemoryFile;
+        const file = toWorkspaceFile(raw);
         setFiles((prev) => ({ ...prev, [path]: file }));
         return file;
       } catch (err) {
@@ -84,16 +103,14 @@ export function useWorkspaceFiles(threadId: string | undefined, autoFetch = true
         setIsSaving(false);
       }
     },
-    [fetchWithAuth, threadId],
+    [fetchWithAuth, agentId],
   );
 
   const deleteFile = useCallback(
     async (path: string) => {
-      if (!threadId) throw new Error("useWorkspaceFiles: no threadId set");
-      const res = await fetchWithAuth(
-        `/threads/${threadId}/file?path=${encodeURIComponent(path)}`,
-        { method: "DELETE" },
-      );
+      if (!agentId) throw new Error("useWorkspaceFiles: no agentId set");
+      const query = new URLSearchParams({ path, scope: "workspace", agentId });
+      const res = await fetchWithAuth(`/memory/file?${query.toString()}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete workspace file: ${res.statusText}`);
       setFiles((prev) => {
         const next = { ...prev };
@@ -101,16 +118,16 @@ export function useWorkspaceFiles(threadId: string | undefined, autoFetch = true
         return next;
       });
     },
-    [fetchWithAuth, threadId],
+    [fetchWithAuth, agentId],
   );
 
   useEffect(() => {
-    if (autoFetch && threadId) {
+    if (autoFetch && agentId) {
       void fetchFiles();
-    } else if (!threadId) {
+    } else if (!agentId) {
       setFiles({});
     }
-  }, [autoFetch, threadId, fetchFiles]);
+  }, [autoFetch, agentId, fetchFiles]);
 
   return {
     files,
