@@ -94,8 +94,8 @@ if (result.interrupt) {
 | `.restTools` | `/api/v1/developer/rest-tools` (plain CRUD — see [Defining REST tools in code](#defining-rest-tools-in-code) for the code-first path) |
 | `.workflows` | `/api/v1/developer/workflows` (CRUD, drafts, versions, Mermaid export, AG-UI streaming) |
 | `.providers` | `/api/v1/developer/providers` |
-| `.threads` | `/api/v1/developer/threads` |
-| `.memory` | `/api/v1/developer/memory` |
+| `.threads` | `/api/v1/developer/threads` (a Thread's populated `agentId` carries `sandboxEnabled` — the Agent-scoped [Sandbox Terminal](#a-threads-agent-and-sandboxenabled) info) |
+| `.memory` | `/api/v1/developer/memory` — `scope: "user"` (shared across every Agent), `"agent"`, or `"workspace"` (an Agent's own `/workspace/` files — the same persistent store its `write_file`/`read_file` tool calls use, see [Memory scopes, incl. an Agent's `/workspace/`](#memory-scopes-incl-an-agents-workspace)) |
 | `.stores` | `/api/v1/developer/stores` |
 | `.files` | `/api/v1/developer/files` |
 | `.chat` | `/api/v1/developer/agui` (streaming) |
@@ -125,6 +125,50 @@ const result = await persona.workflows.run(workflowId, {
 });
 console.log('Workflow status:', result.status);
 console.log('Output:', result.output);
+```
+
+### Memory scopes, incl. an Agent's `/workspace/`
+
+```ts
+// Shared across every Agent this Subject talks to.
+await userClient.memory.writeFile({ path: '/preferences.md', content: 'Prefers concise answers.', scope: 'user' });
+
+// Scoped to one Agent, still shared across every Thread this Subject has with it.
+await userClient.memory.writeFile({
+  path: '/learnings.md',
+  content: 'This user is a beginner in LangChain.',
+  scope: 'agent',
+  agentId: agent._id,
+});
+
+// An Agent's own /workspace/ files — the SAME persistent store its own `write_file`/`read_file`
+// tool calls read and write (NOT a Thread's live/checkpointed state, a different, much narrower
+// thing). Shared across every Thread this Subject has with that Agent, not private to one
+// conversation.
+const report = await userClient.memory.getFile({
+  path: '/outputs/report.md',
+  scope: 'workspace',
+  agentId: agent._id,
+});
+
+// One call lists everything: userFiles, agentMemories (scope: "agent"), and agentWorkspaces
+// (scope: "workspace") — each of the latter two grouped one entry per Agent.
+const memory = await userClient.memory.list();
+```
+
+`scope: "agent"` and `"workspace"` both require `agentId`; `"user"` (the default) doesn't take one.
+
+### A Thread's Agent and `sandboxEnabled`
+
+```ts
+const thread = await userClient.threads.get(threadId);
+// thread.agentId is populated as { _id, name, avatar, slug, sandboxEnabled } here (and on
+// threads.list()) — a bare id string only on threads.create().
+if (typeof thread.agentId !== 'string' && thread.agentId.sandboxEnabled) {
+  // This Agent runs in a real, isolated sandbox VM — its `execute` tool calls (surfaced in
+  // chat.stream()'s TOOL_CALL_CHUNK/TOOL_CALL_RESULT events) are real shell commands, not
+  // simulated. Safe to build a terminal-style replay UI over them.
+}
 ```
 
 Every method mirrors the real REST endpoint 1:1 — no hidden behavior. Full types are exported from

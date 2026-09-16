@@ -3,6 +3,12 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.13.1
+
+- **Docs only.** README now documents `memory.*`'s `scope: "workspace"` and `Thread.agentId`'s
+  `sandboxEnabled` (both shipped in 0.13.0, not previously covered in the README) with short
+  examples, matching the style of the existing Workflows deep-dive.
+
 ## 0.13.0
 
 - **`Thread.agentId`'s populated shape gains `sandboxEnabled: boolean`.** `threads.get()`/`list()`
