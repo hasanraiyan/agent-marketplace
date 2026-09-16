@@ -52,10 +52,10 @@ class DeveloperMemoryController {
           message: 'path and content are required',
         });
       }
-      if (scope === 'agent' && !agentId) {
+      if ((scope === 'agent' || scope === 'workspace') && !agentId) {
         return res.status(400).json({
           success: false,
-          message: 'agentId is required when scope is "agent"',
+          message: `agentId is required when scope is "${scope}"`,
         });
       }
       const file = await memoryService.writeMemoryFile(identityKey, {

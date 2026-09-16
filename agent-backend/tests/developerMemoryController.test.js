@@ -127,6 +127,35 @@ describe('Developer Memory Controller (REQ-3)', () => {
       expect(mockRes.status).toHaveBeenCalledWith(400);
     });
 
+    test('400s when scope is "workspace" with no agentId', async () => {
+      mockReq.body = { path: '/outputs/report.md', content: 'hi', scope: 'workspace' };
+
+      await developerMemoryController.writeFile(mockReq, mockRes, next);
+
+      expect(memoryService.writeMemoryFile).not.toHaveBeenCalled();
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+    });
+
+    test('writes scope "workspace" via the composed identityKey', async () => {
+      mockReq.body = { path: '/outputs/report.md', content: 'hi', scope: 'workspace', agentId: 'a1' };
+      memoryService.writeMemoryFile.mockResolvedValue({
+        scope: 'workspace',
+        agentId: 'a1',
+        path: '/outputs/report.md',
+        content: 'hi',
+      });
+
+      await developerMemoryController.writeFile(mockReq, mockRes, next);
+
+      expect(memoryService.writeMemoryFile).toHaveBeenCalledWith(expectedIdentityKey, {
+        scope: 'workspace',
+        agentId: 'a1',
+        path: '/outputs/report.md',
+        content: 'hi',
+      });
+      expect(mockRes.status).toHaveBeenCalledWith(201);
+    });
+
     test('writes via the composed identityKey', async () => {
       mockReq.body = { path: '/memories/user/index.md', content: 'hi' };
       memoryService.writeMemoryFile.mockResolvedValue({

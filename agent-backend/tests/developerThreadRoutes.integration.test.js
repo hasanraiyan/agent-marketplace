@@ -27,10 +27,6 @@ jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => (
   default: {
     getMessages: jest.fn(),
     cleanupThreads: jest.fn(),
-    listWorkspaceFiles: jest.fn(),
-    getWorkspaceFile: jest.fn(),
-    writeWorkspaceFile: jest.fn(),
-    deleteWorkspaceFile: jest.fn(),
   },
 }));
 jest.unstable_mockModule('../src/modules/threads/thread.service.js', () => ({
@@ -263,108 +259,5 @@ describe('developerThread.routes.js — mount integration', () => {
 
     expect(res.status).toBe(400);
     expect(threadService.deleteThread).not.toHaveBeenCalled();
-  });
-
-  test('GET /:threadId/files reaches the controller and returns the files map', async () => {
-    checkpointService.listWorkspaceFiles.mockResolvedValue({ '/notes.md': { content: 'hi' } });
-
-    const res = await request(app)
-      .get('/api/v1/developer/threads/t1/files')
-      .set('Authorization', 'Bearer pk_test.secret')
-      .set('x-persona-external-user-id', 'sabik');
-
-    expect(res.status).toBe(200);
-    expect(res.body).toEqual({ success: true, data: { '/notes.md': { content: 'hi' } } });
-    expect(checkpointService.listWorkspaceFiles).toHaveBeenCalledWith(
-      't1',
-      undefined,
-      expect.any(Object)
-    );
-  });
-
-  test('GET /:threadId/file 400s without a path query param, never reaching the service', async () => {
-    const res = await request(app)
-      .get('/api/v1/developer/threads/t1/file')
-      .set('Authorization', 'Bearer pk_test.secret')
-      .set('x-persona-external-user-id', 'sabik');
-
-    expect(res.status).toBe(400);
-    expect(checkpointService.getWorkspaceFile).not.toHaveBeenCalled();
-  });
-
-  test('GET /:threadId/file returns the file for a valid path', async () => {
-    checkpointService.getWorkspaceFile.mockResolvedValue({ content: 'hi' });
-
-    const res = await request(app)
-      .get('/api/v1/developer/threads/t1/file')
-      .query({ path: '/notes.md' })
-      .set('Authorization', 'Bearer pk_test.secret')
-      .set('x-persona-external-user-id', 'sabik');
-
-    expect(res.status).toBe(200);
-    expect(checkpointService.getWorkspaceFile).toHaveBeenCalledWith(
-      't1',
-      '/notes.md',
-      undefined,
-      expect.any(Object)
-    );
-  });
-
-  test('PUT /:threadId/file 400s without both path and content', async () => {
-    const res = await request(app)
-      .put('/api/v1/developer/threads/t1/file')
-      .set('Authorization', 'Bearer pk_test.secret')
-      .set('x-persona-external-user-id', 'sabik')
-      .send({ path: '/notes.md' });
-
-    expect(res.status).toBe(400);
-    expect(checkpointService.writeWorkspaceFile).not.toHaveBeenCalled();
-  });
-
-  test('PUT /:threadId/file writes the file via the service', async () => {
-    checkpointService.writeWorkspaceFile.mockResolvedValue({ content: 'hello' });
-
-    const res = await request(app)
-      .put('/api/v1/developer/threads/t1/file')
-      .set('Authorization', 'Bearer pk_test.secret')
-      .set('x-persona-external-user-id', 'sabik')
-      .send({ path: '/notes.md', content: 'hello' });
-
-    expect(res.status).toBe(200);
-    expect(checkpointService.writeWorkspaceFile).toHaveBeenCalledWith(
-      't1',
-      '/notes.md',
-      'hello',
-      undefined,
-      expect.any(Object)
-    );
-  });
-
-  test('DELETE /:threadId/file 400s without a path query param', async () => {
-    const res = await request(app)
-      .delete('/api/v1/developer/threads/t1/file')
-      .set('Authorization', 'Bearer pk_test.secret')
-      .set('x-persona-external-user-id', 'sabik');
-
-    expect(res.status).toBe(400);
-    expect(checkpointService.deleteWorkspaceFile).not.toHaveBeenCalled();
-  });
-
-  test('DELETE /:threadId/file deletes the file via the service', async () => {
-    checkpointService.deleteWorkspaceFile.mockResolvedValue();
-
-    const res = await request(app)
-      .delete('/api/v1/developer/threads/t1/file')
-      .query({ path: '/notes.md' })
-      .set('Authorization', 'Bearer pk_test.secret')
-      .set('x-persona-external-user-id', 'sabik');
-
-    expect(res.status).toBe(200);
-    expect(checkpointService.deleteWorkspaceFile).toHaveBeenCalledWith(
-      't1',
-      '/notes.md',
-      undefined,
-      expect.any(Object)
-    );
   });
 });

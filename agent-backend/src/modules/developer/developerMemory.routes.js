@@ -46,8 +46,14 @@ router.use((req, res, next) => {
  *       200:
  *         description: >
  *           `{ userFiles: MemoryFile[], agentMemories: { agentId, agentName,
- *           files: MemoryFile[] }[] }` — user-global files plus one group
- *           per agent that has agent-scoped memory.
+ *           files: MemoryFile[] }[], agentWorkspaces: { agentId, agentName,
+ *           files: MemoryFile[] }[] }` — user-global files, one group per
+ *           agent that has agent-scoped memory, and one group per agent
+ *           whose `/workspace/` filesystem route (`scope: "workspace"`) has
+ *           files — the SAME persistent store a `write_file`/`read_file`
+ *           tool call under `/workspace/...` actually reads and writes
+ *           (NOT a Thread's own LangGraph checkpoint state, which is a
+ *           different, much narrower thing).
  */
 router.get('/', developerMemoryController.list);
 
@@ -74,8 +80,13 @@ router.get('/', developerMemoryController.list);
  *         required: false
  *         schema:
  *           type: string
- *           enum: [user, agent]
- *         description: Defaults to "user". "agent" requires agentId (header x-agent-id or query param).
+ *           enum: [user, agent, workspace]
+ *         description: >
+ *           Defaults to "user". "agent" and "workspace" both require
+ *           agentId (header x-agent-id or query param) — "workspace" reads
+ *           the Agent's own `/workspace/` files, the same persistent store
+ *           its `write_file`/`read_file` tool calls under `/workspace/...`
+ *           use.
  *       - name: agentId
  *         in: query
  *         required: false
@@ -104,8 +115,8 @@ router.get('/', developerMemoryController.list);
  *             type: object
  *             required: [path, content]
  *             properties:
- *               scope: { type: string, enum: [user, agent], description: Defaults to "user". }
- *               agentId: { type: string, description: Required when scope is "agent". }
+ *               scope: { type: string, enum: [user, agent, workspace], description: Defaults to "user". }
+ *               agentId: { type: string, description: Required when scope is "agent" or "workspace". }
  *               path: { type: string }
  *               content: { type: string }
  *     responses:
@@ -131,7 +142,7 @@ router.get('/', developerMemoryController.list);
  *         required: false
  *         schema:
  *           type: string
- *           enum: [user, agent]
+ *           enum: [user, agent, workspace]
  *       - name: agentId
  *         in: query
  *         required: false

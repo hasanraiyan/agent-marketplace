@@ -10,33 +10,8 @@ import { personaExecutionContext, isThreadSubject } from './thread.service.js';
 // existing instance of this same pattern.
 import agentFactory from '../agents/agent.factory.js';
 import { describeInterrupt, buildFilesTodosSnapshot } from '../agui/aguiTranslator.js';
-import NotFoundError from '../../utils/errors/NotFoundError.js';
-import ValidationError from '../../utils/errors/ValidationError.js';
 
 const logger = loggerService.getLogger();
-
-const EXTENSION_MIME_MAP = {
-  js: 'application/javascript',
-  mjs: 'application/javascript',
-  cjs: 'application/javascript',
-  jsx: 'application/javascript',
-  ts: 'application/javascript',
-  tsx: 'application/javascript',
-  json: 'application/json',
-  md: 'text/markdown',
-  markdown: 'text/markdown',
-  html: 'text/html',
-  css: 'text/css',
-  csv: 'text/csv',
-  svg: 'image/svg+xml',
-  yml: 'text/plain',
-  yaml: 'text/plain',
-};
-
-function mimeTypeForPath(path) {
-  const ext = path.split('.').pop()?.toLowerCase();
-  return EXTENSION_MIME_MAP[ext] || 'text/plain';
-}
 
 function extractContentText(content) {
   if (typeof content === 'string') return content;
@@ -215,11 +190,6 @@ class CheckpointService {
     const subagentTraces = thread.subagentTraces || {};
 
     let pendingInterrupt;
-    // The compiled graph's own state.values, when available — correctly
-    // merges subgraph-scoped channels (e.g. a delegated subagent's
-    // write_file calls) that the raw checkpoint tuple below does not
-    // include; preferred as the files/todos source once fetched.
-    let graphStateValues;
     if (thread.agentId) {
       try {
         const { agentInstance } = await agentFactory.buildAgent(
@@ -231,7 +201,6 @@ class CheckpointService {
         const state = await agentInstance.getState({
           configurable: { thread_id: thread.threadId },
         });
-        graphStateValues = state?.values;
         const interrupts = (state?.tasks || []).flatMap((t) => t.interrupts || []);
         if (interrupts.length > 0) {
           const info = describeInterrupt(interrupts);
@@ -257,20 +226,20 @@ class CheckpointService {
     }
 
     if (!snapshot || !snapshot.checkpoint || !snapshot.checkpoint.channel_values) {
-      const cleanedFilesTodos = buildFilesTodosSnapshot(graphStateValues ?? {});
-      return { messages: [], state: cleanedFilesTodos, subagentTraces, pendingInterrupt };
+      return { messages: [], state: {}, subagentTraces, pendingInterrupt };
     }
 
     const { messages = [], ...state } = snapshot.checkpoint.channel_values;
-    // Reshape the raw deepagents virtual filesystem (files as v1 line-array
-    // or v2 string+mimeType FileData, unfiltered /skills/ entries, directory
-    // markers) into the same clean { files, todos } shape the live
-    // STATE_SNAPSHOT event carries — otherwise a reloaded thread's workspace
-    // files look nothing like the ones a live stream produces for the same
-    // agent. Sourced from `graphStateValues` (the compiled graph's own
-    // state) when available, since the raw channel_values above don't
-    // include subgraph-scoped channels a delegated subagent wrote to.
-    const cleanedFilesTodos = buildFilesTodosSnapshot(graphStateValues ?? state);
+    // Reshape the raw deepagents virtual filesystem (files as arrays of
+    // lines, unfiltered /skills/ entries, directory markers) into the same
+    // clean { files, todos } shape the live STATE_SNAPSHOT event carries.
+    // NOTE: this graph-state `files` channel is a DIFFERENT, much narrower
+    // thing than an Agent's `/workspace/` files — deepagents routes
+    // `/workspace/...` writes to a separate, persistent, Agent-scoped
+    // Mongo-backed store (see memory.service.js's `scope: 'workspace'`,
+    // exposed over REST as `client.memory.*`), never through this channel
+    // at all. This one only ever holds files written outside that prefix.
+    const cleanedFilesTodos = buildFilesTodosSnapshot(state);
     return {
       messages: normalizeMessages(messages),
       state: { ...state, ...cleanedFilesTodos },
@@ -279,129 +248,6 @@ class CheckpointService {
     };
   }
 
-  /**
-   * A thread's workspace files are already embedded in `getMessages()`'s
-   * `state.files` (SDK consumers get this via a normal history reload) —
-   * this is a lighter, dedicated read for a caller that only wants the
-   * files, not the whole message history.
-   *
-   * Reads via `agentInstance.getState()` (same as `writeWorkspaceFile`),
-   * NOT the raw checkpoint tuple `getMessages` uses for messages — a file
-   * written by a delegated subagent (the `task` tool's own nested graph)
-   * lands in a subgraph-scoped checkpoint that the parent's raw tuple
-   * alone does not include; only the compiled graph's own state read
-   * correctly merges it in.
-   */
-  async listWorkspaceFiles(threadId, userId, context = personaExecutionContext(userId)) {
-    const thread = await threadRepository.findById(threadId);
-    if (!thread) throw new NotFoundError('Thread not found');
-    if (!isThreadSubject(thread, context)) throw new NotFoundError('Thread not found');
-    if (!thread.agentId) return {};
-
-    const { agentInstance } = await agentFactory.buildAgent(
-      thread.agentId,
-      userId,
-      this.checkpointer,
-      context
-    );
-    const state = await agentInstance.getState({
-      configurable: { thread_id: thread.threadId },
-    });
-    return buildFilesTodosSnapshot(state?.values ?? {}).files;
-  }
-
-  async getWorkspaceFile(threadId, path, userId, context = personaExecutionContext(userId)) {
-    const files = await this.listWorkspaceFiles(threadId, userId, context);
-    const file = files[path];
-    if (!file) throw new NotFoundError('Workspace file not found');
-    return file;
-  }
-
-  /**
-   * Creates or overwrites one workspace file directly, outside of the
-   * agent's own `write_file` tool call — the same sanctioned
-   * getState/updateState pattern `voiceThread.service.js#appendTurns`
-   * already uses for the `messages` channel, applied to `files` instead.
-   * Read-modify-write of the FULL files object (never a partial delta,
-   * same reasoning as the messages case: `updateState` SETs the channel,
-   * it doesn't merge).
-   *
-   * KNOWN LIMITATION: no lock/guard exists anywhere in this codebase today
-   * against a concurrent live run on the same thread — a write here while
-   * the agent is actively mid-run could be silently overwritten by (or
-   * silently overwrite) that run's own file writes. Rare in practice
-   * (a human editing files while the agent they're chatting with is
-   * actively streaming a turn on that same thread), but real; there is no
-   * server-side "thread is busy" check to reject against yet.
-   */
-  async writeWorkspaceFile(threadId, path, content, userId, context = personaExecutionContext(userId)) {
-    if (typeof path !== 'string' || !path.trim()) throw new ValidationError('A file path is required');
-    if (path.startsWith('/skills/')) {
-      throw new ValidationError('Cannot write to a system-seeded skill file');
-    }
-    const thread = await threadRepository.findById(threadId);
-    if (!thread) throw new NotFoundError('Thread not found');
-    if (!isThreadSubject(thread, context)) throw new NotFoundError('Thread not found');
-    if (!thread.agentId) throw new ValidationError('This thread has no Agent to run its workspace');
-
-    const { agentInstance } = await agentFactory.buildAgent(
-      thread.agentId,
-      userId,
-      this.checkpointer,
-      context
-    );
-    const state = await agentInstance.getState({
-      configurable: { thread_id: thread.threadId },
-    });
-    const rawFiles = { ...(state?.values?.files || {}) };
-    const existing = rawFiles[path];
-    const now = new Date().toISOString();
-    // deepagents' FileData is a v2 object — `{ content: string, mimeType,
-    // created_at, modified_at }` (v1's `content: string[]` line array is
-    // only for legacy checkpoints) — writing a bare string here fails the
-    // graph's own state-channel validation on updateState.
-    rawFiles[path] = {
-      content: String(content ?? ''),
-      mimeType: existing?.mimeType || mimeTypeForPath(path),
-      created_at: existing?.created_at ?? existing?.createdAt ?? now,
-      modified_at: now,
-    };
-
-    await agentInstance.updateState(
-      { configurable: { thread_id: thread.threadId } },
-      { files: rawFiles }
-    );
-    logger.info('[CheckpointService] wrote workspace file', { threadId, path });
-
-    return buildFilesTodosSnapshot({ files: rawFiles }).files[path];
-  }
-
-  /** Same read-modify-write pattern and concurrency caveat as `writeWorkspaceFile`. */
-  async deleteWorkspaceFile(threadId, path, userId, context = personaExecutionContext(userId)) {
-    const thread = await threadRepository.findById(threadId);
-    if (!thread) throw new NotFoundError('Thread not found');
-    if (!isThreadSubject(thread, context)) throw new NotFoundError('Thread not found');
-    if (!thread.agentId) throw new ValidationError('This thread has no Agent to run its workspace');
-
-    const { agentInstance } = await agentFactory.buildAgent(
-      thread.agentId,
-      userId,
-      this.checkpointer,
-      context
-    );
-    const state = await agentInstance.getState({
-      configurable: { thread_id: thread.threadId },
-    });
-    const rawFiles = { ...(state?.values?.files || {}) };
-    if (!(path in rawFiles)) throw new NotFoundError('Workspace file not found');
-    delete rawFiles[path];
-
-    await agentInstance.updateState(
-      { configurable: { thread_id: thread.threadId } },
-      { files: rawFiles }
-    );
-    logger.info('[CheckpointService] deleted workspace file', { threadId, path });
-  }
 }
 
 export default new CheckpointService();

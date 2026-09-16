@@ -12,10 +12,6 @@ jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => (
   default: {
     getMessages: jest.fn(),
     cleanupThreads: jest.fn(),
-    listWorkspaceFiles: jest.fn(),
-    getWorkspaceFile: jest.fn(),
-    writeWorkspaceFile: jest.fn(),
-    deleteWorkspaceFile: jest.fn(),
   },
 }));
 
@@ -311,91 +307,6 @@ describe('Developer Thread Controller', () => {
       await developerThreadController.getMessages(mockReq, mockRes, next);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
-    });
-  });
-
-  describe('listWorkspaceFiles', () => {
-    test('returns files via checkpointService.listWorkspaceFiles, forwarding req.projectContext', async () => {
-      mockReq.params = { threadId: 't1' };
-      checkpointService.listWorkspaceFiles.mockResolvedValue({ '/a.md': { content: 'x' } });
-
-      await developerThreadController.listWorkspaceFiles(mockReq, mockRes, next);
-
-      expect(checkpointService.listWorkspaceFiles).toHaveBeenCalledWith('t1', undefined, runtimeContext);
-      expect(mockRes.json).toHaveBeenCalledWith({ success: true, data: { '/a.md': { content: 'x' } } });
-    });
-  });
-
-  describe('getWorkspaceFile', () => {
-    test('400s without a path query param, without calling the service', async () => {
-      mockReq.params = { threadId: 't1' };
-      mockReq.query = {};
-
-      await developerThreadController.getWorkspaceFile(mockReq, mockRes, next);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(checkpointService.getWorkspaceFile).not.toHaveBeenCalled();
-    });
-
-    test('returns the file via checkpointService.getWorkspaceFile', async () => {
-      mockReq.params = { threadId: 't1' };
-      mockReq.query = { path: '/a.md' };
-      checkpointService.getWorkspaceFile.mockResolvedValue({ content: 'x' });
-
-      await developerThreadController.getWorkspaceFile(mockReq, mockRes, next);
-
-      expect(checkpointService.getWorkspaceFile).toHaveBeenCalledWith('t1', '/a.md', undefined, runtimeContext);
-    });
-  });
-
-  describe('writeWorkspaceFile', () => {
-    test('400s without both path and content, without calling the service', async () => {
-      mockReq.params = { threadId: 't1' };
-      mockReq.body = { path: '/a.md' };
-
-      await developerThreadController.writeWorkspaceFile(mockReq, mockRes, next);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(checkpointService.writeWorkspaceFile).not.toHaveBeenCalled();
-    });
-
-    test('writes via checkpointService.writeWorkspaceFile', async () => {
-      mockReq.params = { threadId: 't1' };
-      mockReq.body = { path: '/a.md', content: 'hello' };
-      checkpointService.writeWorkspaceFile.mockResolvedValue({ content: 'hello' });
-
-      await developerThreadController.writeWorkspaceFile(mockReq, mockRes, next);
-
-      expect(checkpointService.writeWorkspaceFile).toHaveBeenCalledWith(
-        't1',
-        '/a.md',
-        'hello',
-        undefined,
-        runtimeContext,
-      );
-    });
-  });
-
-  describe('deleteWorkspaceFile', () => {
-    test('400s without a path query param, without calling the service', async () => {
-      mockReq.params = { threadId: 't1' };
-      mockReq.query = {};
-
-      await developerThreadController.deleteWorkspaceFile(mockReq, mockRes, next);
-
-      expect(mockRes.status).toHaveBeenCalledWith(400);
-      expect(checkpointService.deleteWorkspaceFile).not.toHaveBeenCalled();
-    });
-
-    test('deletes via checkpointService.deleteWorkspaceFile', async () => {
-      mockReq.params = { threadId: 't1' };
-      mockReq.query = { path: '/a.md' };
-      checkpointService.deleteWorkspaceFile.mockResolvedValue();
-
-      await developerThreadController.deleteWorkspaceFile(mockReq, mockRes, next);
-
-      expect(checkpointService.deleteWorkspaceFile).toHaveBeenCalledWith('t1', '/a.md', undefined, runtimeContext);
-      expect(mockRes.json).toHaveBeenCalledWith({ success: true, message: 'Workspace file deleted successfully' });
     });
   });
 });
