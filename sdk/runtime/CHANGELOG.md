@@ -4,6 +4,19 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.14.0
+
+**Breaking:** removes the Thread workspace-file routes added in 0.13.0 (`GET /threads/:id/files`,
+`GET/PUT/DELETE /threads/:id/file`) — they proxied `@personaai/sdk`'s `ThreadsResource` file methods,
+which read/wrote the wrong data source (a Thread's LangGraph checkpoint state) and are removed in
+`@personaai/sdk@0.12.0`. See that package's changelog for the full explanation.
+
+- **`GET`/`PUT`/`DELETE /memory/file`, `GET /memory` now accept/return `scope: "workspace"`.** The
+  CORRECT way to read/write an Agent's `/workspace/` files — the actual persistent store its own
+  `write_file`/`read_file` tool calls use, scoped by Agent + Subject (shared across every Thread that
+  Subject has with that Agent). `"workspace"` requires `agentId`, same as `"agent"` already did.
+  Requires `@personaai/sdk ^0.12.0`.
+
 ## 0.13.0
 
 - **New: Thread workspace file routes.** `GET /threads/:id/files`, `GET/PUT/DELETE

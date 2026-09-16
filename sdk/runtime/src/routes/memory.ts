@@ -9,15 +9,16 @@ import {
 } from '../routeHelpers.js';
 
 function requireScope(query: Record<string, string | undefined>): {
-  scope: 'user' | 'agent' | undefined;
+  scope: 'user' | 'agent' | 'workspace' | undefined;
   agentId: string | undefined;
 } {
-  const scope = query.scope === 'agent' ? 'agent' : query.scope === 'user' ? 'user' : undefined;
-  if (scope === 'agent' && !query.agentId) {
+  const scope =
+    query.scope === 'agent' ? 'agent' : query.scope === 'workspace' ? 'workspace' : query.scope === 'user' ? 'user' : undefined;
+  if ((scope === 'agent' || scope === 'workspace') && !query.agentId) {
     throw new RuntimeHttpError(
       400,
       'INVALID_REQUEST',
-      '"agentId" is required when scope is "agent".'
+      `"agentId" is required when scope is "${scope}".`
     );
   }
   return { scope, agentId: query.agentId };
@@ -40,13 +41,14 @@ export const writeMemoryFile: RouteHandler = async (request, ctx) => {
   const body = requireBodyObject(request.body);
   const path = requireStringField(body, 'path');
   const content = requireStringField(body, 'content');
-  const scope = body.scope === 'agent' ? 'agent' : body.scope === 'user' ? 'user' : undefined;
+  const scope =
+    body.scope === 'agent' ? 'agent' : body.scope === 'workspace' ? 'workspace' : body.scope === 'user' ? 'user' : undefined;
   const agentId = typeof body.agentId === 'string' ? body.agentId : undefined;
-  if (scope === 'agent' && !agentId) {
+  if ((scope === 'agent' || scope === 'workspace') && !agentId) {
     throw new RuntimeHttpError(
       400,
       'INVALID_REQUEST',
-      '"agentId" is required when scope is "agent".'
+      `"agentId" is required when scope is "${scope}".`
     );
   }
 

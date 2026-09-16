@@ -129,6 +129,98 @@ describe('memory routes', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('GET /memory/file forwards scope=workspace with agentId', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({
+        scope: 'workspace',
+        agentId: 'a1',
+        path: '/outputs/report.md',
+        content: 'hi',
+        mimeType: 'text/markdown',
+      })
+    );
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'GET',
+      path: '/memory/file',
+      headers: {},
+      query: { path: '/outputs/report.md', scope: 'workspace', agentId: 'a1' },
+      body: undefined,
+      userId: null,
+    });
+
+    expect(response.status).toBe(200);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain('scope=workspace');
+    expect(url).toContain('agentId=a1');
+  });
+
+  it('GET /memory/file rejects scope=workspace without agentId', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'GET',
+      path: '/memory/file',
+      headers: {},
+      query: { path: '/outputs/report.md', scope: 'workspace' },
+      body: undefined,
+      userId: null,
+    });
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT /memory/file rejects scope=workspace without agentId', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'PUT',
+      path: '/memory/file',
+      headers: {},
+      query: {},
+      body: { path: '/outputs/report.md', content: 'hi', scope: 'workspace' },
+      userId: null,
+    });
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('PUT /memory/file writes scope=workspace with agentId', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({
+        scope: 'workspace',
+        agentId: 'a1',
+        path: '/outputs/report.md',
+        content: 'hi',
+        mimeType: 'text/markdown',
+      })
+    );
+    const runtime = makeRuntime({ fetchMock });
+
+    const response = await runtime.handle({
+      method: 'PUT',
+      path: '/memory/file',
+      headers: {},
+      query: {},
+      body: { path: '/outputs/report.md', content: 'hi', scope: 'workspace', agentId: 'a1' },
+      userId: null,
+    });
+
+    expect(response.status).toBe(200);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({
+      path: '/outputs/report.md',
+      content: 'hi',
+      scope: 'workspace',
+      agentId: 'a1',
+    });
+  });
+
   it('DELETE /memory/file returns 204', async () => {
     const fetchMock = vi.fn(
       async (_url: string, _init?: RequestInit) => new Response(null, { status: 204 })

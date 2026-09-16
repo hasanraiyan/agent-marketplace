@@ -4,7 +4,6 @@ import {
   json,
   noContent,
   requireParam,
-  requireQueryParam,
   requireBodyObject,
   requireStringField,
   toInt,
@@ -65,37 +64,4 @@ export const getThreadMessages: RouteHandler = async (_request, ctx) => {
 export const resetThread: RouteHandler = async (_request, ctx) => {
   const thread = await ctx.client.threads.reset(requireParam(ctx.params, 'id'));
   return json(200, thread);
-};
-
-/** Lists a Thread's workspace files (the agent's own virtual filesystem). */
-export const listThreadFiles: RouteHandler = async (_request, ctx) => {
-  const files = await ctx.client.threads.listFiles(requireParam(ctx.params, 'id'));
-  return json(200, files);
-};
-
-/** Gets one workspace file's content and metadata. */
-export const getThreadFile: RouteHandler = async (request, ctx) => {
-  const path = requireQueryParam(request.query, 'path');
-  const file = await ctx.client.threads.getFile(requireParam(ctx.params, 'id'), path);
-  return json(200, file);
-};
-
-/**
- * Creates or overwrites one workspace file. KNOWN LIMITATION (inherited from
- * `@personaai/sdk`'s `threads.writeFile()`) — no lock exists against a
- * concurrent live run on the same Thread.
- */
-export const writeThreadFile: RouteHandler = async (request, ctx) => {
-  const body = requireBodyObject(request.body);
-  const path = requireStringField(body, 'path');
-  const content = requireStringField(body, 'content');
-  const file = await ctx.client.threads.writeFile(requireParam(ctx.params, 'id'), path, content);
-  return json(200, file);
-};
-
-/** Deletes one workspace file. */
-export const deleteThreadFile: RouteHandler = async (request, ctx) => {
-  const path = requireQueryParam(request.query, 'path');
-  await ctx.client.threads.deleteFile(requireParam(ctx.params, 'id'), path);
-  return noContent();
 };

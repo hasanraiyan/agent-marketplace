@@ -22,10 +22,6 @@ import {
   bulkDeleteThreads,
   getThreadMessages,
   resetThread,
-  listThreadFiles,
-  getThreadFile,
-  writeThreadFile,
-  deleteThreadFile,
 } from './routes/threads.js';
 import { createVoiceSession } from './routes/voice.js';
 import {
@@ -170,10 +166,6 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
     { method: 'DELETE', pattern: ['threads', ':id'], handler: deleteThread },
     { method: 'GET', pattern: ['threads', ':id', 'messages'], handler: getThreadMessages },
     { method: 'POST', pattern: ['threads', ':id', 'reset'], handler: resetThread },
-    { method: 'GET', pattern: ['threads', ':id', 'files'], handler: listThreadFiles },
-    { method: 'GET', pattern: ['threads', ':id', 'file'], handler: getThreadFile },
-    { method: 'PUT', pattern: ['threads', ':id', 'file'], handler: writeThreadFile },
-    { method: 'DELETE', pattern: ['threads', ':id', 'file'], handler: deleteThreadFile },
 
     // Voice — always on, end-user-scoped real-time voice sessions
     // (powered by Gemini Live). Mints a ticket only; the host's own
