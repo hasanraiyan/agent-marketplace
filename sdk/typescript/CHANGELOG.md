@@ -3,6 +3,23 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.12.0
+
+**Breaking:** removes `ThreadsResource`'s `listFiles()`/`getFile()`/`writeFile()`/`deleteFile()` and
+the `WorkspaceFile`/`WorkspaceFiles` types added in 0.11.0. That surface read/wrote a Thread's raw
+LangGraph checkpoint `files` state channel — which turned out to be the wrong data source entirely.
+deepagents routes any `/workspace/...` path (which every agent's own instructions require all real
+output to use) through a separate, persistent, Mongo-backed store keyed by Agent + Subject, never
+through that checkpoint channel — so the 0.11.0 API always returned empty for real files, and its
+writes 500'd (a bare string doesn't satisfy deepagents' FileData Zod union, which needs `mimeType`).
+
+- **New: `MemoryResource` `scope: "workspace"`.** `client.memory.getFile()`/`writeFile()`/
+  `deleteFile()` now accept `scope: "workspace"` (alongside existing `"user"`/`"agent"`), requiring
+  `agentId` — this is the CORRECT way to read/write an Agent's `/workspace/` files, the actual
+  persistent store its own `write_file`/`read_file` tool calls use. `MemoryListResult` gains
+  `agentWorkspaces: MemoryAgentGroup[]`, mirroring `agentMemories`' shape. Scoped by Agent + Subject:
+  shared across every Thread that Subject has with that Agent, not private to one conversation.
+
 ## 0.11.0
 
 - **New: `ThreadsResource` workspace file CRUD.** `listFiles()`, `getFile()`, `writeFile()`, and

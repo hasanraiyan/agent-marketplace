@@ -22,6 +22,9 @@ describe('MemoryResource', () => {
     const data = {
       userFiles: [{ scope: 'user', path: '/memories/user/index.md', content: '# hi' }],
       agentMemories: [],
+      agentWorkspaces: [
+        { agentId: 'a1', agentName: 'Agent One', files: [{ scope: 'workspace', agentId: 'a1', path: '/outputs/report.md', content: 'x' }] },
+      ],
     };
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
       jsonResponse({ success: true, data })
@@ -85,5 +88,37 @@ describe('MemoryResource', () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.example.com/api/v1/developer/memory/file?path=%2Fx.md');
     expect(init.method).toBe('DELETE');
+  });
+
+  it('getFile()/writeFile() accept scope "workspace" with an agentId', async () => {
+    const file = { scope: 'workspace', agentId: 'a1', path: '/outputs/report.md', content: 'x' };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: file })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const result = await client.memory.getFile({
+      path: '/outputs/report.md',
+      scope: 'workspace',
+      agentId: 'a1',
+    });
+    expect(result).toEqual(file);
+    const [url] = fetchMock.mock.calls[0] as [string];
+    expect(url).toContain('scope=workspace');
+    expect(url).toContain('agentId=a1');
+
+    await client.memory.writeFile({
+      path: '/outputs/report.md',
+      content: 'x',
+      scope: 'workspace',
+      agentId: 'a1',
+    });
+    const [, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({
+      path: '/outputs/report.md',
+      content: 'x',
+      scope: 'workspace',
+      agentId: 'a1',
+    });
   });
 });

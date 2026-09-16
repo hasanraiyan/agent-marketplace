@@ -20,7 +20,9 @@ export class MemoryResource {
 
   /**
    * Lists every memory file for the asserted external user: user-global
-   * files plus one group per Agent that has agent-scoped memory.
+   * files, one group per Agent that has agent-scoped memory, and one group
+   * per Agent whose `/workspace/` filesystem route this Subject has files
+   * in (`agentWorkspaces`).
    */
   async list(): Promise<MemoryListResult> {
     return this.http.request<MemoryListResult>('GET', '/api/v1/developer/memory');
@@ -29,8 +31,8 @@ export class MemoryResource {
   /**
    * Reads one memory file.
    * @param params.path - The file's path, e.g. `/memories/user/index.md`.
-   * @param params.scope - `'user'` (default) or `'agent'`.
-   * @param params.agentId - Required when `scope` is `'agent'`.
+   * @param params.scope - `'user'` (default), `'agent'`, or `'workspace'`.
+   * @param params.agentId - Required when `scope` is `'agent'` or `'workspace'`.
    */
   async getFile(params: GetMemoryFileParams): Promise<MemoryFile> {
     return this.http.request<MemoryFile>('GET', '/api/v1/developer/memory/file', {
@@ -42,8 +44,8 @@ export class MemoryResource {
    * Creates or overwrites one memory file.
    * @param input.path - The file's path, e.g. `/memories/user/preferences.md`.
    * @param input.content - The file's full content (overwrites any existing content).
-   * @param input.scope - `'user'` (default) or `'agent'`.
-   * @param input.agentId - Required when `scope` is `'agent'`.
+   * @param input.scope - `'user'` (default), `'agent'`, or `'workspace'`.
+   * @param input.agentId - Required when `scope` is `'agent'` or `'workspace'`.
    */
   async writeFile(input: WriteMemoryFileInput): Promise<MemoryFile> {
     return this.http.request<MemoryFile>('PUT', '/api/v1/developer/memory/file', {
@@ -54,8 +56,8 @@ export class MemoryResource {
   /**
    * Deletes one memory file.
    * @param params.path - The file's path.
-   * @param params.scope - `'user'` (default) or `'agent'`.
-   * @param params.agentId - Required when `scope` is `'agent'`.
+   * @param params.scope - `'user'` (default), `'agent'`, or `'workspace'`.
+   * @param params.agentId - Required when `scope` is `'agent'` or `'workspace'`.
    */
   async deleteFile(params: DeleteMemoryFileParams): Promise<void> {
     await this.http.request<unknown>('DELETE', '/api/v1/developer/memory/file', {

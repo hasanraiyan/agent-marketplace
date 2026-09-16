@@ -90,8 +90,6 @@ export type {
   UpdateThreadInput,
   ListThreadsParams,
   ThreadMessages,
-  WorkspaceFile,
-  WorkspaceFiles,
 } from './types/thread.js';
 export { MemoryResource } from './resources/memory.js';
 export type {
