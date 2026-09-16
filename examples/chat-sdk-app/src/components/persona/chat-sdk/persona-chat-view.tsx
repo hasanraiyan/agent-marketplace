@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { FolderOpenIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { FolderOpenIcon, PlusIcon, TerminalIcon, TrashIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -14,9 +14,10 @@ import { InterruptPanel } from "./interrupt-panel";
 import { TodoChecklist } from "./todo-checklist";
 import { SubagentSheet } from "./subagent-sheet";
 import { MemoryWorkspaceDialog } from "./memory-workspace-dialog";
+import { SandboxTerminalDialog } from "./sandbox-terminal-dialog";
 import { VoiceIndicator } from "./voice-indicator";
 import { flattenSubagentActivity } from "./message-grouping";
-import type { PersonaMessage, PersonaStreamingEvent } from "@personaai/react";
+import { useAgents, type PersonaMessage, type PersonaStreamingEvent } from "@personaai/react";
 import {
   usePersonaChatWidget,
   type UsePersonaChatWidgetOptions,
@@ -65,6 +66,8 @@ export interface PersonaChatViewProps extends UsePersonaChatWidgetOptions {
   showVoice?: boolean;
   /** Renders a "Files" button that opens the active Agent's memory + workspace files (read/write/delete). @default true */
   showFiles?: boolean;
+  /** Renders a "Terminal" button — only shown when the active Agent has `sandboxEnabled: true` — replaying its live `execute` tool calls. @default true */
+  showTerminal?: boolean;
   /**
    * CSS custom properties that override this app's shadcn tokens for just
    * this view (`--primary`, `--radius`, `--background`, …) — every visual
@@ -116,6 +119,7 @@ export function PersonaChatView({
   showComposer = true,
   showVoice = true,
   showFiles = true,
+  showTerminal = true,
   theme,
   classNames = {},
   components = {},
@@ -147,12 +151,14 @@ export function PersonaChatView({
     openWorkspaceFile,
     presentedFile,
     dismissPresentedFile,
+    sandboxCommands,
     voice,
     isVoiceActive,
   } = usePersonaChatWidget({ agentId, threadId, onThreadChange, onEvent, enableVoice: showVoice });
 
   const [openSubagentFor, setOpenSubagentFor] = React.useState<string | null>(null);
   const [filesOpen, setFilesOpen] = React.useState(false);
+  const [terminalOpen, setTerminalOpen] = React.useState(false);
   const isFilesSheetOpen = filesOpen || !!presentedFile;
   // Workspace files are Agent-scoped, not Thread-scoped (shared across every
   // conversation with that Agent) — prefer the active thread's own agentId
@@ -167,6 +173,16 @@ export function PersonaChatView({
       : undefined;
     return threadAgentId || agentId;
   }, [threads, activeThreadId, agentId]);
+
+  // Read-only discovery, always on — used only to check the active Agent's
+  // own sandboxEnabled flag, so the Terminal button never shows for an
+  // Agent that has no sandbox to replay.
+  const { agents } = useAgents(showTerminal);
+  const activeAgent = React.useMemo(
+    () => agents.find((a) => a._id === activeAgentId),
+    [agents, activeAgentId]
+  );
+  const canShowTerminal = showTerminal && !!activeAgent?.sandboxEnabled;
   const subagentMessages: PersonaMessage[] = React.useMemo(() => {
     if (!openSubagentFor) return [];
     for (const { message } of messages) {
@@ -232,6 +248,17 @@ export function PersonaChatView({
                   onClick={() => setFilesOpen(true)}
                 >
                   <FolderOpenIcon />
+                </Button>
+              )}
+              {canShowTerminal && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Sandbox terminal"
+                  onClick={() => setTerminalOpen(true)}
+                >
+                  <TerminalIcon />
                 </Button>
               )}
               <Button type="button" variant="ghost" size="icon-sm" aria-label="New chat" onClick={handleNewChat}>
@@ -365,6 +392,14 @@ export function PersonaChatView({
           }}
           agentId={activeAgentId}
           initialOpenPath={presentedFile?.path}
+        />
+      )}
+
+      {canShowTerminal && (
+        <SandboxTerminalDialog
+          open={terminalOpen}
+          onOpenChange={setTerminalOpen}
+          commands={sandboxCommands}
         />
       )}
     </div>

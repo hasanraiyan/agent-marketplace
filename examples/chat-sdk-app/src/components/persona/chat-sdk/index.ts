@@ -12,3 +12,4 @@ export {
 export { groupReasoning, flattenSubagentActivity, type GroupedMessage } from "./message-grouping";
 export { toolCallStatus } from "./tool-status";
 export { MemoryWorkspaceDialog, type MemoryWorkspaceDialogProps } from "./memory-workspace-dialog";
+export { SandboxTerminalDialog, type SandboxTerminalDialogProps } from "./sandbox-terminal-dialog";
