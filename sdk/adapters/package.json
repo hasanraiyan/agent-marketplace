@@ -1,6 +1,6 @@
 {
   "name": "@personaai/adapters",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Unified Persona adapters — Express, Next.js, NestJS in one package with shared internals. Server-side only.",
   "type": "module",
   "exports": {
