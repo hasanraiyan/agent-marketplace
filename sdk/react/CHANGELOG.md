@@ -3,6 +3,17 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.15.0
+
+- **New: `useWorkspaceFiles(threadId)`.** CRUD over one Thread's workspace files (the agent's own
+  virtual filesystem) — `refetch`/`files`, `getFile()`, `writeFile()`, `deleteFile()`. `useChat()`
+  already exposes a read-only `files` snapshot tied to its own loaded/streamed messages; this hook
+  is for a standalone file-explorer UI that needs to list, read, write, and delete files
+  independently of an active chat session. Requires a runtime built on `@personaai/runtime
+  ^0.13.0`. **Known limitation** (inherited from the backend): no lock exists against a concurrent
+  live run on the same Thread, so a write here while the agent is actively mid-run could race with
+  its own file writes.
+
 ## 0.14.0
 
 **Breaking:** the entire Workflows type surface had drifted from `@personaai/sdk`'s real

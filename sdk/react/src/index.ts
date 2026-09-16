@@ -4,6 +4,7 @@ export * from "./hooks/useChat.js";
 export * from "./hooks/useArchitectChat.js";
 export * from "./hooks/useMemory.js";
 export * from "./hooks/useThreads.js";
+export * from "./hooks/useWorkspaceFiles.js";
 export * from "./hooks/useVoice.js";
 export * from "./hooks/useFiles.js";
 export * from "./hooks/useAgents.js";
