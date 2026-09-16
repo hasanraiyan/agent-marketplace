@@ -238,33 +238,9 @@ export function PersonaChatView({
         >
           <div className="flex items-center justify-between border-b border-border p-2">
             <span className="px-1 text-sm font-semibold">{title}</span>
-            <div className="flex items-center gap-1">
-              {showFiles && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Memory & workspace files"
-                  onClick={() => setFilesOpen(true)}
-                >
-                  <FolderOpenIcon />
-                </Button>
-              )}
-              {canShowTerminal && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Sandbox terminal"
-                  onClick={() => setTerminalOpen(true)}
-                >
-                  <TerminalIcon />
-                </Button>
-              )}
-              <Button type="button" variant="ghost" size="icon-sm" aria-label="New chat" onClick={handleNewChat}>
-                <PlusIcon />
-              </Button>
-            </div>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label="New chat" onClick={handleNewChat}>
+              <PlusIcon />
+            </Button>
           </div>
           <ScrollArea className="flex-1">
             <div className="flex flex-col gap-0.5 p-1.5">
@@ -301,6 +277,32 @@ export function PersonaChatView({
       )}
 
       <div className="flex min-h-0 flex-1 flex-col">
+        {(showFiles || canShowTerminal) && (
+          <div className="flex h-11 shrink-0 items-center justify-end gap-1 border-b border-border px-2">
+            {showFiles && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Memory & workspace files"
+                onClick={() => setFilesOpen(true)}
+              >
+                <FolderOpenIcon />
+              </Button>
+            )}
+            {canShowTerminal && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Sandbox terminal"
+                onClick={() => setTerminalOpen(true)}
+              >
+                <TerminalIcon />
+              </Button>
+            )}
+          </div>
+        )}
         {isLoadingHistory && messages.length === 0 ? (
           loadingState ?? (
             <div className="flex flex-1 items-center justify-center">

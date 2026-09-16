@@ -3,6 +3,17 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.13.0
+
+- **`Thread.agentId`'s populated shape gains `sandboxEnabled: boolean`.** `threads.get()`/`list()`
+  already populate `agentId` as `{ _id, name, avatar, slug }` for display — it now also carries
+  `sandboxEnabled`, so a caller can tell whether the Thread's own Agent has a sandbox (and can
+  render a Terminal-style UI for it) without a separate Agent lookup. This matters because Agent
+  discovery (`agents.list()`) only ever returns `visibility: "public"` Agents or ones the caller
+  owns — a Project-owned, non-public Agent a Subject is already chatting with (they have a real
+  Thread with it) never shows up there, so reading this off the Thread itself is the only reliable
+  way to get it for the common case of chatting with a Project's own private Agent.
+
 ## 0.12.0
 
 **Breaking:** removes `ThreadsResource`'s `listFiles()`/`getFile()`/`writeFile()`/`deleteFile()` and
