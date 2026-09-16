@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { FolderOpenIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { InterruptPanel } from "./interrupt-panel";
 import { TodoChecklist } from "./todo-checklist";
 import { SubagentSheet } from "./subagent-sheet";
+import { WorkspaceFilesDialog } from "./workspace-files-dialog";
 import { VoiceIndicator } from "./voice-indicator";
 import { flattenSubagentActivity } from "./message-grouping";
 import type { PersonaMessage, PersonaStreamingEvent } from "@personaai/react";
@@ -62,6 +63,8 @@ export interface PersonaChatViewProps extends UsePersonaChatWidgetOptions {
   showComposer?: boolean;
   /** Renders a "start voice call" button + the live voice-state orb. @default true */
   showVoice?: boolean;
+  /** Renders a "Files" button that opens the active thread's workspace files (read/write/delete). @default true */
+  showFiles?: boolean;
   /**
    * CSS custom properties that override this app's shadcn tokens for just
    * this view (`--primary`, `--radius`, `--background`, …) — every visual
@@ -112,6 +115,7 @@ export function PersonaChatView({
   showThreadList = true,
   showComposer = true,
   showVoice = true,
+  showFiles = true,
   theme,
   classNames = {},
   components = {},
@@ -141,11 +145,15 @@ export function PersonaChatView({
     handleSubmitClarification,
     stop,
     openWorkspaceFile,
+    presentedFile,
+    dismissPresentedFile,
     voice,
     isVoiceActive,
   } = usePersonaChatWidget({ agentId, threadId, onThreadChange, onEvent, enableVoice: showVoice });
 
   const [openSubagentFor, setOpenSubagentFor] = React.useState<string | null>(null);
+  const [filesOpen, setFilesOpen] = React.useState(false);
+  const isFilesSheetOpen = filesOpen || !!presentedFile;
   const subagentMessages: PersonaMessage[] = React.useMemo(() => {
     if (!openSubagentFor) return [];
     for (const { message } of messages) {
@@ -201,9 +209,22 @@ export function PersonaChatView({
         >
           <div className="flex items-center justify-between border-b border-border p-2">
             <span className="px-1 text-sm font-semibold">{title}</span>
-            <Button type="button" variant="ghost" size="icon-sm" aria-label="New chat" onClick={handleNewChat}>
-              <PlusIcon />
-            </Button>
+            <div className="flex items-center gap-1">
+              {showFiles && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Workspace files"
+                  onClick={() => setFilesOpen(true)}
+                >
+                  <FolderOpenIcon />
+                </Button>
+              )}
+              <Button type="button" variant="ghost" size="icon-sm" aria-label="New chat" onClick={handleNewChat}>
+                <PlusIcon />
+              </Button>
+            </div>
           </div>
           <ScrollArea className="flex-1">
             <div className="flex flex-col gap-0.5 p-1.5">
@@ -321,6 +342,18 @@ export function PersonaChatView({
         onOpenChange={(open) => !open && setOpenSubagentFor(null)}
         messages={subagentMessages}
       />
+
+      {showFiles && (
+        <WorkspaceFilesDialog
+          open={isFilesSheetOpen}
+          onOpenChange={(open) => {
+            setFilesOpen(open);
+            if (!open) dismissPresentedFile();
+          }}
+          threadId={activeThreadId}
+          initialOpenPath={presentedFile?.path}
+        />
+      )}
     </div>
   );
 }
