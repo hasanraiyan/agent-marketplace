@@ -5,6 +5,15 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-09-16
+
+### Changed
+
+- Bumped `@personaai/react` to `^0.16.0`, `@personaai/runtime` to `^0.14.0`, and `@personaai/sdk`
+  to `^0.12.0` — these versions remove the 0.5.0 Thread workspace-file CRUD (it read/wrote the
+  wrong data source and is superseded by `scope: "workspace"` on the existing memory API) and add
+  the corrected, Agent-scoped equivalent. No adapter-level code changes.
+
 ## [0.5.0] - 2026-09-16
 
 ### Changed
