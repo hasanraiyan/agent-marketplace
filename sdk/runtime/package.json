@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@ag-ui/core": "^0.0.57",
-    "@personaai/sdk": "^0.13.0",
+    "@personaai/sdk": "^0.13.1",
     "rcp-sdk": "^0.1.0"
   },
   "devDependencies": {
