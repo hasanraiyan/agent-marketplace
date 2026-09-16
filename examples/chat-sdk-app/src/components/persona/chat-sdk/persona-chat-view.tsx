@@ -13,7 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { InterruptPanel } from "./interrupt-panel";
 import { TodoChecklist } from "./todo-checklist";
 import { SubagentSheet } from "./subagent-sheet";
-import { WorkspaceFilesDialog } from "./workspace-files-dialog";
+import { MemoryWorkspaceDialog } from "./memory-workspace-dialog";
 import { VoiceIndicator } from "./voice-indicator";
 import { flattenSubagentActivity } from "./message-grouping";
 import type { PersonaMessage, PersonaStreamingEvent } from "@personaai/react";
@@ -63,7 +63,7 @@ export interface PersonaChatViewProps extends UsePersonaChatWidgetOptions {
   showComposer?: boolean;
   /** Renders a "start voice call" button + the live voice-state orb. @default true */
   showVoice?: boolean;
-  /** Renders a "Files" button that opens the active thread's workspace files (read/write/delete). @default true */
+  /** Renders a "Files" button that opens the active Agent's memory + workspace files (read/write/delete). @default true */
   showFiles?: boolean;
   /**
    * CSS custom properties that override this app's shadcn tokens for just
@@ -228,7 +228,7 @@ export function PersonaChatView({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Workspace files"
+                  aria-label="Memory & workspace files"
                   onClick={() => setFilesOpen(true)}
                 >
                   <FolderOpenIcon />
@@ -357,7 +357,7 @@ export function PersonaChatView({
       />
 
       {showFiles && (
-        <WorkspaceFilesDialog
+        <MemoryWorkspaceDialog
           open={isFilesSheetOpen}
           onOpenChange={(open) => {
             setFilesOpen(open);

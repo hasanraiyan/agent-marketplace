@@ -11,4 +11,4 @@ export {
 } from "./use-persona-chat-widget";
 export { groupReasoning, flattenSubagentActivity, type GroupedMessage } from "./message-grouping";
 export { toolCallStatus } from "./tool-status";
-export { WorkspaceFilesDialog, type WorkspaceFilesDialogProps } from "./workspace-files-dialog";
+export { MemoryWorkspaceDialog, type MemoryWorkspaceDialogProps } from "./memory-workspace-dialog";
