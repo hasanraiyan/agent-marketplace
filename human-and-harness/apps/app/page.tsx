@@ -205,8 +205,11 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Product preview — floats as a light "screenshot" on the dark band */}
+          {/* Product preview — an illustrative mockup, not a real captured engagement */}
           <div className="relative mx-auto mt-16 w-full max-w-4xl px-6">
+            <p className="mb-3 text-center text-xs text-muted-foreground">
+              Illustrative example — not a real engagement or user data.
+            </p>
             <Card className="overflow-hidden border-none bg-white text-zinc-950 shadow-2xl shadow-black/40 ring-1 ring-black/10">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center border-b border-zinc-200 bg-zinc-50 px-3 py-2">
                 <div className="flex items-center gap-1.5">
@@ -215,7 +218,7 @@ export default function Home() {
                   <span className="size-2.5 rounded-full bg-emerald-400" />
                 </div>
                 <span className="justify-self-center font-mono text-[0.65rem] text-zinc-400">
-                  humansandharness.ai/fitwithalex
+                  app.humansandharness.ai
                 </span>
               </div>
               <CardHeader className="border-b border-zinc-200 pb-4">
@@ -226,13 +229,13 @@ export default function Home() {
                     </div>
                     <CardTitle className="text-zinc-950">FitWithAlex AI Fitness Consultancy</CardTitle>
                   </div>
-                  <Badge variant="secondary" className="bg-zinc-100 text-zinc-950">Live</Badge>
+                  <Badge variant="secondary" className="bg-zinc-100 text-zinc-950">Example</Badge>
                 </div>
               </CardHeader>
               <CardContent className="grid gap-6 pt-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <div className="ml-auto max-w-[90%] bg-zinc-100 px-3 py-2 text-xs text-zinc-950">
-                    I want to lose 10kg before March, but past diets never stuck.
+                    I want to lose weight before summer, but past diets never stuck.
                   </div>
                   <div className="max-w-[90%] bg-primary/10 px-3 py-2 text-xs text-zinc-950">
                     Got it. Before we start, here&rsquo;s the scope of work I&rsquo;d propose &mdash;

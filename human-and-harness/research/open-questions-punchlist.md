@@ -1,6 +1,6 @@
-# Open Questions — Round 2 (things to work on)
+# Open Questions Punch List
 
-Based on your answers in `founder-vision-v2-notes.md`. Some things got
+Based on your answers in [`founder-notes-fallback-and-bootstrap.md`](./founder-notes-fallback-and-bootstrap.md). Some things got
 resolved, some got clarified but opened new sub-questions, and one is still
 fully open. This file is just the punch list — no analysis, just what needs
 a decision.

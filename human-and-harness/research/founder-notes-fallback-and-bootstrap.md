@@ -1,9 +1,10 @@
-# Founder Vision v2 — Bootstrap Model, AI+Human Fallback, Conversational Creation
+# Founder Notes — Bootstrap Model, AI+Human Fallback, Conversational Creation
 
 Notes from a conversation where the founder described how they actually want
-Humans & Harness to work, beyond what's in `v1-product-engineering-analysis.md`.
+Humans & Harness to work, beyond what's in [`product-engineering-analysis.md`](./product-engineering-analysis.md).
 This file captures (1) what was understood, and (2) open questions to resolve
-before updating the main analysis doc.
+before updating the main analysis doc — those questions were carried forward
+into [`open-questions-punchlist.md`](./open-questions-punchlist.md).
 
 ---
 
@@ -91,7 +92,7 @@ Not yet clear exactly how RCP plugs in here — see open questions below. yes rc
 ## Next step
 
 Once these three questions are answered, update
-`v1-product-engineering-analysis.md` with new sections:
+[`product-engineering-analysis.md`](./product-engineering-analysis.md) with new sections:
 - **Bootstrap Phase** (admin-as-first-creator)
 - **AI + Human Fallback Model** (new Engagement/Deliverable state)
 - **Conversational Consultancy Creation** (replaces the form-based MVP
