@@ -65,28 +65,27 @@ export class AgentSkillsStore extends BaseStore {
   }
 
   async batch(operations) {
-    const results = [];
-
-    for (const op of operations) {
-      if ('value' in op) {
-        // PUT/DELETE — this store is read-only; the runtime additionally wraps
-        // the backend in a read-only guard, so this is belt-and-braces.
-        logger.warn('[AgentSkillsStore] write ignored (read-only)', {
-          namespace: op.namespace,
-          key: op.key,
-        });
-        results.push(null);
-      } else if ('namespacePrefix' in op) {
-        results.push(await this._search(op));
-      } else if ('key' in op && 'namespace' in op) {
-        results.push(await this._get(op));
-      } else {
+    return Promise.all(
+      operations.map(async (op) => {
+        if ('value' in op) {
+          // PUT/DELETE — this store is read-only; the runtime additionally wraps
+          // the backend in a read-only guard, so this is belt-and-braces.
+          logger.warn('[AgentSkillsStore] write ignored (read-only)', {
+            namespace: op.namespace,
+            key: op.key,
+          });
+          return null;
+        }
+        if ('namespacePrefix' in op) {
+          return this._search(op);
+        }
+        if ('key' in op && 'namespace' in op) {
+          return this._get(op);
+        }
         // LIST NAMESPACES — not meaningful for this facade.
-        results.push([]);
-      }
-    }
-
-    return results;
+        return [];
+      })
+    );
   }
 
   async _get(op) {

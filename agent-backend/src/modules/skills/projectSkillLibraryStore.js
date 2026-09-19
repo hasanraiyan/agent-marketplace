@@ -43,22 +43,21 @@ export class ProjectSkillLibraryStore extends BaseStore {
   }
 
   async batch(operations) {
-    const results = [];
-
-    for (const op of operations) {
-      if ('value' in op) {
-        await this._put(op);
-        results.push(null);
-      } else if ('namespacePrefix' in op) {
-        results.push(await this._search(op));
-      } else if ('key' in op && 'namespace' in op) {
-        results.push(await this._get(op));
-      } else {
-        results.push([]);
-      }
-    }
-
-    return results;
+    return Promise.all(
+      operations.map(async (op) => {
+        if ('value' in op) {
+          await this._put(op);
+          return null;
+        }
+        if ('namespacePrefix' in op) {
+          return this._search(op);
+        }
+        if ('key' in op && 'namespace' in op) {
+          return this._get(op);
+        }
+        return [];
+      })
+    );
   }
 
   /** All this Project's skills rendered to a { path → FileData } map. */
