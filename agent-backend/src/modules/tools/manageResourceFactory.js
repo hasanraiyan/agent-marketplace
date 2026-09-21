@@ -1,6 +1,28 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 
+const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+
+/**
+ * Free-form `{ [key]: any }` tool argument that every provider accepts.
+ *
+ * Deliberately NOT `z.record(z.string(), z.any())`: Zod 4 serialises that
+ * with a `propertyNames` keyword, which Gemini's function-declaration
+ * Schema (an OpenAPI 3.0 subset) rejects with `Unknown name
+ * "propertyNames"` — the Architect worked on OpenAI but 400'd on Gemini.
+ * `z.looseObject({})` is no better: it emits an OBJECT with empty
+ * `properties`, which Gemini also refuses (see how @langchain/google-genai
+ * drops `parameters` entirely for that case). A bare `{}` + description is
+ * the one shape all providers take, so the object-only constraint lives in
+ * a runtime `refine` instead of the JSON schema.
+ */
+export const freeformObjectArg = (description) =>
+  z
+    .any()
+    .refine(isPlainObject, { message: 'must be a plain object' })
+    .optional()
+    .describe(description);
+
 /**
  * Shared skeleton for the Architect's `manage_<resource>` tools
  * (manage_mcp, manage_rcp_source, manage_rest_api_tool, manage_skill —
@@ -41,23 +63,16 @@ export function createManageResourceTool({
     schema: z.object({
       action: z.enum(actions),
       id: z.string().optional().describe('Required for read (single), update, patch, delete.'),
-      data: z
-        .record(z.string(), z.any())
-        .optional()
-        .describe('Fields to set, for create/update. Replaces named fields wholesale.'),
-      field: z
-        .string()
-        .optional()
-        .describe('For patch: the single field to change.'),
+      data: freeformObjectArg(
+        'Object of fields to set, for create/update. Replaces named fields wholesale.'
+      ),
+      field: z.string().optional().describe('For patch: the single field to change.'),
       op: z
         .enum(['set', 'add', 'remove'])
         .optional()
         .describe('For patch: set a scalar, or add/remove one id from an array field.'),
       value: z.any().optional().describe('For patch: the value to set/add/remove.'),
-      filters: z
-        .record(z.string(), z.any())
-        .optional()
-        .describe('For read with no id: optional filters (e.g. { search }).'),
+      filters: freeformObjectArg('For read with no id: optional filters object (e.g. { search }).'),
     }),
     func: async (input) => {
       try {
@@ -139,7 +154,11 @@ export function createManageResourceTool({
             }
 
             const updated = await update(id, { [field]: nextValue });
-            return JSON.stringify({ status: 'success', message: `Patched '${field}'.`, data: updated });
+            return JSON.stringify({
+              status: 'success',
+              message: `Patched '${field}'.`,
+              data: updated,
+            });
           }
 
           case 'delete': {
