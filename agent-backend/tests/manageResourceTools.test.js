@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals';
+import { toJsonSchema } from '@langchain/core/utils/json_schema';
 import { createManageResourceTool } from '../src/modules/tools/manageResourceFactory.js';
 
 /**
@@ -127,6 +128,42 @@ describe('createManageResourceTool', () => {
       get.mockResolvedValueOnce({ id: '1', tags: [{ _id: 'a' }, { _id: 'b' }] });
       await tool.invoke({ action: 'patch', id: '1', field: 'tags', op: 'remove', value: 'a' });
       expect(update).toHaveBeenCalledWith('1', { tags: ['b'] });
+    });
+  });
+
+  describe('tool schema is Gemini-compatible', () => {
+    // Regression: `data`/`filters` used to be z.record(), which Zod 4 emits
+    // with `propertyNames` — Gemini function declarations 400 on it
+    // ("Unknown name \"propertyNames\""). OpenAI silently tolerated it.
+    const forbidden = ['propertyNames'];
+    const walk = (node, path = '') => {
+      if (!node || typeof node !== 'object') return;
+      for (const [k, v] of Object.entries(node)) {
+        expect(forbidden).not.toContain(k);
+        walk(v, `${path}.${k}`);
+      }
+    };
+
+    test('emits no `propertyNames` anywhere in the JSON schema', () => {
+      const { tool } = buildTool();
+      const schema = toJsonSchema(tool.schema);
+      walk(schema);
+      // `data`/`filters` are free-form: bare schema + description, no empty
+      // `properties: {}` either (Gemini rejects OBJECT with no properties).
+      expect(schema.properties.data).toEqual({ description: expect.any(String) });
+      expect(schema.properties.filters).toEqual({ description: expect.any(String) });
+    });
+
+    test('data/filters still reject non-object values at runtime', async () => {
+      const { tool, create, list } = buildTool();
+      await expect(tool.invoke({ action: 'create', data: 'nope' })).rejects.toThrow();
+      await expect(tool.invoke({ action: 'read', filters: ['x'] })).rejects.toThrow();
+      expect(create).not.toHaveBeenCalled();
+      expect(list).not.toHaveBeenCalled();
+
+      const ok = JSON.parse(await tool.invoke({ action: 'create', data: { name: 'x' } }));
+      expect(ok.status).toBe('success');
+      expect(create).toHaveBeenCalledWith({ name: 'x' });
     });
   });
 });
