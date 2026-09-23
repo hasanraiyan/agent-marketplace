@@ -9,6 +9,7 @@ import { resolveVoiceProvider, buildVoiceLiveConfig } from '../voice/voice.servi
 import voiceThreadService from '../voice/voiceThread.service.js';
 import VoiceTranscriptSink from '../voice/voiceTranscriptSink.js';
 import { VoiceSession } from '../voice/gateway/VoiceSession.js';
+import projectCredentialRepository from '../projects/projectCredential.repository.js';
 import TwilioVoiceTransport from './TwilioVoiceTransport.js';
 
 const logger = loggerService.getLogger();
@@ -145,8 +146,23 @@ async function startVoiceSessionForTwilio({ transport, agentId, projectId, calle
   // Track or resolve external user anchor for this caller phone number
   await externalUserService.resolveOrCreate(projectId, callerPhone);
 
+  // Look up an active credential for the project if one exists, otherwise use 'twilio'
+  let credentialId = 'twilio';
+  try {
+    const creds = await projectCredentialRepository.findByProject(projectId);
+    const active = creds?.find((c) => c.status === 'ACTIVE');
+    if (active) {
+      credentialId = String(active._id);
+    }
+  } catch (err) {
+    logger.warn('[TwilioGateway] Error finding project credential, defaulting to twilio', {
+      err: err?.message,
+    });
+  }
+
   const context = createProjectRuntimeContext({
     domain: projectId,
+    credentialId,
     externalUserId: callerPhone,
   });
 

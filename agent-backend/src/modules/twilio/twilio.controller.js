@@ -15,7 +15,7 @@ class TwilioController {
     try {
       const projectId = req.query.projectId || req.params.projectId;
       const agentId = req.query.agentId || req.params.agentId;
-      const callerPhone = req.body?.From || req.query?.callerPhone;
+      const callerPhone = req.query?.callerPhone || req.body?.From || 'unknown-caller';
 
       if (!projectId || !agentId) {
         logger.warn('[TwilioController] Missing projectId or agentId in webhook request', {
