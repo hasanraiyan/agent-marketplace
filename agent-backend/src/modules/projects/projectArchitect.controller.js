@@ -58,7 +58,11 @@ class ProjectArchitectController {
       if (requestedThreadId && requestedThreadId !== 'default' && requestedThreadId !== 'new') {
         const query = mongoose.isValidObjectId(requestedThreadId)
           ? { _id: requestedThreadId, domain: context.domain, agentId: PROJECT_ARCHITECT_AGENT_ID }
-          : { threadId: requestedThreadId, domain: context.domain, agentId: PROJECT_ARCHITECT_AGENT_ID };
+          : {
+              threadId: requestedThreadId,
+              domain: context.domain,
+              agentId: PROJECT_ARCHITECT_AGENT_ID,
+            };
         resolvedThread = await Conversation.findOne(query);
         if (resolvedThread) {
           langGraphThreadId = resolvedThread.threadId;
@@ -115,7 +119,9 @@ class ProjectArchitectController {
       res.end();
 
       if (resolvedThread) {
-        await Conversation.findByIdAndUpdate(resolvedThread._id, { lastMessageAt: new Date() }).catch(() => {});
+        await Conversation.findByIdAndUpdate(resolvedThread._id, {
+          lastMessageAt: new Date(),
+        }).catch(() => {});
         if (Object.keys(subagentTraces).length > 0) {
           let reconciled = subagentTraces;
           try {
@@ -124,7 +130,10 @@ class ProjectArchitectController {
             });
             const rawMessages = snapshot?.checkpoint?.channel_values?.messages;
             if (rawMessages) {
-              reconciled = reconcileSubagentTraceKeys(subagentTraces, extractTaskToolCallIds(rawMessages));
+              reconciled = reconcileSubagentTraceKeys(
+                subagentTraces,
+                extractTaskToolCallIds(rawMessages)
+              );
             }
           } catch {
             // Persist provisional keys if reconciliation fails
@@ -134,7 +143,9 @@ class ProjectArchitectController {
           for (const [callId, items] of Object.entries(reconciled)) {
             setOps[`subagentTraces.${callId}`] = settleTrace(items);
           }
-          await Conversation.findByIdAndUpdate(resolvedThread._id, { $set: setOps }).catch(() => {});
+          await Conversation.findByIdAndUpdate(resolvedThread._id, { $set: setOps }).catch(
+            () => {}
+          );
         }
       }
     } catch (err) {

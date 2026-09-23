@@ -75,9 +75,7 @@ async function executeWithRetry(node, runnerFn) {
       };
     } catch (err) {
       lastError = err;
-      logger.warn(
-        `[WorkflowEngine] Node "${node.id}" attempt ${attempt} failed: ${err.message}`
-      );
+      logger.warn(`[WorkflowEngine] Node "${node.id}" attempt ${attempt} failed: ${err.message}`);
     }
   }
 
@@ -121,7 +119,10 @@ function wrapNodeExecution(node, executorFn, executionContext) {
     const nodeLabel = node.data?.label || node.id;
     const resolvedInput = resolveTemplate(node.data?.config || {}, state);
 
-    logger.debug(`[WorkflowEngine] node "${node.id}" (${node.type}) starting`, { runId, nodeLabel });
+    logger.debug(`[WorkflowEngine] node "${node.id}" (${node.type}) starting`, {
+      runId,
+      nodeLabel,
+    });
 
     // 1. Emit node started
     if (driver) {
@@ -205,7 +206,9 @@ function wrapNodeExecution(node, executorFn, executionContext) {
 
       return stateUpdate;
     } catch (err) {
-      logger.warn(`[WorkflowEngine] node "${node.id}" (${node.type}) failed: ${err.message}`, { runId });
+      logger.warn(`[WorkflowEngine] node "${node.id}" (${node.type}) failed: ${err.message}`, {
+        runId,
+      });
 
       if (driver) {
         driver.pushEvent({
@@ -235,7 +238,11 @@ function wrapNodeExecution(node, executorFn, executionContext) {
  * Creates the executor for an agentStep node.
  */
 function createAgentStepExecutor(node, executionContext) {
-  return async (state, resolvedInput, { driver, isDryRun, agentSnapshots, userId, domain, runId }) => {
+  return async (
+    state,
+    resolvedInput,
+    { driver, isDryRun, agentSnapshots, userId, domain, runId }
+  ) => {
     const config = node.data?.config || {};
     const agentId = config.agentId;
 
@@ -262,7 +269,10 @@ function createAgentStepExecutor(node, executionContext) {
     // does not perform external live side-effects (Finding #3 in review.md).
     let effectiveAgentDoc = agentDoc;
     if (isDryRun) {
-      logger.debug(`[WorkflowEngine] agentStep "${node.id}" running in dry-run mode, stripping external tools`, { agentId });
+      logger.debug(
+        `[WorkflowEngine] agentStep "${node.id}" running in dry-run mode, stripping external tools`,
+        { agentId }
+      );
       effectiveAgentDoc = {
         ...(typeof agentDoc.toObject === 'function' ? agentDoc.toObject() : agentDoc),
         // Strip all external mutating/destructive tool configs including MCPs
@@ -415,11 +425,16 @@ function createToolStepExecutor(node, executionContext) {
     try {
       let resultData;
       if (typeof config.handler === 'function') {
-        logger.debug(`[WorkflowEngine] toolStep "${node.id}" invoking handler function`, { toolName });
+        logger.debug(`[WorkflowEngine] toolStep "${node.id}" invoking handler function`, {
+          toolName,
+        });
         resultData = await config.handler(resolvedInput, { signal: driver?.signal });
       } else if (config.url) {
         // Direct HTTP / Webhook tool step
-        logger.debug(`[WorkflowEngine] toolStep "${node.id}" calling webhook`, { toolName, url: config.url });
+        logger.debug(`[WorkflowEngine] toolStep "${node.id}" calling webhook`, {
+          toolName,
+          url: config.url,
+        });
         const method = (config.method || 'POST').toUpperCase();
         const headers = {
           'Content-Type': 'application/json',
@@ -459,10 +474,14 @@ function createToolStepExecutor(node, executionContext) {
         const targetId = config.toolId || config.restApiToolId;
         const restTool = await restApiToolRepository.findById(targetId);
         if (!restTool) {
-          logger.warn(`[WorkflowEngine] toolStep "${node.id}" references missing REST API tool`, { targetId });
+          logger.warn(`[WorkflowEngine] toolStep "${node.id}" references missing REST API tool`, {
+            targetId,
+          });
           throw new BaseError(`Rest API Tool ${targetId} not found`, 404, 'NOT_FOUND');
         }
-        logger.debug(`[WorkflowEngine] toolStep "${node.id}" calling registered REST API tool`, { targetId });
+        logger.debug(`[WorkflowEngine] toolStep "${node.id}" calling registered REST API tool`, {
+          targetId,
+        });
         resultData = await restApiToolService.testCall(
           executionContext,
           restTool,
@@ -490,7 +509,9 @@ function createToolStepExecutor(node, executionContext) {
       if (err.name === 'AbortError' || driver?.signal?.aborted) {
         throw new BaseError('Workflow run cancelled', 499, 'CANCELLED');
       }
-      logger.warn(`[WorkflowEngine] toolStep "${node.id}" execution error: ${err.message}`, { toolName });
+      logger.warn(`[WorkflowEngine] toolStep "${node.id}" execution error: ${err.message}`, {
+        toolName,
+      });
       return {
         output: {
           isError: true,
@@ -519,12 +540,22 @@ function createKnowledgeStepExecutor(node, executionContext) {
 
     if (!kbId) {
       logger.warn(`[WorkflowEngine] knowledgeStep "${node.id}" missing knowledgeBaseId`);
-      throw new BaseError(`Knowledge step "${node.id}" missing knowledgeBaseId`, 400, 'BAD_REQUEST');
+      throw new BaseError(
+        `Knowledge step "${node.id}" missing knowledgeBaseId`,
+        400,
+        'BAD_REQUEST'
+      );
     }
 
-    logger.debug(`[WorkflowEngine] knowledgeStep "${node.id}" searching knowledge base`, { kbId, topK });
+    logger.debug(`[WorkflowEngine] knowledgeStep "${node.id}" searching knowledge base`, {
+      kbId,
+      topK,
+    });
     const results = await knowledgeService.searchKnowledgeBase(kbId, String(query), topK);
-    logger.debug(`[WorkflowEngine] knowledgeStep "${node.id}" search complete`, { kbId, resultCount: results?.length || 0 });
+    logger.debug(`[WorkflowEngine] knowledgeStep "${node.id}" search complete`, {
+      kbId,
+      resultCount: results?.length || 0,
+    });
     return {
       output: {
         documents: results || [],
@@ -539,10 +570,15 @@ function createKnowledgeStepExecutor(node, executionContext) {
  * Compiles a workflow definition into an executable LangGraph StateGraph.
  */
 export function compileWorkflowToStateGraph(workflowDef, executionContext) {
-  const nodes = workflowDef?.draft?.nodes || workflowDef?.definition?.nodes || workflowDef?.nodes || [];
-  const edges = workflowDef?.draft?.edges || workflowDef?.definition?.edges || workflowDef?.edges || [];
+  const nodes =
+    workflowDef?.draft?.nodes || workflowDef?.definition?.nodes || workflowDef?.nodes || [];
+  const edges =
+    workflowDef?.draft?.edges || workflowDef?.definition?.edges || workflowDef?.edges || [];
 
-  logger.debug('[WorkflowEngine] compiling workflow graph', { nodeCount: nodes.length, edgeCount: edges.length });
+  logger.debug('[WorkflowEngine] compiling workflow graph', {
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+  });
 
   const graph = new StateGraph(WorkflowStateAnnotation);
 
@@ -584,7 +620,11 @@ export function compileWorkflowToStateGraph(workflowDef, executionContext) {
       case 'knowledgeStep':
         graph.addNode(
           node.id,
-          wrapNodeExecution(node, createKnowledgeStepExecutor(node, executionContext), executionContext)
+          wrapNodeExecution(
+            node,
+            createKnowledgeStepExecutor(node, executionContext),
+            executionContext
+          )
         );
         break;
 
@@ -599,8 +639,8 @@ export function compileWorkflowToStateGraph(workflowDef, executionContext) {
               let finalOutput = outputMapping
                 ? resolveTemplate(outputMapping, state)
                 : state.steps && Object.keys(state.steps).length > 0
-                ? state.steps[Object.keys(state.steps).pop()]?.output
-                : state.trigger;
+                  ? state.steps[Object.keys(state.steps).pop()]?.output
+                  : state.trigger;
 
               // Parse JSON if outputType is json (Low finding in review.md)
               if (outputType === 'json' && typeof finalOutput === 'string') {
@@ -705,14 +745,18 @@ export function compileWorkflowToStateGraph(workflowDef, executionContext) {
     const trueNode = mapping.trueTarget || END;
     const falseNode = mapping.falseTarget || mapping.trueTarget || END;
 
-    graph.addConditionalEdges(condId, (state) => {
-      const stepResult = state.steps?.[condId];
-      const branch = stepResult?.output?.branch;
-      return branch === 'true' ? 'trueBranch' : 'falseBranch';
-    }, {
-      trueBranch: trueNode,
-      falseBranch: falseNode,
-    });
+    graph.addConditionalEdges(
+      condId,
+      (state) => {
+        const stepResult = state.steps?.[condId];
+        const branch = stepResult?.output?.branch;
+        return branch === 'true' ? 'trueBranch' : 'falseBranch';
+      },
+      {
+        trueBranch: trueNode,
+        falseBranch: falseNode,
+      }
+    );
   }
 
   // Connect START and END

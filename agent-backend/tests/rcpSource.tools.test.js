@@ -14,7 +14,8 @@ jest.unstable_mockModule('@langchain/langgraph', () => ({
   getConfig: jest.fn(),
 }));
 
-const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js')).default;
+const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js'))
+  .default;
 const { getConfig } = await import('@langchain/langgraph');
 const { resolveRcpSourceTools } = await import('../src/modules/rcpSources/rcpSource.tools.js');
 
@@ -53,7 +54,9 @@ describe('resolveRcpSourceTools', () => {
 
   it('skips a disabled source without fetching it', async () => {
     const tools = await resolveRcpSourceTools(
-      agentWithSources([{ name: 'Weather', isEnabled: false, url: 'https://x.example.com/manifest' }]),
+      agentWithSources([
+        { name: 'Weather', isEnabled: false, url: 'https://x.example.com/manifest' },
+      ]),
       'u1',
       context
     );
@@ -76,7 +79,12 @@ describe('resolveRcpSourceTools', () => {
 
     const tools = await resolveRcpSourceTools(
       agentWithSources([
-        { name: 'Weather Co', isEnabled: true, authType: 'none', url: 'https://x.example.com/manifest' },
+        {
+          name: 'Weather Co',
+          isEnabled: true,
+          authType: 'none',
+          url: 'https://x.example.com/manifest',
+        },
       ]),
       'u1',
       context
@@ -123,7 +131,9 @@ describe('resolveRcpSourceTools', () => {
     };
 
     await resolveRcpSourceTools(
-      agentWithSources([{ name: 'Weather Co', isEnabled: true, url: 'https://x.example.com/manifest' }]),
+      agentWithSources([
+        { name: 'Weather Co', isEnabled: true, url: 'https://x.example.com/manifest' },
+      ]),
       'u1',
       runtimeContext
     );
@@ -140,7 +150,9 @@ describe('resolveRcpSourceTools', () => {
     global.fetch.mockResolvedValueOnce(manifestOk([]));
 
     await resolveRcpSourceTools(
-      agentWithSources([{ name: 'Weather Co', isEnabled: true, url: 'https://x.example.com/manifest' }]),
+      agentWithSources([
+        { name: 'Weather Co', isEnabled: true, url: 'https://x.example.com/manifest' },
+      ]),
       'u1',
       context
     );
@@ -151,7 +163,7 @@ describe('resolveRcpSourceTools', () => {
     );
   });
 
-  it('calling the built tool hits the tool\'s own url and returns the mapped result', async () => {
+  it("calling the built tool hits the tool's own url and returns the mapped result", async () => {
     global.fetch
       .mockResolvedValueOnce(
         manifestOk([
@@ -169,7 +181,9 @@ describe('resolveRcpSourceTools', () => {
       .mockResolvedValueOnce(jsonResponse({ temp: 21 }));
 
     const tools = await resolveRcpSourceTools(
-      agentWithSources([{ name: 'Weather Co', isEnabled: true, url: 'https://x.example.com/manifest' }]),
+      agentWithSources([
+        { name: 'Weather Co', isEnabled: true, url: 'https://x.example.com/manifest' },
+      ]),
       'u1',
       context
     );
@@ -306,7 +320,9 @@ describe('resolveRcpSourceTools', () => {
     global.fetch
       .mockRejectedValueOnce(new Error('ECONNREFUSED'))
       .mockResolvedValueOnce(
-        manifestOk([{ name: 'ping', description: 'Ping', method: 'GET', url: 'https://y.example.com/ping' }])
+        manifestOk([
+          { name: 'ping', description: 'Ping', method: 'GET', url: 'https://y.example.com/ping' },
+        ])
       );
 
     const tools = await resolveRcpSourceTools(

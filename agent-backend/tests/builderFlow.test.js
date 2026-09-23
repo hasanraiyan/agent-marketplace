@@ -68,7 +68,9 @@ describe('manage_agent result contract', () => {
 
   test('create without required fields returns error status', async () => {
     const tool = manageAgentTool(userId);
-    const result = JSON.parse(await tool.invoke({ action: 'create', data: { name: 'Only a name' } }));
+    const result = JSON.parse(
+      await tool.invoke({ action: 'create', data: { name: 'Only a name' } })
+    );
 
     expect(result.status).toBe('error');
     expect(result.agentId).toBeUndefined();
@@ -76,11 +78,19 @@ describe('manage_agent result contract', () => {
 
   test('patch adds one id to an array field without resending the rest', async () => {
     agentService.getAgentById = jest.fn().mockResolvedValue({ _id: 'agent-1', mcps: ['mcp-a'] });
-    agentService.updateAgent = jest.fn().mockResolvedValue({ _id: 'agent-1', mcps: ['mcp-a', 'mcp-b'] });
+    agentService.updateAgent = jest
+      .fn()
+      .mockResolvedValue({ _id: 'agent-1', mcps: ['mcp-a', 'mcp-b'] });
 
     const tool = manageAgentTool(userId);
     const result = JSON.parse(
-      await tool.invoke({ action: 'patch', id: 'agent-1', field: 'mcps', op: 'add', value: 'mcp-b' })
+      await tool.invoke({
+        action: 'patch',
+        id: 'agent-1',
+        field: 'mcps',
+        op: 'add',
+        value: 'mcp-b',
+      })
     );
 
     expect(result.status).toBe('success');
@@ -93,7 +103,11 @@ describe('manage_agent result contract', () => {
 describe('HITL interrupt translation', () => {
   const hitlValue = {
     actionRequests: [
-      { name: 'manage_agent', args: { action: 'create', data: { name: 'Bot' } }, description: 'needs approval' },
+      {
+        name: 'manage_agent',
+        args: { action: 'create', data: { name: 'Bot' } },
+        description: 'needs approval',
+      },
     ],
     reviewConfigs: [
       { actionName: 'manage_agent', allowedDecisions: ['approve', 'edit', 'reject'] },

@@ -91,7 +91,10 @@ export const manageAgentTool = (userId) =>
       'CRUD for the agents you own. action="create"|"read"|"update"|"patch"|"delete". `read` with no `id` lists your agents; with `id` fetches one in full. `create`/`update` take `data` (name, description, systemPrompt, providerId, modelName, webSearchEnabled, avatar, tags, category, visibility, skills[], mcps[], restApiTools[], rcpSources[], knowledgeBases[], storeMounts[] — all attachment fields are arrays of ids and REPLACE the current list). `patch` takes `id`, `field` (one of the attachment arrays above, or any scalar field), `op` ("set"|"add"|"remove" — add/remove only for the attachment arrays), and `value` — use patch to attach/detach ONE id without resending the whole array.',
     schema: z.object({
       action: z.enum(['create', 'read', 'update', 'patch', 'delete']),
-      id: z.string().optional().describe('Agent id. Required for read (single)/update/patch/delete.'),
+      id: z
+        .string()
+        .optional()
+        .describe('Agent id. Required for read (single)/update/patch/delete.'),
       data: z
         .object({
           name: z.string().optional(),
@@ -196,13 +199,20 @@ export const manageAgentTool = (userId) =>
             if (op === 'set') {
               nextValue = Array.isArray(value) ? value : [value];
             } else if (op === 'add') {
-              nextValue = currentIds.includes(String(value)) ? currentIds : [...currentIds, String(value)];
+              nextValue = currentIds.includes(String(value))
+                ? currentIds
+                : [...currentIds, String(value)];
             } else {
               nextValue = currentIds.filter((v) => v !== String(value));
             }
             const updated = await agentService.updateAgent(id, userId, { [field]: nextValue });
             const data = normalizeAgentPayload(updated);
-            return JSON.stringify({ status: 'success', message: `Patched '${field}'.`, agentId: data.id, data });
+            return JSON.stringify({
+              status: 'success',
+              message: `Patched '${field}'.`,
+              agentId: data.id,
+              data,
+            });
           }
 
           case 'delete': {
@@ -214,7 +224,10 @@ export const manageAgentTool = (userId) =>
           }
 
           default:
-            return JSON.stringify({ status: 'error', message: `Unhandled action '${input.action}'.` });
+            return JSON.stringify({
+              status: 'error',
+              message: `Unhandled action '${input.action}'.`,
+            });
         }
       } catch (err) {
         return JSON.stringify({ status: 'error', message: `Error managing agent: ${err.message}` });
@@ -233,7 +246,7 @@ export const manageSkillTool = (userId) =>
   createManageResourceTool({
     name: 'manage_skill',
     description:
-      "Read/update/delete for your skills. `read` with no `id` lists them (with ids for attaching to agents); with `id` fetches one. `update` (data: {isPublic}) toggles marketplace visibility. To CREATE or EDIT skill content, write files under /skill-library/<skill-name>/ instead (SKILL.md with YAML frontmatter + optional references/ files) — not this tool.",
+      'Read/update/delete for your skills. `read` with no `id` lists them (with ids for attaching to agents); with `id` fetches one. `update` (data: {isPublic}) toggles marketplace visibility. To CREATE or EDIT skill content, write files under /skill-library/<skill-name>/ instead (SKILL.md with YAML frontmatter + optional references/ files) — not this tool.',
     actions: ['read', 'update', 'delete'],
     patchableFields: {},
     list: async () => {

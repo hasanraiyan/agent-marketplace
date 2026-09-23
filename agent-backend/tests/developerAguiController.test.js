@@ -330,9 +330,7 @@ describe('Developer AG-UI Controller — runAgent', () => {
       checkpointService.checkpointer.getTuple.mockResolvedValue({
         checkpoint: {
           channel_values: {
-            messages: [
-              { getType: () => 'ai', tool_calls: [{ id: 'call_5310987', name: 'task' }] },
-            ],
+            messages: [{ getType: () => 'ai', tool_calls: [{ id: 'call_5310987', name: 'task' }] }],
           },
         },
       });

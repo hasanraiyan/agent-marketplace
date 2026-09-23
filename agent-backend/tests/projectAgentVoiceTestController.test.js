@@ -19,9 +19,8 @@ jest.unstable_mockModule('../src/modules/threads/thread.repository.js', () => ({
 }));
 
 const agentService = (await import('../src/modules/agents/agent.service.js')).default;
-const { resolveVoiceProvider, buildVoiceLiveConfig } = await import(
-  '../src/modules/voice/voice.service.js'
-);
+const { resolveVoiceProvider, buildVoiceLiveConfig } =
+  await import('../src/modules/voice/voice.service.js');
 const { mintVoiceTicket } = await import('../src/modules/voice/voiceTicket.service.js');
 const Conversation = (await import('../src/modules/threads/thread.model.js')).default;
 const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
@@ -77,7 +76,10 @@ describe('ProjectAgentVoiceTestController.createSession — thread resolution', 
   });
 
   test('a resolvable x-thread-id header: mints with the resolved LangGraph thread id', async () => {
-    Conversation.findOne.mockResolvedValue({ _id: 'conv_1', threadId: 'agent-test-project_1-agent_1-abc' });
+    Conversation.findOne.mockResolvedValue({
+      _id: 'conv_1',
+      threadId: 'agent-test-project_1-agent_1-abc',
+    });
     const { req, res, next } = fakeReqRes({ 'x-thread-id': 'agent-test-project_1-agent_1-abc' });
 
     await projectAgentVoiceTestController.createSession(req, res, next);
@@ -107,7 +109,10 @@ describe('ProjectAgentVoiceTestController.createSession — thread resolution', 
 
   test('an ObjectId-shaped x-thread-id queries by _id instead of threadId', async () => {
     const objectId = '507f1f77bcf86cd799439011';
-    Conversation.findOne.mockResolvedValue({ _id: objectId, threadId: 'agent-test-project_1-agent_1-xyz' });
+    Conversation.findOne.mockResolvedValue({
+      _id: objectId,
+      threadId: 'agent-test-project_1-agent_1-xyz',
+    });
     const { req, res, next } = fakeReqRes({ 'x-thread-id': objectId });
 
     await projectAgentVoiceTestController.createSession(req, res, next);

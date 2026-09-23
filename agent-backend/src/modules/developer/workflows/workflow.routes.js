@@ -78,12 +78,7 @@ router.use(projectAdminAuthMiddleware);
  *         description: Unauthorized
  */
 router.get('/', workflowController.list);
-router.post(
-  '/',
-  mutateLimiter,
-  validateBody(createWorkflowSchema),
-  workflowController.create
-);
+router.post('/', mutateLimiter, validateBody(createWorkflowSchema), workflowController.create);
 
 /**
  * @openapi

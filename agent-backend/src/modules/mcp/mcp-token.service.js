@@ -153,9 +153,7 @@ class McpTokenService {
       // through whatever request triggered this token resolution (a live
       // chat run's tool resolution, or an MCP App widget's resource/tool
       // call — see mcp.tools.js and mcp.service.js#_resolveAuthHeaders).
-      logger.error(
-        `[MCP] user token refresh failed for mcp ${mcp._id}: ${err?.message}`
-      );
+      logger.error(`[MCP] user token refresh failed for mcp ${mcp._id}: ${err?.message}`);
       return null;
     }
 

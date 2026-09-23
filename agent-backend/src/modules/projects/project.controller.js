@@ -1116,10 +1116,14 @@ class ProjectController {
       const limit = parseInt(req.query.limit) || 20;
       const filters = { search: req.query.search };
 
-      const tools = await restApiToolService.discoverRestApiTools(req.projectAdminContext, filters, {
-        page,
-        limit,
-      });
+      const tools = await restApiToolService.discoverRestApiTools(
+        req.projectAdminContext,
+        filters,
+        {
+          page,
+          limit,
+        }
+      );
 
       res.json({ success: true, data: tools.map((tool) => restApiToolService.toSafeJson(tool)) });
     } catch (error) {
@@ -1166,7 +1170,11 @@ class ProjectController {
 
   async deleteRestApiTool(req, res, next) {
     try {
-      await restApiToolService.deleteRestApiTool(req.params.toolId, undefined, req.projectAdminContext);
+      await restApiToolService.deleteRestApiTool(
+        req.params.toolId,
+        undefined,
+        req.projectAdminContext
+      );
       res.json({ success: true, message: 'REST API tool deleted successfully' });
     } catch (error) {
       next(error);
@@ -1359,7 +1367,11 @@ class ProjectController {
 
   async createRcpSource(req, res, next) {
     try {
-      const source = await rcpSourceService.createRcpSource(undefined, req.body, req.projectAdminContext);
+      const source = await rcpSourceService.createRcpSource(
+        undefined,
+        req.body,
+        req.projectAdminContext
+      );
       res.status(201).json({ success: true, data: rcpSourceService.toSafeJson(source) });
     } catch (error) {
       if (error.code === 11000) {
@@ -1394,7 +1406,11 @@ class ProjectController {
 
   async deleteRcpSource(req, res, next) {
     try {
-      await rcpSourceService.deleteRcpSource(req.params.sourceId, undefined, req.projectAdminContext);
+      await rcpSourceService.deleteRcpSource(
+        req.params.sourceId,
+        undefined,
+        req.projectAdminContext
+      );
       res.json({ success: true, message: 'RCP source deleted successfully' });
     } catch (error) {
       next(error);
@@ -1657,7 +1673,11 @@ class ProjectController {
 
       res.json({ success: true, data: result });
     } catch (error) {
-      if (error.message === 'Agent not found' || error.message === 'Thread not found' || error.message === 'Unauthorized') {
+      if (
+        error.message === 'Agent not found' ||
+        error.message === 'Thread not found' ||
+        error.message === 'Unauthorized'
+      ) {
         return res.status(404).json({ success: false, message: 'Thread not found' });
       }
       next(error);
@@ -1731,4 +1751,3 @@ class ProjectController {
 }
 
 export default new ProjectController();
-

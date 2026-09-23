@@ -47,7 +47,11 @@ function normalizeMessages(rawMessages) {
     const role = type === 'human' ? 'user' : type === 'system' ? 'system' : 'assistant';
     const toolCalls = Array.isArray(msg.tool_calls)
       ? msg.tool_calls.map((tc) => {
-          const entry = { toolCallId: tc.id, toolName: tc.name, args: JSON.stringify(tc.args ?? {}) };
+          const entry = {
+            toolCallId: tc.id,
+            toolName: tc.name,
+            args: JSON.stringify(tc.args ?? {}),
+          };
           if (tc.id) toolCallById.set(tc.id, entry);
           return entry;
         })
@@ -247,7 +251,6 @@ class CheckpointService {
       pendingInterrupt,
     };
   }
-
 }
 
 export default new CheckpointService();

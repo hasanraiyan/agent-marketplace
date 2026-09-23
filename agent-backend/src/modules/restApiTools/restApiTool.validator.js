@@ -69,13 +69,10 @@ export const updateRestApiToolSchema = z
     responseMappings: z.array(responseMappingSchema).optional(),
     isEnabled: z.boolean().optional(),
   })
-  .refine(
-    (data) => !data.paramDescriptors?.some((p) => p.name === 'externalUserId'),
-    {
-      message: '"externalUserId" is a reserved template token and cannot be declared as a parameter',
-      path: ['paramDescriptors'],
-    }
-  );
+  .refine((data) => !data.paramDescriptors?.some((p) => p.name === 'externalUserId'), {
+    message: '"externalUserId" is a reserved template token and cannot be declared as a parameter',
+    path: ['paramDescriptors'],
+  });
 
 export const testRestApiToolSchema = z.object({
   toolId: z.string().min(1).optional(),

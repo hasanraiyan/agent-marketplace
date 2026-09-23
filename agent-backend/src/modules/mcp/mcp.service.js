@@ -310,8 +310,8 @@ class McpService {
       // Connect. Treat it as gone so this validates up front instead.
       const authServerChanged = Boolean(
         discovered &&
-          existing.oauth?.authorizationEndpoint &&
-          discovered.authorizationEndpoint !== existing.oauth.authorizationEndpoint
+        existing.oauth?.authorizationEndpoint &&
+        discovered.authorizationEndpoint !== existing.oauth.authorizationEndpoint
       );
       const reusableClientId = authServerChanged ? null : existing.oauth?.clientId;
       const hasClientId = Boolean(data.oauth?.clientId || reusableClientId);

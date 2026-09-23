@@ -32,10 +32,12 @@ jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () 
   },
 }));
 
-const rcpSourceRepository = (await import('../src/modules/rcpSources/rcpSource.repository.js')).default;
+const rcpSourceRepository = (await import('../src/modules/rcpSources/rcpSource.repository.js'))
+  .default;
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
-const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js')).default;
+const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js'))
+  .default;
 const ValidationError = (await import('../src/utils/errors/ValidationError.js')).default;
 const NotFoundError = (await import('../src/utils/errors/NotFoundError.js')).default;
 const rcpSourceService = (await import('../src/modules/rcpSources/rcpSource.service.js')).default;
@@ -143,7 +145,7 @@ describe('rcpSourceService.testConnection', () => {
     expect(result.tools).toHaveLength(1);
   });
 
-  it('summarizes each tool\'s full (unfiltered) param list, since testConnection registers no resolvers', async () => {
+  it("summarizes each tool's full (unfiltered) param list, since testConnection registers no resolvers", async () => {
     rcpSourceRepository.findById.mockResolvedValue(ownedSource());
     global.fetch.mockResolvedValue(
       jsonResponse({
@@ -268,7 +270,7 @@ describe('rcpSourceService._buildDiscoveryFilter (via discoverRcpSources)', () =
 
     expect(rcpSourceRepository.search).toHaveBeenCalledWith(
       { domain: 'proj-1' },
-      { page: 1, limit: 20 },
+      { page: 1, limit: 20 }
     );
   });
 
@@ -276,25 +278,25 @@ describe('rcpSourceService._buildDiscoveryFilter (via discoverRcpSources)', () =
     await rcpSourceService.discoverRcpSources(
       externalUserContext('user-42'),
       { scope: 'mine' },
-      { page: 1, limit: 20 },
+      { page: 1, limit: 20 }
     );
 
     expect(rcpSourceRepository.search).toHaveBeenCalledWith(
       { domain: 'proj-1', ownerType: 'ExternalUser', externalOwnerId: 'user-42' },
-      { page: 1, limit: 20 },
+      { page: 1, limit: 20 }
     );
   });
 
-  it('a ProjectRuntime context with no scope sees only Project-owned sources — never another external user\'s private ones', async () => {
+  it("a ProjectRuntime context with no scope sees only Project-owned sources — never another external user's private ones", async () => {
     await rcpSourceService.discoverRcpSources(
       externalUserContext('user-42'),
       {},
-      { page: 1, limit: 20 },
+      { page: 1, limit: 20 }
     );
 
     expect(rcpSourceRepository.search).toHaveBeenCalledWith(
       { domain: 'proj-1', ownerType: 'Project' },
-      { page: 1, limit: 20 },
+      { page: 1, limit: 20 }
     );
   });
 });
@@ -308,13 +310,13 @@ describe('rcpSourceService.getRcpSourceById (strict ownership)', () => {
         domain: 'proj-1',
         principalType: 'ProjectRuntime',
         externalUserId: 'user-42',
-      }),
+      })
     ).rejects.toThrow(NotFoundError);
   });
 
-  it('throws for a different external user\'s own source', async () => {
+  it("throws for a different external user's own source", async () => {
     rcpSourceRepository.findById.mockResolvedValue(
-      ownedSource({ ownerType: 'ExternalUser', externalOwnerId: 'user-1' }),
+      ownedSource({ ownerType: 'ExternalUser', externalOwnerId: 'user-1' })
     );
 
     await expect(
@@ -322,7 +324,7 @@ describe('rcpSourceService.getRcpSourceById (strict ownership)', () => {
         domain: 'proj-1',
         principalType: 'ProjectRuntime',
         externalUserId: 'user-2',
-      }),
+      })
     ).rejects.toThrow(NotFoundError);
   });
 });
@@ -340,9 +342,9 @@ describe('rcpSourceService.getReadableRcpSourceById (display-only, admits shared
     expect(source.ownerType).toBe('Project');
   });
 
-  it('still throws for a different external user\'s own private source', async () => {
+  it("still throws for a different external user's own private source", async () => {
     rcpSourceRepository.findById.mockResolvedValue(
-      ownedSource({ ownerType: 'ExternalUser', externalOwnerId: 'user-1' }),
+      ownedSource({ ownerType: 'ExternalUser', externalOwnerId: 'user-1' })
     );
 
     await expect(
@@ -350,13 +352,13 @@ describe('rcpSourceService.getReadableRcpSourceById (display-only, admits shared
         domain: 'proj-1',
         principalType: 'ProjectRuntime',
         externalUserId: 'user-2',
-      }),
+      })
     ).rejects.toThrow(NotFoundError);
   });
 
-  it('still throws for a different Domain\'s Project-owned source', async () => {
+  it("still throws for a different Domain's Project-owned source", async () => {
     rcpSourceRepository.findById.mockResolvedValue(
-      ownedSource({ ownerType: 'Project', domain: 'other-proj' }),
+      ownedSource({ ownerType: 'Project', domain: 'other-proj' })
     );
 
     await expect(
@@ -364,7 +366,7 @@ describe('rcpSourceService.getReadableRcpSourceById (display-only, admits shared
         domain: 'proj-1',
         principalType: 'ProjectRuntime',
         externalUserId: 'user-42',
-      }),
+      })
     ).rejects.toThrow(NotFoundError);
   });
 });

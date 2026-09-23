@@ -229,9 +229,7 @@ describe('Thread Service — Subject generalization (blueprint Phase 9, PR-39)',
     test('rejects a cross-subject reset', async () => {
       threadRepository.findById.mockResolvedValue({ userId: 'someone-else' });
 
-      await expect(threadService.resetThread('t1', mockUserId)).rejects.toThrow(
-        'Thread not found'
-      );
+      await expect(threadService.resetThread('t1', mockUserId)).rejects.toThrow('Thread not found');
       expect(threadRepository.update).not.toHaveBeenCalled();
     });
 

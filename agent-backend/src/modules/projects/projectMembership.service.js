@@ -124,15 +124,12 @@ class ProjectMembershipService {
     // of raw Persona User ids. All original membership fields are
     // preserved; a dangling membership for a deleted user simply gets
     // nulls for the profile fields.
-    const users =
-      (await userRepository.findByIds(memberships.map((m) => m.personaUserId))) ?? [];
+    const users = (await userRepository.findByIds(memberships.map((m) => m.personaUserId))) ?? [];
     const byId = new Map(users.map((u) => [String(u._id), u]));
 
     return memberships.map((membership) => {
       const plain =
-        typeof membership.toObject === 'function'
-          ? membership.toObject()
-          : { ...membership };
+        typeof membership.toObject === 'function' ? membership.toObject() : { ...membership };
       const user = byId.get(String(membership.personaUserId));
       return {
         ...plain,

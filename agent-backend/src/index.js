@@ -37,6 +37,11 @@ import {
   developerVoiceRouter,
   attachVoiceGateway,
 } from './modules/voice/index.js';
+import {
+  twilioWebhookRouter,
+  outboundCallRouter,
+  attachTwilioGateway,
+} from './modules/twilio/index.js';
 import { threadRouter } from './modules/threads/index.js';
 import { skillRouter } from './modules/skills/index.js';
 import { mcpRouter } from './modules/mcp/index.js';
@@ -123,6 +128,9 @@ app.use((req, res, next) => {
 
 // Webhooks must be parsed as raw body and bypass global auth
 app.use('/api/v1/webhooks', webhookRouter);
+// Twilio webhooks must bypass Clerk authentication and parse urlencoded
+app.use('/api/v1/webhooks/twilio', twilioWebhookRouter);
+app.use('/api/v1/twilio', outboundCallRouter);
 
 app.use(clerkMiddleware());
 
@@ -259,6 +267,7 @@ async function startServer() {
       // own 'upgrade' listener directly to the http.Server rather than
       // being an Express route.
       attachVoiceGateway(server);
+      attachTwilioGateway(server);
       server.unref();
     }
   } catch (error) {

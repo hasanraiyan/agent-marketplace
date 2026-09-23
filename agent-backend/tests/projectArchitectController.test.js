@@ -25,7 +25,8 @@ jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => (
   default: { checkpointer: { getTuple: jest.fn() } },
 }));
 
-const rateLimiterService = (await import('../src/modules/rateLimiter/rateLimiter.service.js')).default;
+const rateLimiterService = (await import('../src/modules/rateLimiter/rateLimiter.service.js'))
+  .default;
 const aguiService = await import('../src/modules/agui/agui.service.js');
 const Conversation = (await import('../src/modules/threads/thread.model.js')).default;
 const { PROJECT_ARCHITECT_AGENT_ID } = await import('../src/modules/agents/architectConstants.js');
@@ -134,7 +135,11 @@ describe('ProjectArchitectController.runAgent — thread resolution', () => {
 
   test('"default"/"new" thread id values are treated as no explicit thread', async () => {
     Conversation.findOne.mockResolvedValue(null);
-    const req = { headers: { 'x-thread-id': 'default' }, projectAdminContext: context, on: jest.fn() };
+    const req = {
+      headers: { 'x-thread-id': 'default' },
+      projectAdminContext: context,
+      on: jest.fn(),
+    };
     const res = fakeRes();
 
     await projectArchitectController.runAgent(req, res, jest.fn());

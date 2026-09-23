@@ -213,4 +213,9 @@ export async function buildVoiceLiveConfig(agent, domain, context) {
   return { model, voiceName, liveConfig, toolsByName };
 }
 
-export default { resolveVoiceProvider, assertNoGuardedTools, resolveVoiceTools, buildVoiceLiveConfig };
+export default {
+  resolveVoiceProvider,
+  assertNoGuardedTools,
+  resolveVoiceTools,
+  buildVoiceLiveConfig,
+};

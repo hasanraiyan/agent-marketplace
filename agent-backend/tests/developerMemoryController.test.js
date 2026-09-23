@@ -137,7 +137,12 @@ describe('Developer Memory Controller (REQ-3)', () => {
     });
 
     test('writes scope "workspace" via the composed identityKey', async () => {
-      mockReq.body = { path: '/outputs/report.md', content: 'hi', scope: 'workspace', agentId: 'a1' };
+      mockReq.body = {
+        path: '/outputs/report.md',
+        content: 'hi',
+        scope: 'workspace',
+        agentId: 'a1',
+      };
       memoryService.writeMemoryFile.mockResolvedValue({
         scope: 'workspace',
         agentId: 'a1',

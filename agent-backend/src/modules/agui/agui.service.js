@@ -158,9 +158,14 @@ export async function* runAgentAsAguiEvents({
   const isResuming = Boolean(pendingInterrupt);
 
   // Trigger concurrent auto-titling if this is a fresh conversation with default title
-  const DEFAULT_TITLES = ['New Conversation', 'New Chat', 'Main Chat', 'Untitled', 'Default Thread'];
-  const isDefaultTitle =
-    thread && DEFAULT_TITLES.includes(thread.title?.trim());
+  const DEFAULT_TITLES = [
+    'New Conversation',
+    'New Chat',
+    'Main Chat',
+    'Untitled',
+    'Default Thread',
+  ];
+  const isDefaultTitle = thread && DEFAULT_TITLES.includes(thread.title?.trim());
   let titlePromise = null;
   if (isDefaultTitle && !isResuming && content) {
     titlePromise = checkpointService._autoTitleThread(thread, content, llm);

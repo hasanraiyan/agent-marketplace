@@ -97,7 +97,12 @@ class ProjectAgentVoiceTestController {
       if (threadDbId) {
         const query = mongoose.isValidObjectId(threadDbId)
           ? { _id: threadDbId, domain: context.domain, agentId, userId: context.personaUserId }
-          : { threadId: threadDbId, domain: context.domain, agentId, userId: context.personaUserId };
+          : {
+              threadId: threadDbId,
+              domain: context.domain,
+              agentId,
+              userId: context.personaUserId,
+            };
         const thread = await Conversation.findOne(query);
         if (!thread) {
           throw new NotFoundError('Thread not found');

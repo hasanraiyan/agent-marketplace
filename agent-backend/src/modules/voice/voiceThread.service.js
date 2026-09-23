@@ -21,7 +21,7 @@ function extractContentText(content) {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
-      .map((block) => (typeof block === 'string' ? block : block?.text ?? ''))
+      .map((block) => (typeof block === 'string' ? block : (block?.text ?? '')))
       .join('');
   }
   return '';
@@ -179,9 +179,7 @@ class VoiceThreadService {
   async appendTurns({ agentId, userId, context, threadId }, turns) {
     if (!threadId || !turns || turns.length === 0) return;
 
-    const messages = turns
-      .map((t) => voiceTurnToMessage(t.role, t.text))
-      .filter(Boolean);
+    const messages = turns.map((t) => voiceTurnToMessage(t.role, t.text)).filter(Boolean);
     if (messages.length === 0) return;
 
     await this.assertThreadOwnedByContext(threadId, context);

@@ -6,14 +6,14 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 
 ## Core
 
-| Variable       | Required | Default                              | Description                                       |
-| -------------- | -------- | ------------------------------------ | ------------------------------------------------- |
-| `PORT`         | No       | `3000`                               | Server port                                       |
-| `NODE_ENV`     | No       | `development`                        | Environment (`development`, `test`, `production`) |
-| `BACKEND_URL`  | No       | `https://api.persona.hasanraiyan.me` | Public URL (used for MCP OAuth redirect URIs)     |
-| `WEBSITE_URL`  | No       | `https://persona.hasanraiyan.me/`    | Frontend URL (used in email links)                |
+| Variable       | Required | Default                                    | Description                                                              |
+| -------------- | -------- | ------------------------------------------ | ------------------------------------------------------------------------ |
+| `PORT`         | No       | `3000`                                     | Server port                                                              |
+| `NODE_ENV`     | No       | `development`                              | Environment (`development`, `test`, `production`)                        |
+| `BACKEND_URL`  | No       | `https://api.persona.hasanraiyan.me`       | Public URL (used for MCP OAuth redirect URIs)                            |
+| `WEBSITE_URL`  | No       | `https://persona.hasanraiyan.me/`          | Frontend URL (used in email links)                                       |
 | `PLATFORM_URL` | No       | `https://platform.persona.hasanraiyan.me/` | Developer Platform (Studio) URL (used for Project Admin OAuth redirects) |
-| `DISABLE_CRON` | No       | `false`                              | Set to `true` to disable all scheduled jobs       |
+| `DISABLE_CRON` | No       | `false`                                    | Set to `true` to disable all scheduled jobs                              |
 
 ## Database
 

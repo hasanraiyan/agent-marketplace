@@ -26,10 +26,12 @@ jest.unstable_mockModule('../src/modules/audit/auditLog.service.js', () => ({
   default: { log: jest.fn() },
 }));
 
-const projectSecretRepository = (await import('../src/modules/projects/projectSecret.repository.js'))
-  .default;
+const projectSecretRepository = (
+  await import('../src/modules/projects/projectSecret.repository.js')
+).default;
 const NotFoundError = (await import('../src/utils/errors/NotFoundError.js')).default;
-const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js')).default;
+const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js'))
+  .default;
 
 beforeEach(() => {
   jest.clearAllMocks();

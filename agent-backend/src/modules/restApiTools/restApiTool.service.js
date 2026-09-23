@@ -147,7 +147,9 @@ class RestApiToolService {
 
   async _invalidateAgentsUsingTool(toolId) {
     const agents = await agentRepository.findAgentsUsingRestApiTool(toolId, '_id');
-    logger.info(`[RestApiTool] Invalidating cache for ${agents.length} agents using tool ${toolId}`);
+    logger.info(
+      `[RestApiTool] Invalidating cache for ${agents.length} agents using tool ${toolId}`
+    );
     for (const agent of agents) agentFactory.invalidate(agent._id);
   }
 
@@ -169,7 +171,8 @@ class RestApiToolService {
   async testCall(context, toolDraft, testValues = {}, toolId = null) {
     this._assertValidToolShape(toolDraft);
 
-    const usesExternalUserId = collectTemplateTokens(toolDraft).reservedTokens.includes('externalUserId');
+    const usesExternalUserId =
+      collectTemplateTokens(toolDraft).reservedTokens.includes('externalUserId');
     const effectiveContext =
       usesExternalUserId && testValues.externalUserId
         ? { ...context, principalType: 'ProjectRuntime', externalUserId: testValues.externalUserId }
@@ -179,7 +182,10 @@ class RestApiToolService {
     try {
       rendered = renderTool(toolDraft, { agentArgs: testValues, context: effectiveContext });
     } catch (error) {
-      if (error instanceof MissingTemplateValueError || error instanceof ReservedTokenUnresolvedError) {
+      if (
+        error instanceof MissingTemplateValueError ||
+        error instanceof ReservedTokenUnresolvedError
+      ) {
         throw new ValidationError(error.message);
       }
       throw error;

@@ -206,7 +206,6 @@ class DeveloperThreadController {
       next(error);
     }
   }
-
 }
 
 export default new DeveloperThreadController();

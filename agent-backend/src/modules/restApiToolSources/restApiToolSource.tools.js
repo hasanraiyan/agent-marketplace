@@ -100,7 +100,9 @@ export async function resolveRestApiToolSourceTools(agent, userId, context) {
         }
       }
     } catch (err) {
-      logger.error(`[RestApiToolSource] failed to load tools from "${source.name}": ${err?.message}`);
+      logger.error(
+        `[RestApiToolSource] failed to load tools from "${source.name}": ${err?.message}`
+      );
     }
   }
 

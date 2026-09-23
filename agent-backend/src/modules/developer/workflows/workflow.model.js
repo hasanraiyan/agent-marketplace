@@ -112,4 +112,3 @@ workflowSchema.index({ projectId: 1, externalOwnerId: 1 });
 workflowSchema.index({ projectId: 1, visibility: 1 });
 
 export default mongoose.model('Workflow', workflowSchema);
-

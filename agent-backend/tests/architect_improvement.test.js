@@ -51,7 +51,13 @@ describe('Architect Improvements', () => {
 
   test('T6: Architect gates its manage_* tools behind approval, except read actions', async () => {
     const { agentConfig } = await agentFactory.buildAgent(ARCHITECT_AGENT_ID, userId, null);
-    const gatedTools = ['manage_agent', 'manage_skill', 'manage_mcp', 'manage_rcp_source', 'manage_rest_api_tool'];
+    const gatedTools = [
+      'manage_agent',
+      'manage_skill',
+      'manage_mcp',
+      'manage_rcp_source',
+      'manage_rest_api_tool',
+    ];
     for (const name of gatedTools) {
       const when = agentConfig.interruptOn[name]?.when;
       expect(typeof when).toBe('function');

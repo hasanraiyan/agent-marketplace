@@ -157,13 +157,20 @@ export const contextOverrideMiddleware = createMiddleware({
     // --- Step 4: Sanitize message history for target provider ---
     let sanitizedRequest = request;
     if (isOpenAICompatible && incompatibleMessages.length > 0) {
-      const { messages: cleanMessages, totalModified, modificationLog } = sanitizeMessagesForModel(messages, targetProviderType);
-      logger.warn('[MW][Step 4/6: Message Sanitization] Cross-provider content blocks detected and stripped', {
-        targetProvider: targetProviderType,
+      const {
+        messages: cleanMessages,
         totalModified,
         modificationLog,
-        note: 'This happens when a thread checkpoint was created by a different provider (e.g. Gemini→OpenAI switch). The functionCall content blocks from Gemini are invalid for OpenAI.',
-      });
+      } = sanitizeMessagesForModel(messages, targetProviderType);
+      logger.warn(
+        '[MW][Step 4/6: Message Sanitization] Cross-provider content blocks detected and stripped',
+        {
+          targetProvider: targetProviderType,
+          totalModified,
+          modificationLog,
+          note: 'This happens when a thread checkpoint was created by a different provider (e.g. Gemini→OpenAI switch). The functionCall content blocks from Gemini are invalid for OpenAI.',
+        }
+      );
       sanitizedRequest = {
         ...request,
         messages: cleanMessages,
@@ -193,7 +200,9 @@ export const contextOverrideMiddleware = createMiddleware({
 
     // --- Step 6: Call the actual model handler ---
     logger.debug('[MW][Step 6/6: Handler Dispatch] Calling inner model handler', {
-      finalMessageCount: Array.isArray(finalRequest.messages) ? finalRequest.messages.length : 'n/a',
+      finalMessageCount: Array.isArray(finalRequest.messages)
+        ? finalRequest.messages.length
+        : 'n/a',
     });
 
     return handler(finalRequest);
@@ -881,7 +890,10 @@ class AgentFactory {
     const sandboxBackend = agent.sandboxEnabled
       ? await getSandboxBackend({ agentId: agentIdStr, userId, domain: executionContext.domain })
       : null;
-    const backend = new CompositeBackend(sandboxBackend || new VersionedStateBackend(), backendRoutes);
+    const backend = new CompositeBackend(
+      sandboxBackend || new VersionedStateBackend(),
+      backendRoutes
+    );
 
     const agentInstance = await createDeepAgent({
       model: llm,

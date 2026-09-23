@@ -32,7 +32,8 @@ const agentRepository = (await import('../src/modules/agents/agent.repository.js
 const agentService = (await import('../src/modules/agents/agent.service.js')).default;
 const checkpointService = (await import('../src/modules/threads/checkpoint.service.js')).default;
 const threadService = (await import('../src/modules/threads/thread.service.js')).default;
-const { DEVELOPER_ARCHITECT_AGENT_ID } = await import('../src/modules/agents/architectConstants.js');
+const { DEVELOPER_ARCHITECT_AGENT_ID } =
+  await import('../src/modules/agents/architectConstants.js');
 const developerThreadController = (
   await import('../src/modules/developer/developerThread.controller.js')
 ).default;
@@ -103,7 +104,10 @@ describe('Developer Thread Controller', () => {
       expect(agentRepository.findById).not.toHaveBeenCalled();
       expect(threadService.createThread).toHaveBeenCalledWith(
         undefined,
-        expect.objectContaining({ agentId: DEVELOPER_ARCHITECT_AGENT_ID, threadId: expect.any(String) }),
+        expect.objectContaining({
+          agentId: DEVELOPER_ARCHITECT_AGENT_ID,
+          threadId: expect.any(String),
+        }),
         runtimeContext
       );
       expect(mockRes.status).toHaveBeenCalledWith(201);

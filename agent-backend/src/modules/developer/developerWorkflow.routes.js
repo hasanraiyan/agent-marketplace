@@ -114,7 +114,12 @@ router.get('/:workflowId', workflowController.getOne);
  *       200: { description: Workflow updated }
  *       404: { description: Workflow not found }
  */
-router.patch('/:workflowId', mutateLimiter, validateBody(updateWorkflowSchema), workflowController.update);
+router.patch(
+  '/:workflowId',
+  mutateLimiter,
+  validateBody(updateWorkflowSchema),
+  workflowController.update
+);
 
 /**
  * @openapi
@@ -150,7 +155,12 @@ router.delete('/:workflowId', mutateLimiter, workflowController.remove);
  *       200: { description: Draft saved }
  *       400: { description: Cycle detected or validation error }
  */
-router.put('/:workflowId/draft', mutateLimiter, validateBody(saveDraftSchema), workflowController.saveDraft);
+router.put(
+  '/:workflowId/draft',
+  mutateLimiter,
+  validateBody(saveDraftSchema),
+  workflowController.saveDraft
+);
 
 /**
  * @openapi
@@ -169,7 +179,6 @@ router.put('/:workflowId/draft', mutateLimiter, validateBody(saveDraftSchema), w
  *       400: { description: Empty workflow or cycle detected }
  */
 router.post('/:workflowId/publish', mutateLimiter, workflowController.publish);
-
 
 /**
  * @openapi
@@ -261,8 +270,18 @@ router.get('/:workflowId/mermaid', workflowController.getMermaid);
  *       201: { description: Run started or stream attached }
  *       429: { description: Concurrency limit reached }
  */
-router.post('/:workflowId/runs', mutateLimiter, validateBody(runWorkflowSchema), workflowController.run);
-router.post('/:workflowId/run', mutateLimiter, validateBody(runWorkflowSchema), workflowController.run);
+router.post(
+  '/:workflowId/runs',
+  mutateLimiter,
+  validateBody(runWorkflowSchema),
+  workflowController.run
+);
+router.post(
+  '/:workflowId/run',
+  mutateLimiter,
+  validateBody(runWorkflowSchema),
+  workflowController.run
+);
 
 /**
  * @openapi
@@ -341,4 +360,3 @@ router.post('/runs/:runId/cancel', mutateLimiter, workflowController.cancel);
 router.post('/:workflowId/runs/:runId/cancel', mutateLimiter, workflowController.cancel);
 
 export default router;
-

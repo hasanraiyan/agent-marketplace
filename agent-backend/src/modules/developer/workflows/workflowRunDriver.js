@@ -24,7 +24,10 @@ export class WorkflowRunDriver {
   static unregister(runId) {
     const existed = WorkflowRunDriver.#activeDrivers.delete(String(runId));
     if (existed) {
-      logger.debug('[WorkflowRunDriver] unregistered', { runId: String(runId), remaining: WorkflowRunDriver.#activeDrivers.size });
+      logger.debug('[WorkflowRunDriver] unregistered', {
+        runId: String(runId),
+        remaining: WorkflowRunDriver.#activeDrivers.size,
+      });
     }
   }
 
@@ -44,7 +47,11 @@ export class WorkflowRunDriver {
     this.error = null;
 
     WorkflowRunDriver.register(this.runId, this);
-    logger.debug('[WorkflowRunDriver] registered', { runId: this.runId, workflowId: this.workflowId, threadId: this.threadId });
+    logger.debug('[WorkflowRunDriver] registered', {
+      runId: this.runId,
+      workflowId: this.workflowId,
+      threadId: this.threadId,
+    });
   }
 
   get signal() {
@@ -62,16 +69,27 @@ export class WorkflowRunDriver {
     this.frames.push({ seq, event: enrichedEvent, raw });
     if (this.frames.length > 10000) {
       this.frames.shift();
-      logger.warn('[WorkflowRunDriver] frame buffer overflow, evicting oldest frame', { runId: this.runId, seq });
+      logger.warn('[WorkflowRunDriver] frame buffer overflow, evicting oldest frame', {
+        runId: this.runId,
+        seq,
+      });
     }
 
-    logger.debug('[WorkflowRunDriver] event pushed', { runId: this.runId, seq, type: event?.type, subscriberCount: this.subscribers.size });
+    logger.debug('[WorkflowRunDriver] event pushed', {
+      runId: this.runId,
+      seq,
+      type: event?.type,
+      subscriberCount: this.subscribers.size,
+    });
 
     for (const res of this.subscribers) {
       try {
         res.write(raw);
       } catch (err) {
-        logger.warn(`[WorkflowRunDriver] failed to write event to subscriber: ${err?.message}`, { runId: this.runId, seq });
+        logger.warn(`[WorkflowRunDriver] failed to write event to subscriber: ${err?.message}`, {
+          runId: this.runId,
+          seq,
+        });
       }
     }
   }
@@ -90,7 +108,11 @@ export class WorkflowRunDriver {
     }
 
     const replayCount = this.frames.filter((frame) => frame.seq > sinceSeq).length;
-    logger.info('[WorkflowRunDriver] subscriber attached', { runId: this.runId, sinceSeq, replayCount });
+    logger.info('[WorkflowRunDriver] subscriber attached', {
+      runId: this.runId,
+      sinceSeq,
+      replayCount,
+    });
 
     // Replay missed frames
     for (const frame of this.frames) {
@@ -98,14 +120,19 @@ export class WorkflowRunDriver {
         try {
           res.write(frame.raw);
         } catch (err) {
-          logger.warn(`[WorkflowRunDriver] failed to replay frame to subscriber: ${err?.message}`, { runId: this.runId });
+          logger.warn(`[WorkflowRunDriver] failed to replay frame to subscriber: ${err?.message}`, {
+            runId: this.runId,
+          });
           return;
         }
       }
     }
 
     if (this.isCompleted || this.isCancelled) {
-      logger.debug('[WorkflowRunDriver] run already finished, closing subscriber stream immediately', { runId: this.runId });
+      logger.debug(
+        '[WorkflowRunDriver] run already finished, closing subscriber stream immediately',
+        { runId: this.runId }
+      );
       res.end();
       return;
     }
@@ -113,7 +140,10 @@ export class WorkflowRunDriver {
     this.subscribers.add(res);
     res.on('close', () => {
       this.subscribers.delete(res);
-      logger.debug('[WorkflowRunDriver] subscriber disconnected', { runId: this.runId, remaining: this.subscribers.size });
+      logger.debug('[WorkflowRunDriver] subscriber disconnected', {
+        runId: this.runId,
+        remaining: this.subscribers.size,
+      });
     });
   }
 
@@ -122,7 +152,9 @@ export class WorkflowRunDriver {
    */
   async abort(reason = 'Workflow execution cancelled by user') {
     if (this.isCompleted || this.isCancelled) {
-      logger.debug('[WorkflowRunDriver] abort() called on already-finished run, ignoring', { runId: this.runId });
+      logger.debug('[WorkflowRunDriver] abort() called on already-finished run, ignoring', {
+        runId: this.runId,
+      });
       return;
     }
 
@@ -141,7 +173,9 @@ export class WorkflowRunDriver {
       await workflowRunRepository.cancelRun(this.runId);
       await workflowRepository.decrementActiveRuns(this.workflowId);
     } catch (err) {
-      logger.warn(`[WorkflowRunDriver] cleanup after abort failed: ${err?.message}`, { runId: this.runId });
+      logger.warn(`[WorkflowRunDriver] cleanup after abort failed: ${err?.message}`, {
+        runId: this.runId,
+      });
     }
 
     for (const res of this.subscribers) {
@@ -162,7 +196,10 @@ export class WorkflowRunDriver {
    */
   finish() {
     this.isCompleted = true;
-    logger.debug('[WorkflowRunDriver] finishing run, closing subscriber streams', { runId: this.runId, subscriberCount: this.subscribers.size });
+    logger.debug('[WorkflowRunDriver] finishing run, closing subscriber streams', {
+      runId: this.runId,
+      subscriberCount: this.subscribers.size,
+    });
 
     for (const res of this.subscribers) {
       try {
@@ -173,7 +210,10 @@ export class WorkflowRunDriver {
 
     // Decrement concurrency counter
     workflowRepository.decrementActiveRuns(this.workflowId).catch((err) => {
-      logger.warn(`[WorkflowRunDriver] failed to decrement active runs on finish: ${err?.message}`, { runId: this.runId, workflowId: this.workflowId });
+      logger.warn(
+        `[WorkflowRunDriver] failed to decrement active runs on finish: ${err?.message}`,
+        { runId: this.runId, workflowId: this.workflowId }
+      );
     });
 
     // Retain buffered frames for 5 minutes so late resumes can inspect final frames
@@ -205,7 +245,10 @@ export class WorkflowRunDriver {
     this.subscribers.clear();
 
     workflowRepository.decrementActiveRuns(this.workflowId).catch((err) => {
-      logger.warn(`[WorkflowRunDriver] failed to decrement active runs on fail: ${err?.message}`, { runId: this.runId, workflowId: this.workflowId });
+      logger.warn(`[WorkflowRunDriver] failed to decrement active runs on fail: ${err?.message}`, {
+        runId: this.runId,
+        workflowId: this.workflowId,
+      });
     });
 
     setTimeout(() => {

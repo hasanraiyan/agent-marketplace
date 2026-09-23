@@ -1,15 +1,18 @@
 import { jest } from '@jest/globals';
 
-jest.unstable_mockModule('../src/modules/restApiToolSources/restApiToolSource.repository.js', () => ({
-  default: {
-    create: jest.fn(),
-    findById: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    search: jest.fn(),
-    count: jest.fn(),
-  },
-}));
+jest.unstable_mockModule(
+  '../src/modules/restApiToolSources/restApiToolSource.repository.js',
+  () => ({
+    default: {
+      create: jest.fn(),
+      findById: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
+      search: jest.fn(),
+      count: jest.fn(),
+    },
+  })
+);
 
 jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({
   default: {
@@ -37,7 +40,8 @@ const restApiToolSourceRepository = (
 ).default;
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
-const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js')).default;
+const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js'))
+  .default;
 const ValidationError = (await import('../src/utils/errors/ValidationError.js')).default;
 const NotFoundError = (await import('../src/utils/errors/NotFoundError.js')).default;
 const restApiToolSourceService = (
@@ -141,9 +145,9 @@ describe('restApiToolSourceService.testConnection', () => {
     restApiToolSourceRepository.findById.mockResolvedValue(ownedSource());
     global.fetch.mockResolvedValue({ ok: false, status: 503 });
 
-    await expect(restApiToolSourceService.testConnection('src-1', undefined, context)).rejects.toThrow(
-      ValidationError
-    );
+    await expect(
+      restApiToolSourceService.testConnection('src-1', undefined, context)
+    ).rejects.toThrow(ValidationError);
     expect(restApiToolSourceRepository.update).not.toHaveBeenCalled();
   });
 
@@ -156,9 +160,9 @@ describe('restApiToolSourceService.testConnection', () => {
       },
     });
 
-    await expect(restApiToolSourceService.testConnection('src-1', undefined, context)).rejects.toThrow(
-      ValidationError
-    );
+    await expect(
+      restApiToolSourceService.testConnection('src-1', undefined, context)
+    ).rejects.toThrow(ValidationError);
     expect(restApiToolSourceRepository.update).not.toHaveBeenCalled();
   });
 
@@ -169,24 +173,27 @@ describe('restApiToolSourceService.testConnection', () => {
       json: async () => ({ tools: [{ name: 'Get profile' /* missing method/url */ }] }),
     });
 
-    await expect(restApiToolSourceService.testConnection('src-1', undefined, context)).rejects.toThrow(
-      ValidationError
-    );
+    await expect(
+      restApiToolSourceService.testConnection('src-1', undefined, context)
+    ).rejects.toThrow(ValidationError);
     expect(restApiToolSourceRepository.update).not.toHaveBeenCalled();
   });
 
   it("404s for a source outside the caller's domain", async () => {
     restApiToolSourceRepository.findById.mockResolvedValue(ownedSource({ domain: 'other-proj' }));
-    await expect(restApiToolSourceService.testConnection('src-1', undefined, context)).rejects.toThrow(
-      NotFoundError
-    );
+    await expect(
+      restApiToolSourceService.testConnection('src-1', undefined, context)
+    ).rejects.toThrow(NotFoundError);
   });
 });
 
 describe('restApiToolSourceService.deleteRestApiToolSource', () => {
   it('detaches from every Agent using it, invalidates their cache, then deletes the source', async () => {
     restApiToolSourceRepository.findById.mockResolvedValue(ownedSource());
-    agentRepository.findAgentsUsingRestApiToolSource.mockResolvedValue([{ _id: 'a1' }, { _id: 'a2' }]);
+    agentRepository.findAgentsUsingRestApiToolSource.mockResolvedValue([
+      { _id: 'a1' },
+      { _id: 'a2' },
+    ]);
     restApiToolSourceRepository.delete.mockResolvedValue({});
 
     await restApiToolSourceService.deleteRestApiToolSource('src-1', undefined, context);
@@ -201,9 +208,15 @@ describe('restApiToolSourceService.getRestApiToolSourceUsage', () => {
   it('returns the agent count and a capped preview', async () => {
     restApiToolSourceRepository.findById.mockResolvedValue(ownedSource());
     agentRepository.count.mockResolvedValue(3);
-    agentRepository.findAgentsUsingRestApiToolSource.mockResolvedValue([{ _id: 'a1', name: 'Agent 1' }]);
+    agentRepository.findAgentsUsingRestApiToolSource.mockResolvedValue([
+      { _id: 'a1', name: 'Agent 1' },
+    ]);
 
-    const usage = await restApiToolSourceService.getRestApiToolSourceUsage('src-1', undefined, context);
+    const usage = await restApiToolSourceService.getRestApiToolSourceUsage(
+      'src-1',
+      undefined,
+      context
+    );
 
     expect(agentRepository.count).toHaveBeenCalledWith({ restApiToolSources: 'src-1' });
     expect(usage).toEqual({ agentCount: 3, agents: [{ _id: 'a1', name: 'Agent 1' }] });

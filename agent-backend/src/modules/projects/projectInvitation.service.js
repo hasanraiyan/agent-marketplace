@@ -124,15 +124,12 @@ class ProjectInvitationService {
           .map(String)
       ),
     ];
-    const users =
-      (inviterIds.length ? await userRepository.findByIds(inviterIds) : []) ?? [];
+    const users = (inviterIds.length ? await userRepository.findByIds(inviterIds) : []) ?? [];
     const byId = new Map(users.map((u) => [String(u._id), u]));
 
     return invitations.map((invitation) => {
       const plain =
-        typeof invitation.toObject === 'function'
-          ? invitation.toObject()
-          : { ...invitation };
+        typeof invitation.toObject === 'function' ? invitation.toObject() : { ...invitation };
       const inviter = byId.get(String(invitation.invitedBy));
       return {
         ...plain,

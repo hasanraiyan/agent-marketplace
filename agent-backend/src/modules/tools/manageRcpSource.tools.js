@@ -35,7 +35,9 @@ export const manageRcpSourceTool = (identity) => {
       safe(await rcpSourceService.getRcpSourceById(id, identity.userId, identity.context)),
     create: async (data) => {
       const parsed = createRcpSourceSchema.parse(data);
-      return safe(await rcpSourceService.createRcpSource(identity.userId, parsed, identity.context));
+      return safe(
+        await rcpSourceService.createRcpSource(identity.userId, parsed, identity.context)
+      );
     },
     update: async (id, data) => {
       const parsed = updateRcpSourceSchema.parse(data);

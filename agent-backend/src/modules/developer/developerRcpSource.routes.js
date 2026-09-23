@@ -54,7 +54,12 @@ router.use(developerMachineAuthMiddleware);
  *     responses:
  *       200: { description: "{ items: RcpSource[], pagination: {...} }" }
  */
-router.post('/', idempotency(), validateBody(createRcpSourceSchema), developerRcpSourceController.create);
+router.post(
+  '/',
+  idempotency(),
+  validateBody(createRcpSourceSchema),
+  developerRcpSourceController.create
+);
 router.get('/', developerRcpSourceController.discover);
 
 /**
@@ -98,7 +103,11 @@ router.get('/', developerRcpSourceController.discover);
  *       404: { description: Not found or unauthorized }
  */
 router.get('/:sourceId', developerRcpSourceController.getOne);
-router.patch('/:sourceId', validateBody(updateRcpSourceSchema), developerRcpSourceController.update);
+router.patch(
+  '/:sourceId',
+  validateBody(updateRcpSourceSchema),
+  developerRcpSourceController.update
+);
 router.delete('/:sourceId', developerRcpSourceController.remove);
 
 /**
@@ -155,6 +164,10 @@ router.post('/:sourceId/test', developerRcpSourceController.testConnection);
  *     responses:
  *       200: { description: "{ deleted: string[], failed: [{ id, reason }] }" }
  */
-router.post('/bulk-delete', validateBody(bulkDeleteSchema), developerRcpSourceController.bulkDelete);
+router.post(
+  '/bulk-delete',
+  validateBody(bulkDeleteSchema),
+  developerRcpSourceController.bulkDelete
+);
 
 export default router;

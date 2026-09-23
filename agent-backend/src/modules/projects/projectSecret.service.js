@@ -158,6 +158,7 @@ class ProjectSecretService {
    * an error.
    */
   async resolveSecretByLabel(domain, label) {
+    if (!mongoose.isValidObjectId(domain)) return null;
     const secret = await projectSecretRepository.findByProjectAndLabel(domain, label);
     if (!secret) return null;
     const value = encryption.decrypt(secret.valueEncrypted);

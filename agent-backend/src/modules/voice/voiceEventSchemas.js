@@ -82,7 +82,8 @@ const VOICE_CUSTOM_EVENTS = [
   },
   {
     type: 'voice_session_ended',
-    description: 'Terminal event for the voice session, with a reason and best-effort usage totals.',
+    description:
+      'Terminal event for the voice session, with a reason and best-effort usage totals.',
     schema: voiceSessionEndedSchema,
   },
 ];

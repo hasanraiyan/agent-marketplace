@@ -26,11 +26,13 @@ jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => (
   default: { checkpointer: { getTuple: jest.fn() } },
 }));
 
-const rateLimiterService = (await import('../src/modules/rateLimiter/rateLimiter.service.js')).default;
+const rateLimiterService = (await import('../src/modules/rateLimiter/rateLimiter.service.js'))
+  .default;
 const aguiService = await import('../src/modules/agui/agui.service.js');
 const threadService = (await import('../src/modules/threads/thread.service.js')).default;
 const threadRepository = (await import('../src/modules/threads/thread.repository.js')).default;
-const { DEVELOPER_ARCHITECT_AGENT_ID } = await import('../src/modules/agents/architectConstants.js');
+const { DEVELOPER_ARCHITECT_AGENT_ID } =
+  await import('../src/modules/agents/architectConstants.js');
 const developerArchitectController = (
   await import('../src/modules/developer/developerArchitect.controller.js')
 ).default;
@@ -87,9 +89,15 @@ describe('DeveloperArchitectController.runAgent — thread resolution', () => {
 
     expect(threadService.getThreadById).not.toHaveBeenCalled();
     const events = eventsOf(res);
-    expect(events[0]).toMatchObject({ type: 'RUN_STARTED', threadId: `architect-${domain}:project` });
+    expect(events[0]).toMatchObject({
+      type: 'RUN_STARTED',
+      threadId: `architect-${domain}:project`,
+    });
     expect(aguiService.runAgentAsAguiEvents).toHaveBeenCalledWith(
-      expect.objectContaining({ langGraphThreadId: `architect-${domain}:project`, threadDbId: undefined })
+      expect.objectContaining({
+        langGraphThreadId: `architect-${domain}:project`,
+        threadDbId: undefined,
+      })
     );
   });
 

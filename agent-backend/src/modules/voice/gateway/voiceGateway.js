@@ -49,11 +49,8 @@ export function attachVoiceGateway(server) {
     }
 
     if (url.pathname !== VOICE_WS_PATH) {
-      // Only one WS feature exists today, so destroying an unrecognized
-      // path is safe. A second WS feature added later must switch this to
-      // a non-destructive pass-through (return without touching the
-      // socket) so each feature's own 'upgrade' listener gets a turn.
-      socket.destroy();
+      // Non-destructive pass-through so other WebSocket features (e.g. Twilio Media Streams)
+      // attached to the same http.Server get a turn to handle their own upgrade.
       return;
     }
 
@@ -198,9 +195,7 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
       voiceName,
       liveConfig,
       toolsByName,
-      onTranscriptCommit: transcriptSink
-        ? (role, text) => transcriptSink.commit(role, text)
-        : null,
+      onTranscriptCommit: transcriptSink ? (role, text) => transcriptSink.commit(role, text) : null,
       // At-connect seed for TURN_CONTEXT_RCP_RESOLVERS_PLAN.md's voice
       // extension — VoiceSession keeps this live-refreshable for the rest
       // of the call via a `voice.context` client message.

@@ -8,7 +8,9 @@ function sanitizeId(id) {
 }
 
 function sanitizeLabel(label) {
-  return String(label).replace(/["\n\r]/g, ' ').trim();
+  return String(label)
+    .replace(/["\n\r]/g, ' ')
+    .trim();
 }
 
 function formatNodeMermaid(node) {
@@ -42,8 +44,10 @@ function formatNodeMermaid(node) {
  * @returns {string} Mermaid markdown flowchart definition
  */
 export function generateWorkflowMermaid(workflowDef, direction = 'TD') {
-  const nodes = workflowDef?.draft?.nodes || workflowDef?.definition?.nodes || workflowDef?.nodes || [];
-  const edges = workflowDef?.draft?.edges || workflowDef?.definition?.edges || workflowDef?.edges || [];
+  const nodes =
+    workflowDef?.draft?.nodes || workflowDef?.definition?.nodes || workflowDef?.nodes || [];
+  const edges =
+    workflowDef?.draft?.edges || workflowDef?.definition?.edges || workflowDef?.edges || [];
 
   const lines = [`flowchart ${direction}`];
 

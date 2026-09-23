@@ -19,7 +19,8 @@ export const restToolManifestSchema = z.object({
       restApiToolBaseSchema.refine(
         (data) => !data.paramDescriptors.some((p) => p.name === 'externalUserId'),
         {
-          message: '"externalUserId" is a reserved template token and cannot be declared as a parameter',
+          message:
+            '"externalUserId" is a reserved template token and cannot be declared as a parameter',
           path: ['paramDescriptors'],
         }
       )

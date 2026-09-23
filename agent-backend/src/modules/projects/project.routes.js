@@ -21,10 +21,7 @@ import {
   updateKnowledgeBaseSchema,
 } from '../knowledge/knowledge.validator.js';
 import { createMcpSchema, updateMcpSchema } from '../mcp/mcp.validator.js';
-import {
-  createProjectSecretSchema,
-  updateProjectSecretSchema,
-} from './projectSecret.validator.js';
+import { createProjectSecretSchema, updateProjectSecretSchema } from './projectSecret.validator.js';
 import {
   createRestApiToolSchema,
   updateRestApiToolSchema,
@@ -1150,7 +1147,10 @@ adminRouter.post(
  *       404:
  *         description: Thread not found
  */
-adminRouter.get('/agents/:agentId/threads/:threadId/messages', projectController.getAgentThreadMessages);
+adminRouter.get(
+  '/agents/:agentId/threads/:threadId/messages',
+  projectController.getAgentThreadMessages
+);
 
 /**
  * @openapi
@@ -1229,4 +1229,3 @@ adminRouter.delete(
 router.use('/:projectId', adminRouter);
 
 export default router;
-

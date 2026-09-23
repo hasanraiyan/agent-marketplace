@@ -6,10 +6,10 @@ jest.unstable_mockModule('../src/modules/projects/projectSecret.service.js', () 
   },
 }));
 
-const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js')).default;
-const { resolveRestApiToolSourceTools } = await import(
-  '../src/modules/restApiToolSources/restApiToolSource.tools.js'
-);
+const projectSecretService = (await import('../src/modules/projects/projectSecret.service.js'))
+  .default;
+const { resolveRestApiToolSourceTools } =
+  await import('../src/modules/restApiToolSources/restApiToolSource.tools.js');
 
 const context = { principalType: 'PersonaUser', personaUserId: 'u1' };
 
@@ -30,7 +30,9 @@ beforeEach(() => {
 describe('resolveRestApiToolSourceTools', () => {
   it('returns [] when the agent has no attached sources', async () => {
     expect(await resolveRestApiToolSourceTools({}, 'u1', context)).toEqual([]);
-    expect(await resolveRestApiToolSourceTools({ restApiToolSources: [] }, 'u1', context)).toEqual([]);
+    expect(await resolveRestApiToolSourceTools({ restApiToolSources: [] }, 'u1', context)).toEqual(
+      []
+    );
   });
 
   it('builds one namespaced tool per manifest entry, fetched live', async () => {
@@ -39,7 +41,14 @@ describe('resolveRestApiToolSourceTools', () => {
     );
 
     const tools = await resolveRestApiToolSourceTools(
-      agentWithSources([{ name: 'Coursify', isEnabled: true, authType: 'none', url: 'https://x.example.com/manifest' }]),
+      agentWithSources([
+        {
+          name: 'Coursify',
+          isEnabled: true,
+          authType: 'none',
+          url: 'https://x.example.com/manifest',
+        },
+      ]),
       'u1',
       context
     );
@@ -81,7 +90,12 @@ describe('resolveRestApiToolSourceTools', () => {
     global.fetch
       .mockResolvedValueOnce(
         manifestOk([
-          { name: 'Get Profile', method: 'GET', url: 'https://api.example.com/me', authType: 'bearerSecret' },
+          {
+            name: 'Get Profile',
+            method: 'GET',
+            url: 'https://api.example.com/me',
+            authType: 'bearerSecret',
+          },
         ])
       )
       .mockResolvedValueOnce({ ok: true, text: async () => '{}' });
@@ -115,13 +129,23 @@ describe('resolveRestApiToolSourceTools', () => {
   it('skips (never throws for) a tool needing bearerSecret when neither it nor the source has a secret', async () => {
     global.fetch.mockResolvedValue(
       manifestOk([
-        { name: 'Get Profile', method: 'GET', url: 'https://api.example.com/me', authType: 'bearerSecret' },
+        {
+          name: 'Get Profile',
+          method: 'GET',
+          url: 'https://api.example.com/me',
+          authType: 'bearerSecret',
+        },
       ])
     );
 
     const tools = await resolveRestApiToolSourceTools(
       agentWithSources([
-        { name: 'Coursify', isEnabled: true, authType: 'none', url: 'https://x.example.com/manifest' },
+        {
+          name: 'Coursify',
+          isEnabled: true,
+          authType: 'none',
+          url: 'https://x.example.com/manifest',
+        },
       ]),
       'u1',
       context
@@ -166,7 +190,9 @@ describe('resolveRestApiToolSourceTools', () => {
 
   it('skips a disabled source without fetching it', async () => {
     const tools = await resolveRestApiToolSourceTools(
-      agentWithSources([{ name: 'Coursify', isEnabled: false, url: 'https://x.example.com/manifest' }]),
+      agentWithSources([
+        { name: 'Coursify', isEnabled: false, url: 'https://x.example.com/manifest' },
+      ]),
       'u1',
       context
     );
@@ -177,7 +203,9 @@ describe('resolveRestApiToolSourceTools', () => {
   it('skips (never throws for) an unreachable source', async () => {
     global.fetch.mockRejectedValue(new Error('ECONNREFUSED'));
     const tools = await resolveRestApiToolSourceTools(
-      agentWithSources([{ name: 'Coursify', isEnabled: true, url: 'https://x.example.com/manifest' }]),
+      agentWithSources([
+        { name: 'Coursify', isEnabled: true, url: 'https://x.example.com/manifest' },
+      ]),
       'u1',
       context
     );
@@ -187,7 +215,9 @@ describe('resolveRestApiToolSourceTools', () => {
   it('skips (never throws for) a non-2xx response', async () => {
     global.fetch.mockResolvedValue({ ok: false, status: 503 });
     const tools = await resolveRestApiToolSourceTools(
-      agentWithSources([{ name: 'Coursify', isEnabled: true, url: 'https://x.example.com/manifest' }]),
+      agentWithSources([
+        { name: 'Coursify', isEnabled: true, url: 'https://x.example.com/manifest' },
+      ]),
       'u1',
       context
     );
@@ -197,7 +227,9 @@ describe('resolveRestApiToolSourceTools', () => {
   it('skips (never throws for) a manifest that fails schema validation', async () => {
     global.fetch.mockResolvedValue(manifestOk([{ name: 'Get Profile' /* missing method/url */ }]));
     const tools = await resolveRestApiToolSourceTools(
-      agentWithSources([{ name: 'Coursify', isEnabled: true, url: 'https://x.example.com/manifest' }]),
+      agentWithSources([
+        { name: 'Coursify', isEnabled: true, url: 'https://x.example.com/manifest' },
+      ]),
       'u1',
       context
     );
@@ -207,7 +239,9 @@ describe('resolveRestApiToolSourceTools', () => {
   it('continues to other sources after one fails', async () => {
     global.fetch
       .mockRejectedValueOnce(new Error('ECONNREFUSED'))
-      .mockResolvedValueOnce(manifestOk([{ name: 'Ping', method: 'GET', url: 'https://y.example.com/ping' }]));
+      .mockResolvedValueOnce(
+        manifestOk([{ name: 'Ping', method: 'GET', url: 'https://y.example.com/ping' }])
+      );
 
     const tools = await resolveRestApiToolSourceTools(
       agentWithSources([

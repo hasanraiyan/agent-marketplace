@@ -118,7 +118,9 @@ export function validateWorkflowStructure(nodes = [], edges = []) {
 
   const triggers = nodes.filter((n) => n.type === 'trigger');
   if (triggers.length !== 1) {
-    logger.debug('[workflow.validator] structural validation failed: trigger count', { count: triggers.length });
+    logger.debug('[workflow.validator] structural validation failed: trigger count', {
+      count: triggers.length,
+    });
     return {
       isValid: false,
       error: `Workflow must have exactly 1 trigger node (found ${triggers.length})`,
@@ -163,7 +165,9 @@ export function validateWorkflowStructure(nodes = [], edges = []) {
 
   const unreachable = nodes.filter((n) => !reachable.has(n.id));
   if (unreachable.length > 0) {
-    logger.debug('[workflow.validator] structural validation failed: unreachable nodes', { unreachableNodes: unreachable.map((n) => n.id) });
+    logger.debug('[workflow.validator] structural validation failed: unreachable nodes', {
+      unreachableNodes: unreachable.map((n) => n.id),
+    });
     return {
       isValid: false,
       error: `Unreachable disconnected node(s): ${unreachable.map((n) => n.id).join(', ')}`,

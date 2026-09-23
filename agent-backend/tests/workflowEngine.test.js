@@ -132,7 +132,8 @@ describe('Workflow Engine & Visual Builder Tests', () => {
     });
 
     test('should interpolate variables embedded inside a larger string', () => {
-      const tpl = 'Hello {{trigger.payload.customerName}}, tracking is {{steps.tool1.output.trackingNumber}}.';
+      const tpl =
+        'Hello {{trigger.payload.customerName}}, tracking is {{steps.tool1.output.trackingNumber}}.';
       const resolved = resolveTemplate(tpl, mockState);
       expect(resolved).toBe('Hello Alice, tracking is TRK-9988.');
     });
@@ -306,7 +307,9 @@ describe('Workflow Engine & Visual Builder Tests', () => {
 
       const parsed = workflowDraftSchema.safeParse({ nodes, edges });
       expect(parsed.success).toBe(false);
-      expect(parsed.error.issues[0].message).toContain('Unreachable disconnected node(s): orphan_agent');
+      expect(parsed.error.issues[0].message).toContain(
+        'Unreachable disconnected node(s): orphan_agent'
+      );
     });
   });
 
@@ -352,5 +355,3 @@ describe('Workflow Engine & Visual Builder Tests', () => {
     });
   });
 });
-
-

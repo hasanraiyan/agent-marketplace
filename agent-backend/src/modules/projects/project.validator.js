@@ -55,4 +55,3 @@ export const updateProjectThreadSchema = z.object({
   title: z.string().min(1, 'Title cannot be empty').max(200).optional(),
   isArchived: z.boolean().optional(),
 });
-

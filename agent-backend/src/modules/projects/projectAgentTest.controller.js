@@ -116,7 +116,9 @@ class ProjectAgentTestController {
       res.end();
 
       if (resolvedThread) {
-        await Conversation.findByIdAndUpdate(resolvedThread._id, { lastMessageAt: new Date() }).catch(() => {});
+        await Conversation.findByIdAndUpdate(resolvedThread._id, {
+          lastMessageAt: new Date(),
+        }).catch(() => {});
         if (Object.keys(subagentTraces).length > 0) {
           let reconciled = subagentTraces;
           try {
@@ -125,7 +127,10 @@ class ProjectAgentTestController {
             });
             const rawMessages = snapshot?.checkpoint?.channel_values?.messages;
             if (rawMessages) {
-              reconciled = reconcileSubagentTraceKeys(subagentTraces, extractTaskToolCallIds(rawMessages));
+              reconciled = reconcileSubagentTraceKeys(
+                subagentTraces,
+                extractTaskToolCallIds(rawMessages)
+              );
             }
           } catch {
             // Persist provisional keys if reconciliation fails
@@ -135,7 +140,9 @@ class ProjectAgentTestController {
           for (const [callId, items] of Object.entries(reconciled)) {
             setOps[`subagentTraces.${callId}`] = settleTrace(items);
           }
-          await Conversation.findByIdAndUpdate(resolvedThread._id, { $set: setOps }).catch(() => {});
+          await Conversation.findByIdAndUpdate(resolvedThread._id, { $set: setOps }).catch(
+            () => {}
+          );
         }
       }
     } catch (err) {
@@ -147,4 +154,3 @@ class ProjectAgentTestController {
 }
 
 export default new ProjectAgentTestController();
-

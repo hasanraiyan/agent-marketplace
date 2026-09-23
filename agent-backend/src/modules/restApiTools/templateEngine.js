@@ -134,7 +134,9 @@ export function renderTemplate(text, resolvedValues, requiredTokenNames) {
     }
     const value = resolvedValues[name];
     if ((value === undefined || value === null) && requiredTokenNames.has(name)) {
-      throw new MissingTemplateValueError(`A value is required for {{${name}}}, but none was supplied.`);
+      throw new MissingTemplateValueError(
+        `A value is required for {{${name}}}, but none was supplied.`
+      );
     }
     return value === undefined || value === null ? '' : String(value);
   });

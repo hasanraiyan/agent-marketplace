@@ -20,7 +20,10 @@ class DeveloperRestApiToolSourceController {
       if (error.code === 11000) {
         return res
           .status(409)
-          .json({ success: false, message: 'A REST API tool source with this exact name already exists' });
+          .json({
+            success: false,
+            message: 'A REST API tool source with this exact name already exists',
+          });
       }
       next(error);
     }
@@ -86,7 +89,10 @@ class DeveloperRestApiToolSourceController {
       if (error.code === 11000) {
         return res
           .status(409)
-          .json({ success: false, message: 'Another REST API tool source with this name already exists' });
+          .json({
+            success: false,
+            message: 'Another REST API tool source with this name already exists',
+          });
       }
       next(error);
     }

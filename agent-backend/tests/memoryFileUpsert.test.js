@@ -33,7 +33,8 @@ const { upsertMemoryFile } = await import('../src/modules/memory/memory-file.mod
 const FILTER = { namespace: ['users', 'u1'], key: '/index.md' };
 const UPDATE = { $set: { content: 'hello' } };
 
-const duplicateKeyError = () => Object.assign(new Error('E11000 duplicate key error'), { code: 11000 });
+const duplicateKeyError = () =>
+  Object.assign(new Error('E11000 duplicate key error'), { code: 11000 });
 
 describe('upsertMemoryFile', () => {
   beforeEach(() => findOneAndUpdate.mockReset());

@@ -150,7 +150,11 @@ describe('resourceOwnership — buildDiscoveryFilter', () => {
   });
 
   test('a ProjectRuntimeContext with scope: "mine" is Domain- AND Subject-scoped', () => {
-    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    const context = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
     expect(buildDiscoveryFilter(context, { scope: 'mine' }, {}, sharedFilter)).toEqual({
       domain: 'project-1',
       ownerType: 'ExternalUser',
@@ -159,7 +163,11 @@ describe('resourceOwnership — buildDiscoveryFilter', () => {
   });
 
   test('a ProjectRuntimeContext with no scope falls back to the shared/browsable filter only', () => {
-    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    const context = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
     expect(buildDiscoveryFilter(context, {}, {}, sharedFilter)).toEqual({
       domain: 'project-1',
       isPublic: true,
@@ -167,10 +175,12 @@ describe('resourceOwnership — buildDiscoveryFilter', () => {
   });
 
   test('extra domain-specific predicates (search, category, ...) survive every mode', () => {
-    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
-    expect(
-      buildDiscoveryFilter(context, {}, { name: /foo/i }, { ownerType: 'Project' }),
-    ).toEqual({
+    const context = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
+    expect(buildDiscoveryFilter(context, {}, { name: /foo/i }, { ownerType: 'Project' })).toEqual({
       domain: 'project-1',
       name: /foo/i,
       ownerType: 'Project',
@@ -182,26 +192,57 @@ describe('resourceOwnership — isResourceReadable', () => {
   const isPublic = (r) => r.isPublic;
 
   test('the strict owner can always read, regardless of the shared predicate', () => {
-    const resource = { ownerType: 'ExternalUser', externalOwnerId: 'sabik', domain: 'project-1', isPublic: false };
-    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    const resource = {
+      ownerType: 'ExternalUser',
+      externalOwnerId: 'sabik',
+      domain: 'project-1',
+      isPublic: false,
+    };
+    const context = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
     expect(isResourceReadable(resource, context, isPublic)).toBe(true);
   });
 
   test('a non-owner CAN read when the resource matches the shared predicate, same Domain', () => {
-    const resource = { ownerType: 'ExternalUser', externalOwnerId: 'someone-else', domain: 'project-1', isPublic: true };
-    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    const resource = {
+      ownerType: 'ExternalUser',
+      externalOwnerId: 'someone-else',
+      domain: 'project-1',
+      isPublic: true,
+    };
+    const context = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
     expect(isResourceReadable(resource, context, isPublic)).toBe(true);
   });
 
   test('a non-owner CANNOT read a private resource', () => {
-    const resource = { ownerType: 'ExternalUser', externalOwnerId: 'someone-else', domain: 'project-1', isPublic: false };
-    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    const resource = {
+      ownerType: 'ExternalUser',
+      externalOwnerId: 'someone-else',
+      domain: 'project-1',
+      isPublic: false,
+    };
+    const context = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
     expect(isResourceReadable(resource, context, isPublic)).toBe(false);
   });
 
   test('a shared resource from a DIFFERENT Domain is still not readable', () => {
     const resource = { ownerType: 'Project', domain: 'other-project', isPublic: true };
-    const context = { domain: 'project-1', principalType: 'ProjectRuntime', externalUserId: 'sabik' };
+    const context = {
+      domain: 'project-1',
+      principalType: 'ProjectRuntime',
+      externalUserId: 'sabik',
+    };
     expect(isResourceReadable(resource, context, isPublic)).toBe(false);
   });
 

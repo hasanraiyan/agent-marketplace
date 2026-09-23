@@ -9,11 +9,8 @@ jest.unstable_mockModule('../src/modules/skills/skill.model.js', () => ({
 }));
 
 const Skill = (await import('../src/modules/skills/skill.model.js')).default;
-const {
-  ProjectSkillLibraryStore,
-  projectSkillLibraryStore,
-  projectSkillLibraryNamespace,
-} = await import('../src/modules/skills/projectSkillLibraryStore.js');
+const { ProjectSkillLibraryStore, projectSkillLibraryStore, projectSkillLibraryNamespace } =
+  await import('../src/modules/skills/projectSkillLibraryStore.js');
 
 describe('ProjectSkillLibraryStore', () => {
   const store = new ProjectSkillLibraryStore();

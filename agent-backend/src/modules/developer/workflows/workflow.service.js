@@ -90,7 +90,11 @@ class WorkflowService {
   }
 
   async createWorkflow(projectId, data, userId, context = {}) {
-    logger.debug('[WorkflowService] createWorkflow', { projectId, name: data.name, hasCustomDraft: Boolean(data.draft) });
+    logger.debug('[WorkflowService] createWorkflow', {
+      projectId,
+      name: data.name,
+      hasCustomDraft: Boolean(data.draft),
+    });
 
     const draft = data.draft || {
       nodes: [
@@ -113,7 +117,10 @@ class WorkflowService {
 
     const { hasCycle, cycleNode } = detectCycle(draft.nodes, draft.edges);
     if (hasCycle) {
-      logger.warn('[WorkflowService] createWorkflow rejected: cycle detected', { projectId, cycleNode });
+      logger.warn('[WorkflowService] createWorkflow rejected: cycle detected', {
+        projectId,
+        cycleNode,
+      });
       throw new BaseError(
         `Cycles are not supported in v1. Node ${cycleNode || 'unknown'} references an ancestor.`,
         400,
@@ -136,7 +143,12 @@ class WorkflowService {
       visibility,
     });
 
-    logger.info('[WorkflowService] workflow created', { projectId, workflowId: workflow._id, ownerType, visibility });
+    logger.info('[WorkflowService] workflow created', {
+      projectId,
+      workflowId: workflow._id,
+      ownerType,
+      visibility,
+    });
     return workflow;
   }
 
@@ -170,10 +182,7 @@ class WorkflowService {
       } else {
         // External user sees their own workflows + public ones
         opts.customFilter = {
-          $or: [
-            { externalOwnerId: targetUserId },
-            { visibility: 'public' },
-          ],
+          $or: [{ externalOwnerId: targetUserId }, { visibility: 'public' }],
         };
       }
     }
@@ -182,21 +191,31 @@ class WorkflowService {
       workflowRepository.listByProject(projectId, opts),
       workflowRepository.countByProject(projectId, opts),
     ]);
-    logger.debug('[WorkflowService] listWorkflows', { projectId, returned: workflows.length, total });
+    logger.debug('[WorkflowService] listWorkflows', {
+      projectId,
+      returned: workflows.length,
+      total,
+    });
     return { workflows, total };
   }
 
   async updateWorkflow(projectId, id, data, context = {}) {
     const workflow = await this.getWorkflow(projectId, id, context);
     if (context && Object.keys(context).length > 0 && !this.canMutateWorkflow(workflow, context)) {
-      logger.warn('[WorkflowService] updateWorkflow: mutation denied', { workflowId: id, principalType: context.principalType });
+      logger.warn('[WorkflowService] updateWorkflow: mutation denied', {
+        workflowId: id,
+        principalType: context.principalType,
+      });
       throw new BaseError('Not authorized to modify this workflow', 403, 'FORBIDDEN');
     }
 
     if (data.draft) {
       const { hasCycle, cycleNode } = detectCycle(data.draft.nodes, data.draft.edges);
       if (hasCycle) {
-        logger.warn('[WorkflowService] updateWorkflow rejected: cycle detected', { workflowId: id, cycleNode });
+        logger.warn('[WorkflowService] updateWorkflow rejected: cycle detected', {
+          workflowId: id,
+          cycleNode,
+        });
         throw new BaseError(
           `Cycles are not supported in v1. Node ${cycleNode || 'unknown'} references an ancestor.`,
           400,
@@ -213,13 +232,19 @@ class WorkflowService {
   async saveDraft(projectId, id, draft, context = {}) {
     const workflow = await this.getWorkflow(projectId, id, context);
     if (context && Object.keys(context).length > 0 && !this.canMutateWorkflow(workflow, context)) {
-      logger.warn('[WorkflowService] saveDraft: mutation denied', { workflowId: id, principalType: context.principalType });
+      logger.warn('[WorkflowService] saveDraft: mutation denied', {
+        workflowId: id,
+        principalType: context.principalType,
+      });
       throw new BaseError('Not authorized to modify this workflow', 403, 'FORBIDDEN');
     }
 
     const { hasCycle, cycleNode } = detectCycle(draft.nodes, draft.edges);
     if (hasCycle) {
-      logger.warn('[WorkflowService] saveDraft rejected: cycle detected', { workflowId: id, cycleNode });
+      logger.warn('[WorkflowService] saveDraft rejected: cycle detected', {
+        workflowId: id,
+        cycleNode,
+      });
       throw new BaseError(
         `Cycles are not supported in v1. Node ${cycleNode || 'unknown'} references an ancestor.`,
         400,
@@ -228,14 +253,21 @@ class WorkflowService {
     }
 
     const updated = await workflowRepository.updateDraft(id, draft);
-    logger.debug('[WorkflowService] draft saved', { workflowId: id, nodeCount: draft.nodes?.length, edgeCount: draft.edges?.length });
+    logger.debug('[WorkflowService] draft saved', {
+      workflowId: id,
+      nodeCount: draft.nodes?.length,
+      edgeCount: draft.edges?.length,
+    });
     return updated;
   }
 
   async deleteWorkflow(projectId, id, context = {}) {
     const workflow = await this.getWorkflow(projectId, id, context);
     if (context && Object.keys(context).length > 0 && !this.canMutateWorkflow(workflow, context)) {
-      logger.warn('[WorkflowService] deleteWorkflow: mutation denied', { workflowId: id, principalType: context.principalType });
+      logger.warn('[WorkflowService] deleteWorkflow: mutation denied', {
+        workflowId: id,
+        principalType: context.principalType,
+      });
       throw new BaseError('Not authorized to delete this workflow', 403, 'FORBIDDEN');
     }
     const result = await workflowRepository.deleteByProjectAndId(projectId, id);
@@ -249,7 +281,10 @@ class WorkflowService {
   async publishWorkflow(projectId, id, userId, context = {}) {
     const workflow = await this.getWorkflow(projectId, id, context);
     if (context && Object.keys(context).length > 0 && !this.canMutateWorkflow(workflow, context)) {
-      logger.warn('[WorkflowService] publishWorkflow: mutation denied', { workflowId: id, principalType: context.principalType });
+      logger.warn('[WorkflowService] publishWorkflow: mutation denied', {
+        workflowId: id,
+        principalType: context.principalType,
+      });
       throw new BaseError('Not authorized to publish this workflow', 403, 'FORBIDDEN');
     }
     const draft = workflow.draft;
@@ -261,7 +296,10 @@ class WorkflowService {
 
     const { hasCycle, cycleNode } = detectCycle(draft.nodes, draft.edges);
     if (hasCycle) {
-      logger.warn('[WorkflowService] publishWorkflow rejected: cycle detected', { workflowId: id, cycleNode });
+      logger.warn('[WorkflowService] publishWorkflow rejected: cycle detected', {
+        workflowId: id,
+        cycleNode,
+      });
       throw new BaseError(
         `Cycles are not supported in v1. Node ${cycleNode || 'unknown'} references an ancestor.`,
         400,
@@ -322,7 +360,11 @@ class WorkflowService {
       workflowVersionRepository.listByWorkflow(workflowId, options),
       workflowVersionRepository.countByWorkflow(workflowId),
     ]);
-    logger.debug('[WorkflowService] listVersions', { workflowId, returned: versions.length, total });
+    logger.debug('[WorkflowService] listVersions', {
+      workflowId,
+      returned: versions.length,
+      total,
+    });
     return { versions, total };
   }
 
@@ -355,23 +397,35 @@ class WorkflowService {
     context = {},
   }) {
     const workflow = await this.getWorkflow(projectId, workflowId, context);
-    logger.debug('[WorkflowService] runWorkflow: workflow resolved', { workflowId, publishedVersion: workflow.publishedVersion, isDryRun });
+    logger.debug('[WorkflowService] runWorkflow: workflow resolved', {
+      workflowId,
+      publishedVersion: workflow.publishedVersion,
+      isDryRun,
+    });
 
     // 1. Pre-flight balance check (bypassed if isDryRun is true)
     await workflowUsageService.checkPreflightBalance(projectId, isDryRun);
-    logger.debug('[WorkflowService] runWorkflow: pre-flight balance check passed', { projectId, isDryRun });
+    logger.debug('[WorkflowService] runWorkflow: pre-flight balance check passed', {
+      projectId,
+      isDryRun,
+    });
 
     // 2. Concurrency check and atomic slot reservation (Gap 4)
     const activeWorkflow = await workflowRepository.checkAndIncrementActiveRuns(workflowId, 5);
     if (!activeWorkflow) {
-      logger.warn('[WorkflowService] runWorkflow rejected: concurrency limit reached', { workflowId });
+      logger.warn('[WorkflowService] runWorkflow rejected: concurrency limit reached', {
+        workflowId,
+      });
       throw new BaseError(
         'Concurrency limit reached for this workflow (maximum 5 concurrent runs). Please wait for active runs to finish.',
         429,
         'CONCURRENCY_LIMIT_EXCEEDED'
       );
     }
-    logger.debug('[WorkflowService] runWorkflow: concurrency slot reserved', { workflowId, activeRuns: activeWorkflow.activeRuns });
+    logger.debug('[WorkflowService] runWorkflow: concurrency slot reserved', {
+      workflowId,
+      activeRuns: activeWorkflow.activeRuns,
+    });
 
     // 3. Resolve executable definition & agent snapshots
     let executableDef;
@@ -385,7 +439,10 @@ class WorkflowService {
       );
       if (!versionDoc) {
         await workflowRepository.decrementActiveRuns(workflowId);
-        logger.warn('[WorkflowService] runWorkflow rejected: requested version not found', { workflowId, version });
+        logger.warn('[WorkflowService] runWorkflow rejected: requested version not found', {
+          workflowId,
+          version,
+        });
         throw new BaseError(`Version ${version} not found`, 404, 'VERSION_NOT_FOUND');
       }
       executableDef = versionDoc.definition;
@@ -420,7 +477,10 @@ class WorkflowService {
     const configCheck = validateNodeConfigsForRun(executableDef?.nodes || []);
     if (!configCheck.isValid) {
       await workflowRepository.decrementActiveRuns(workflowId);
-      logger.warn('[WorkflowService] runWorkflow rejected: incomplete node config', { workflowId, errors: configCheck.errors });
+      logger.warn('[WorkflowService] runWorkflow rejected: incomplete node config', {
+        workflowId,
+        errors: configCheck.errors,
+      });
       throw new BaseError(configCheck.errors.join(' '), 400, 'INCOMPLETE_NODE_CONFIG');
     }
 
@@ -515,7 +575,10 @@ class WorkflowService {
       };
 
       const stateGraph = compileWorkflowToStateGraph(executableDef, executionContext);
-      logger.debug('[WorkflowEngine] state graph compiled', { runId, nodeCount: executableDef?.nodes?.length });
+      logger.debug('[WorkflowEngine] state graph compiled', {
+        runId,
+        nodeCount: executableDef?.nodes?.length,
+      });
 
       // Attach checkpointer if available
       const checkpointer = checkpointService.checkpointer;
@@ -536,7 +599,9 @@ class WorkflowService {
       });
 
       if (driver.signal.aborted) {
-        logger.debug('[WorkflowEngine] run aborted before completion, skipping finalize', { runId });
+        logger.debug('[WorkflowEngine] run aborted before completion, skipping finalize', {
+          runId,
+        });
         return;
       }
 
@@ -564,7 +629,12 @@ class WorkflowService {
       });
 
       driver.finish(finalState?.output);
-      logger.info('[WorkflowEngine] run completed', { runId, threadId, creditsDeducted: usage?.creditsDeducted, totalTokens: usage?.totalTokens });
+      logger.info('[WorkflowEngine] run completed', {
+        runId,
+        threadId,
+        creditsDeducted: usage?.creditsDeducted,
+        totalTokens: usage?.totalTokens,
+      });
     } catch (error) {
       if (driver.signal.aborted) {
         logger.info(`[WorkflowEngine] Run ${runId} was aborted by user cancellation`);
@@ -589,7 +659,10 @@ class WorkflowService {
 
     if (context.principalType === 'ProjectRuntime' && context.externalUserId) {
       if (run.externalUserId && String(run.externalUserId) !== String(context.externalUserId)) {
-        logger.warn('[WorkflowService] getRun: access denied — run belongs to a different external user', { runId });
+        logger.warn(
+          '[WorkflowService] getRun: access denied — run belongs to a different external user',
+          { runId }
+        );
         throw new BaseError('Workflow run not found', 404, 'NOT_FOUND');
       }
     }
@@ -626,7 +699,9 @@ class WorkflowService {
       return;
     }
 
-    logger.debug('[WorkflowService] resumeRun: no live driver, falling back to Mongo snapshot', { runId });
+    logger.debug('[WorkflowService] resumeRun: no live driver, falling back to Mongo snapshot', {
+      runId,
+    });
 
     // Fallback: serve current state snapshot from Mongo
     const run = await this.getRun(projectId, runId);
@@ -658,13 +733,19 @@ class WorkflowService {
   async resumeOrphanRun(runId) {
     const run = await workflowRunRepository.findById(runId);
     if (!run || run.status !== 'running') {
-      logger.debug('[WorkflowRecovery] resumeOrphanRun: nothing to do', { runId, status: run?.status });
+      logger.debug('[WorkflowRecovery] resumeOrphanRun: nothing to do', {
+        runId,
+        status: run?.status,
+      });
       return null;
     }
 
     const workflow = await workflowRepository.findById(run.workflowId);
     if (!workflow) {
-      logger.warn('[WorkflowRecovery] resumeOrphanRun: associated workflow no longer exists', { runId, workflowId: run.workflowId });
+      logger.warn('[WorkflowRecovery] resumeOrphanRun: associated workflow no longer exists', {
+        runId,
+        workflowId: run.workflowId,
+      });
       await workflowRunRepository.updateStatus(runId, 'failed', {
         output: { reason: 'Associated workflow not found for orphan recovery' },
       });
@@ -681,7 +762,9 @@ class WorkflowService {
           configurable: { thread_id: run.threadId },
         });
       } catch (err) {
-        logger.warn(`[WorkflowRecovery] Could not read checkpoint for run ${runId}: ${err.message}`);
+        logger.warn(
+          `[WorkflowRecovery] Could not read checkpoint for run ${runId}: ${err.message}`
+        );
       }
     }
 
@@ -727,18 +810,25 @@ class WorkflowService {
         driver,
         resumeFromCheckpoint: true,
       }).catch((err) => {
-        logger.error(`[WorkflowRecovery] Failed to complete resumed orphan run ${runId}: ${err?.message}`, err);
+        logger.error(
+          `[WorkflowRecovery] Failed to complete resumed orphan run ${runId}: ${err?.message}`,
+          err
+        );
       });
 
       return { run, resumed: true };
     }
 
     // If no checkpoint tuple was found, fail gracefully with clear explanation
-    logger.warn('[WorkflowRecovery] no checkpoint found, failing run', { runId, threadId: run.threadId });
+    logger.warn('[WorkflowRecovery] no checkpoint found, failing run', {
+      runId,
+      threadId: run.threadId,
+    });
     await workflowRunRepository.updateStatus(runId, 'failed', {
       output: {
         recoveredAt: new Date(),
-        reason: 'Execution halted due to server process restart. No checkpoint found to resume from.',
+        reason:
+          'Execution halted due to server process restart. No checkpoint found to resume from.',
       },
     });
     await workflowRepository.decrementActiveRuns(run.workflowId);
@@ -756,7 +846,9 @@ class WorkflowService {
       logger.info('[WorkflowService] cancelRun: aborting live driver', { runId });
       await activeDriver.abort('Workflow execution cancelled by user');
     } else {
-      logger.debug('[WorkflowService] cancelRun: no live driver, marking cancelled directly', { runId });
+      logger.debug('[WorkflowService] cancelRun: no live driver, marking cancelled directly', {
+        runId,
+      });
       const run = await workflowRunRepository.cancelRun(runId);
       if (run) {
         await workflowRepository.decrementActiveRuns(run.workflowId);

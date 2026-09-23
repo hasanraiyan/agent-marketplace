@@ -1037,7 +1037,11 @@ describe('extractToolOutputContent', () => {
   test('unwraps a Command envelope to its ToolMessage content (write_todos)', () => {
     // deepagents' write_todos returns Command({ update: { todos, messages: [...] } })
     // instead of a plain value, so on_tool_end's output is the Command itself.
-    const tm = new ToolMessage({ content: 'Updated todo list', tool_call_id: 'x', name: 'write_todos' });
+    const tm = new ToolMessage({
+      content: 'Updated todo list',
+      tool_call_id: 'x',
+      name: 'write_todos',
+    });
     const command = {
       lg_name: 'Command',
       update: {

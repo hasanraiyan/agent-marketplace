@@ -27,9 +27,7 @@ export const createMcpSchema = z
   })
   .refine(
     (data) =>
-      data.authType !== 'oauth' ||
-      data.useDynamicRegistration ||
-      Boolean(data.oauth?.clientId),
+      data.authType !== 'oauth' || data.useDynamicRegistration || Boolean(data.oauth?.clientId),
     {
       message: 'Client ID is required when auth type is oauth',
       path: ['oauth'],

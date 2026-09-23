@@ -7,7 +7,10 @@ class WorkflowRepository {
   async create(data) {
     const workflow = new Workflow(data);
     const saved = await workflow.save();
-    logger.debug('[WorkflowRepository] created', { workflowId: saved._id, projectId: saved.projectId });
+    logger.debug('[WorkflowRepository] created', {
+      workflowId: saved._id,
+      projectId: saved.projectId,
+    });
     return saved;
   }
 
@@ -19,7 +22,10 @@ class WorkflowRepository {
     return await Workflow.findOne({ _id: id, projectId });
   }
 
-  async listByProject(projectId, { page = 1, limit = 20, search, isEnabled, visibility, externalOwnerId, customFilter } = {}) {
+  async listByProject(
+    projectId,
+    { page = 1, limit = 20, search, isEnabled, visibility, externalOwnerId, customFilter } = {}
+  ) {
     const filter = { projectId, ...(customFilter || {}) };
     if (typeof isEnabled === 'boolean') {
       filter.isEnabled = isEnabled;
@@ -35,13 +41,13 @@ class WorkflowRepository {
     }
 
     const skip = (page - 1) * limit;
-    return await Workflow.find(filter)
-      .sort({ updatedAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    return await Workflow.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit);
   }
 
-  async countByProject(projectId, { search, isEnabled, visibility, externalOwnerId, customFilter } = {}) {
+  async countByProject(
+    projectId,
+    { search, isEnabled, visibility, externalOwnerId, customFilter } = {}
+  ) {
     const filter = { projectId, ...(customFilter || {}) };
     if (typeof isEnabled === 'boolean') {
       filter.isEnabled = isEnabled;
@@ -83,7 +89,10 @@ class WorkflowRepository {
       { $inc: { publishedVersion: 1 } },
       { new: true }
     );
-    logger.debug('[WorkflowRepository] published version incremented', { workflowId: id, publishedVersion: updated?.publishedVersion });
+    logger.debug('[WorkflowRepository] published version incremented', {
+      workflowId: id,
+      publishedVersion: updated?.publishedVersion,
+    });
     return updated;
   }
 
@@ -95,7 +104,11 @@ class WorkflowRepository {
 
   async deleteByProjectAndId(projectId, id) {
     const deleted = await Workflow.findOneAndDelete({ _id: id, projectId });
-    logger.debug('[WorkflowRepository] deleted by project+id', { projectId, workflowId: id, found: Boolean(deleted) });
+    logger.debug('[WorkflowRepository] deleted by project+id', {
+      projectId,
+      workflowId: id,
+      found: Boolean(deleted),
+    });
     return deleted;
   }
 
@@ -110,9 +123,15 @@ class WorkflowRepository {
       { new: true }
     );
     if (!updated) {
-      logger.warn('[WorkflowRepository] concurrency slot reservation failed (limit reached)', { workflowId, maxConcurrent });
+      logger.warn('[WorkflowRepository] concurrency slot reservation failed (limit reached)', {
+        workflowId,
+        maxConcurrent,
+      });
     } else {
-      logger.debug('[WorkflowRepository] concurrency slot reserved', { workflowId, activeRuns: updated.activeRuns });
+      logger.debug('[WorkflowRepository] concurrency slot reserved', {
+        workflowId,
+        activeRuns: updated.activeRuns,
+      });
     }
     return updated;
   }
@@ -126,7 +145,10 @@ class WorkflowRepository {
       { $inc: { activeRuns: -1 } },
       { new: true }
     );
-    logger.debug('[WorkflowRepository] concurrency slot released', { workflowId, activeRuns: updated?.activeRuns });
+    logger.debug('[WorkflowRepository] concurrency slot released', {
+      workflowId,
+      activeRuns: updated?.activeRuns,
+    });
     return updated;
   }
 }

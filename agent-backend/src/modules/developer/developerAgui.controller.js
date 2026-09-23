@@ -226,7 +226,10 @@ class DeveloperAguiController {
           });
           const rawMessages = snapshot?.checkpoint?.channel_values?.messages;
           if (rawMessages) {
-            reconciled = reconcileSubagentTraceKeys(subagentTraces, extractTaskToolCallIds(rawMessages));
+            reconciled = reconcileSubagentTraceKeys(
+              subagentTraces,
+              extractTaskToolCallIds(rawMessages)
+            );
           }
         } catch {
           // Persist provisional keys rather than dropping the traces entirely.

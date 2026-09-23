@@ -48,7 +48,14 @@ class WorkflowController {
       const isEnabled =
         req.query.isEnabled !== undefined ? req.query.isEnabled === 'true' : undefined;
 
-      logger.debug('[WorkflowController] list', { projectId, page, limit, search, scope, visibility });
+      logger.debug('[WorkflowController] list', {
+        projectId,
+        page,
+        limit,
+        search,
+        scope,
+        visibility,
+      });
 
       const { workflows, total } = await workflowService.listWorkflows(
         projectId,
@@ -64,14 +71,20 @@ class WorkflowController {
         context
       );
 
-      logger.debug('[WorkflowController] list resolved', { projectId, count: workflows.length, total });
+      logger.debug('[WorkflowController] list resolved', {
+        projectId,
+        count: workflows.length,
+        total,
+      });
 
       res.json({
         success: true,
         data: paginationEnvelope(workflows, total, page, limit),
       });
     } catch (error) {
-      logger.warn(`[WorkflowController] list failed: ${error?.message}`, { statusCode: error?.statusCode });
+      logger.warn(`[WorkflowController] list failed: ${error?.message}`, {
+        statusCode: error?.statusCode,
+      });
       next(error);
     }
   }
@@ -81,7 +94,11 @@ class WorkflowController {
       const projectId = getProjectId(req);
       const userId = getUserId(req);
       const context = getContext(req);
-      logger.info('[WorkflowController] create', { projectId, name: req.body?.name, visibility: req.body?.visibility });
+      logger.info('[WorkflowController] create', {
+        projectId,
+        name: req.body?.name,
+        visibility: req.body?.visibility,
+      });
       const workflow = await workflowService.createWorkflow(projectId, req.body, userId, context);
       logger.info('[WorkflowController] created', { projectId, workflowId: workflow._id });
       res.status(201).json({ success: true, data: workflow });
@@ -99,7 +116,9 @@ class WorkflowController {
       const workflow = await workflowService.getWorkflow(projectId, req.params.workflowId, context);
       res.json({ success: true, data: workflow });
     } catch (error) {
-      logger.warn(`[WorkflowController] getOne failed: ${error?.message}`, { workflowId: req.params.workflowId });
+      logger.warn(`[WorkflowController] getOne failed: ${error?.message}`, {
+        workflowId: req.params.workflowId,
+      });
       next(error);
     }
   }
@@ -117,7 +136,9 @@ class WorkflowController {
       );
       res.json({ success: true, data: workflow });
     } catch (error) {
-      logger.warn(`[WorkflowController] update failed: ${error?.message}`, { workflowId: req.params.workflowId });
+      logger.warn(`[WorkflowController] update failed: ${error?.message}`, {
+        workflowId: req.params.workflowId,
+      });
       next(error);
     }
   }
@@ -140,7 +161,9 @@ class WorkflowController {
       );
       res.json({ success: true, data: workflow });
     } catch (error) {
-      logger.warn(`[WorkflowController] saveDraft failed: ${error?.message}`, { workflowId: req.params.workflowId });
+      logger.warn(`[WorkflowController] saveDraft failed: ${error?.message}`, {
+        workflowId: req.params.workflowId,
+      });
       next(error);
     }
   }
@@ -154,7 +177,9 @@ class WorkflowController {
       logger.info('[WorkflowController] removed', { workflowId: req.params.workflowId });
       res.json({ success: true, message: 'Workflow deleted successfully' });
     } catch (error) {
-      logger.warn(`[WorkflowController] remove failed: ${error?.message}`, { workflowId: req.params.workflowId });
+      logger.warn(`[WorkflowController] remove failed: ${error?.message}`, {
+        workflowId: req.params.workflowId,
+      });
       next(error);
     }
   }
@@ -171,10 +196,15 @@ class WorkflowController {
         userId,
         context
       );
-      logger.info('[WorkflowController] published', { workflowId: req.params.workflowId, version: versionDoc.version });
+      logger.info('[WorkflowController] published', {
+        workflowId: req.params.workflowId,
+        version: versionDoc.version,
+      });
       res.status(201).json({ success: true, data: versionDoc });
     } catch (error) {
-      logger.warn(`[WorkflowController] publish failed: ${error?.message}`, { workflowId: req.params.workflowId });
+      logger.warn(`[WorkflowController] publish failed: ${error?.message}`, {
+        workflowId: req.params.workflowId,
+      });
       next(error);
     }
   }
@@ -185,7 +215,12 @@ class WorkflowController {
       const context = getContext(req);
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 20;
-      logger.debug('[WorkflowController] listVersions', { projectId, workflowId: req.params.workflowId, page, limit });
+      logger.debug('[WorkflowController] listVersions', {
+        projectId,
+        workflowId: req.params.workflowId,
+        page,
+        limit,
+      });
       const { versions, total } = await workflowService.listVersions(
         projectId,
         req.params.workflowId,
@@ -197,7 +232,9 @@ class WorkflowController {
         data: paginationEnvelope(versions, total, page, limit),
       });
     } catch (error) {
-      logger.warn(`[WorkflowController] listVersions failed: ${error?.message}`, { workflowId: req.params.workflowId });
+      logger.warn(`[WorkflowController] listVersions failed: ${error?.message}`, {
+        workflowId: req.params.workflowId,
+      });
       next(error);
     }
   }
@@ -239,7 +276,8 @@ class WorkflowController {
       const isDryRun = Boolean(req.body.dryRun || req.body.isDryRun || req.query.dryRun === 'true');
       const input = req.body.input || req.body;
       const version = req.body.version ? Number(req.body.version) : undefined;
-      const externalUserId = req.body.externalUserId || req.query.externalUserId || context.externalUserId;
+      const externalUserId =
+        req.body.externalUserId || req.query.externalUserId || context.externalUserId;
 
       logger.info('[WorkflowController] run requested', {
         projectId,
@@ -260,7 +298,11 @@ class WorkflowController {
         context,
       });
 
-      logger.info('[WorkflowController] run started', { workflowId: req.params.workflowId, runId: run._id, threadId: run.threadId });
+      logger.info('[WorkflowController] run started', {
+        workflowId: req.params.workflowId,
+        runId: run._id,
+        threadId: run.threadId,
+      });
 
       const wantsStream =
         req.headers.accept?.includes('text/event-stream') ||
@@ -268,7 +310,9 @@ class WorkflowController {
         req.body.stream === true;
 
       if (wantsStream) {
-        logger.debug('[WorkflowController] run subscribing caller to SSE stream', { runId: run._id });
+        logger.debug('[WorkflowController] run subscribing caller to SSE stream', {
+          runId: run._id,
+        });
         driver.subscribe(res);
       } else {
         res.status(201).json({
@@ -298,7 +342,9 @@ class WorkflowController {
       logger.debug('[WorkflowController] resume', { projectId, runId: req.params.runId, sinceSeq });
       await workflowService.resumeRun(projectId, req.params.runId, res, sinceSeq);
     } catch (error) {
-      logger.warn(`[WorkflowController] resume failed: ${error?.message}`, { runId: req.params.runId });
+      logger.warn(`[WorkflowController] resume failed: ${error?.message}`, {
+        runId: req.params.runId,
+      });
       next(error);
     }
   }
@@ -308,19 +354,20 @@ class WorkflowController {
       const projectId = getProjectId(req);
       const context = getContext(req);
       logger.info('[WorkflowController] cancel', { projectId, runId: req.params.runId });
-      const cancelledRun = await workflowService.cancelRun(
-        projectId,
-        req.params.runId,
-        context
-      );
-      logger.info('[WorkflowController] cancelled', { runId: req.params.runId, status: cancelledRun?.status });
+      const cancelledRun = await workflowService.cancelRun(projectId, req.params.runId, context);
+      logger.info('[WorkflowController] cancelled', {
+        runId: req.params.runId,
+        status: cancelledRun?.status,
+      });
       res.json({
         success: true,
         message: 'Workflow run cancelled successfully',
         data: cancelledRun,
       });
     } catch (error) {
-      logger.warn(`[WorkflowController] cancel failed: ${error?.message}`, { runId: req.params.runId });
+      logger.warn(`[WorkflowController] cancel failed: ${error?.message}`, {
+        runId: req.params.runId,
+      });
       next(error);
     }
   }
@@ -333,7 +380,9 @@ class WorkflowController {
       const run = await workflowService.getRun(projectId, req.params.runId, context);
       res.json({ success: true, data: run });
     } catch (error) {
-      logger.warn(`[WorkflowController] getRun failed: ${error?.message}`, { runId: req.params.runId });
+      logger.warn(`[WorkflowController] getRun failed: ${error?.message}`, {
+        runId: req.params.runId,
+      });
       next(error);
     }
   }
@@ -346,8 +395,7 @@ class WorkflowController {
       const limit = parseInt(req.query.limit) || 20;
       const status = req.query.status;
       const externalUserId = req.query.externalUserId || context.externalUserId;
-      const isDryRun =
-        req.query.isDryRun !== undefined ? req.query.isDryRun === 'true' : undefined;
+      const isDryRun = req.query.isDryRun !== undefined ? req.query.isDryRun === 'true' : undefined;
 
       logger.debug('[WorkflowController] listRuns', {
         projectId,
@@ -376,7 +424,9 @@ class WorkflowController {
         data: paginationEnvelope(runs, total, page, limit),
       });
     } catch (error) {
-      logger.warn(`[WorkflowController] listRuns failed: ${error?.message}`, { workflowId: req.params.workflowId });
+      logger.warn(`[WorkflowController] listRuns failed: ${error?.message}`, {
+        workflowId: req.params.workflowId,
+      });
       next(error);
     }
   }
@@ -385,15 +435,16 @@ class WorkflowController {
     try {
       const projectId = getProjectId(req);
       const context = getContext(req);
-      logger.debug('[WorkflowController] getMermaid', { projectId, workflowId: req.params.workflowId });
-      const mermaid = await workflowService.getMermaid(
+      logger.debug('[WorkflowController] getMermaid', {
         projectId,
-        req.params.workflowId,
-        context
-      );
+        workflowId: req.params.workflowId,
+      });
+      const mermaid = await workflowService.getMermaid(projectId, req.params.workflowId, context);
       res.json({ success: true, data: { mermaid } });
     } catch (error) {
-      logger.warn(`[WorkflowController] getMermaid failed: ${error?.message}`, { workflowId: req.params.workflowId });
+      logger.warn(`[WorkflowController] getMermaid failed: ${error?.message}`, {
+        workflowId: req.params.workflowId,
+      });
       next(error);
     }
   }

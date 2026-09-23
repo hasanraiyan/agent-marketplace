@@ -10,7 +10,11 @@ import { paginationEnvelope } from '../../utils/pagination.js';
 class DeveloperRcpSourceController {
   async create(req, res, next) {
     try {
-      const source = await rcpSourceService.createRcpSource(undefined, req.body, req.projectContext);
+      const source = await rcpSourceService.createRcpSource(
+        undefined,
+        req.body,
+        req.projectContext
+      );
       res.status(201).json({ success: true, data: rcpSourceService.toSafeJson(source) });
     } catch (error) {
       if (error.code === 11000) {

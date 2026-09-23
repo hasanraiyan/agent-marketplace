@@ -62,14 +62,14 @@ wholesale; `patch` (`{ field, op: "set"|"add"|"remove", value }`) targets one
 field, letting the model attach/detach a single id (e.g. one MCP) from an
 attachment array without resending the whole array.
 
-| Tool                   | Purpose                                                                                          | Toolboxes         |
-| ---------------------- | ------------------------------------------------------------------------------------------------- | ------------------ |
-| `manage_agent`         | CRUD for agents, incl. attaching skills/mcps/restApiTools/rcpSources/knowledgeBases/storeMounts   | Persona + Project  |
-| `manage_skill`         | `read`/`update`/`delete` for skills (list/visibility/deletion — no `create`, content is authored via `/skill-library/`) | Persona + Project  |
-| `manage_mcp`           | CRUD for MCP connectors (`none`/`apiKey` auth only — OAuth needs the Connectors tab UI)          | Persona + Project  |
-| `manage_rcp_source`    | CRUD for RCP (REST Connector Protocol) manifest sources — supersedes REST Tool Sources           | Project only       |
-| `manage_rest_api_tool` | CRUD for the no-code single-call REST API Tool Builder                                            | Project only       |
-| `list_my_providers`    | List user's providers (read-only)                                                                 | Persona only       |
+| Tool                   | Purpose                                                                                                                 | Toolboxes         |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `manage_agent`         | CRUD for agents, incl. attaching skills/mcps/restApiTools/rcpSources/knowledgeBases/storeMounts                         | Persona + Project |
+| `manage_skill`         | `read`/`update`/`delete` for skills (list/visibility/deletion — no `create`, content is authored via `/skill-library/`) | Persona + Project |
+| `manage_mcp`           | CRUD for MCP connectors (`none`/`apiKey` auth only — OAuth needs the Connectors tab UI)                                 | Persona + Project |
+| `manage_rcp_source`    | CRUD for RCP (REST Connector Protocol) manifest sources — supersedes REST Tool Sources                                  | Project only      |
+| `manage_rest_api_tool` | CRUD for the no-code single-call REST API Tool Builder                                                                  | Project only      |
+| `list_my_providers`    | List user's providers (read-only)                                                                                       | Persona only      |
 
 Project-only tools have no Persona-facing route/UI equivalent yet (only
 `mcp.routes.js` exists outside the Developer Platform — there's no

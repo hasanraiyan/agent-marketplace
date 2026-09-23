@@ -8,7 +8,12 @@ import agentRepository from '../agents/agent.repository.js';
 import agentService, { personaExecutionContext } from '../agents/agent.service.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import { loggerService } from '../../utils/index.js';
-import { foldSubagentEvent, settleTrace, extractTaskToolCallIds, reconcileSubagentTraceKeys } from './subagentTrace.js';
+import {
+  foldSubagentEvent,
+  settleTrace,
+  extractTaskToolCallIds,
+  reconcileSubagentTraceKeys,
+} from './subagentTrace.js';
 import { readJsonBody, runAgentAsAguiEvents } from './agui.service.js';
 import { validateTurnContext } from './turnContext.js';
 
@@ -126,12 +131,18 @@ class AguiController {
           });
           const rawMessages = snapshot?.checkpoint?.channel_values?.messages;
           if (rawMessages) {
-            reconciled = reconcileSubagentTraceKeys(subagentTraces, extractTaskToolCallIds(rawMessages));
+            reconciled = reconcileSubagentTraceKeys(
+              subagentTraces,
+              extractTaskToolCallIds(rawMessages)
+            );
           }
         } catch (err) {
-          logger.warn('[AG-UI] failed to reconcile subagent trace keys, persisting provisional keys', {
-            err: err.message,
-          });
+          logger.warn(
+            '[AG-UI] failed to reconcile subagent trace keys, persisting provisional keys',
+            {
+              err: err.message,
+            }
+          );
         }
 
         // Per-key $set merges this run's traces with earlier turns' instead of

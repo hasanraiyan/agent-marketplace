@@ -171,7 +171,10 @@ class DeveloperArchitectController {
           });
           const rawMessages = snapshot?.checkpoint?.channel_values?.messages;
           if (rawMessages) {
-            reconciled = reconcileSubagentTraceKeys(subagentTraces, extractTaskToolCallIds(rawMessages));
+            reconciled = reconcileSubagentTraceKeys(
+              subagentTraces,
+              extractTaskToolCallIds(rawMessages)
+            );
           }
         } catch {
           // Persist provisional keys if reconciliation fails

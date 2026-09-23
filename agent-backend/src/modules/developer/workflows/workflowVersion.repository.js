@@ -7,7 +7,10 @@ class WorkflowVersionRepository {
   async create(data) {
     const version = new WorkflowVersion(data);
     const saved = await version.save();
-    logger.info('[WorkflowVersionRepository] version created', { workflowId: saved.workflowId, version: saved.version });
+    logger.info('[WorkflowVersionRepository] version created', {
+      workflowId: saved.workflowId,
+      version: saved.version,
+    });
     return saved;
   }
 
@@ -21,10 +24,7 @@ class WorkflowVersionRepository {
 
   async listByWorkflow(workflowId, { page = 1, limit = 20 } = {}) {
     const skip = (page - 1) * limit;
-    return await WorkflowVersion.find({ workflowId })
-      .sort({ version: -1 })
-      .skip(skip)
-      .limit(limit);
+    return await WorkflowVersion.find({ workflowId }).sort({ version: -1 }).skip(skip).limit(limit);
   }
 
   async countByWorkflow(workflowId) {

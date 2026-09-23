@@ -10,7 +10,11 @@ import { paginationEnvelope } from '../../utils/pagination.js';
 class DeveloperRestToolController {
   async create(req, res, next) {
     try {
-      const tool = await restApiToolService.createRestApiTool(undefined, req.body, req.projectContext);
+      const tool = await restApiToolService.createRestApiTool(
+        undefined,
+        req.body,
+        req.projectContext
+      );
       res.status(201).json({ success: true, data: restApiToolService.toSafeJson(tool) });
     } catch (error) {
       if (error.code === 11000) {

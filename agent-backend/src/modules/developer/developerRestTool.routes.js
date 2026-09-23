@@ -137,11 +137,7 @@ router.post('/test', validateBody(testRestApiToolSchema), developerRestToolContr
  *       404: { description: Not found or unauthorized }
  */
 router.get('/:toolId', developerRestToolController.getOne);
-router.patch(
-  '/:toolId',
-  validateBody(updateRestApiToolSchema),
-  developerRestToolController.update
-);
+router.patch('/:toolId', validateBody(updateRestApiToolSchema), developerRestToolController.update);
 router.delete('/:toolId', developerRestToolController.remove);
 
 /**
@@ -197,10 +193,6 @@ router.post('/:toolId/test', developerRestToolController.test);
  *     responses:
  *       200: { description: "{ deleted: string[], failed: [{ id, reason }] }" }
  */
-router.post(
-  '/bulk-delete',
-  validateBody(bulkDeleteSchema),
-  developerRestToolController.bulkDelete
-);
+router.post('/bulk-delete', validateBody(bulkDeleteSchema), developerRestToolController.bulkDelete);
 
 export default router;

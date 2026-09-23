@@ -207,7 +207,11 @@ class DeveloperMcpController {
 
   async getOne(req, res, next) {
     try {
-      const mcp = await mcpService.getReadableMcpById(req.params.mcpId, undefined, req.projectContext);
+      const mcp = await mcpService.getReadableMcpById(
+        req.params.mcpId,
+        undefined,
+        req.projectContext
+      );
       res.json({ success: true, data: mcpService.toSafeJson(mcp) });
     } catch (error) {
       next(error);

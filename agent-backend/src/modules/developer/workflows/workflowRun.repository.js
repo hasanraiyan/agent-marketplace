@@ -7,7 +7,11 @@ class WorkflowRunRepository {
   async create(data) {
     const run = new WorkflowRun(data);
     const saved = await run.save();
-    logger.debug('[WorkflowRunRepository] created', { runId: saved._id, workflowId: saved.workflowId, threadId: saved.threadId });
+    logger.debug('[WorkflowRunRepository] created', {
+      runId: saved._id,
+      workflowId: saved.workflowId,
+      threadId: saved.threadId,
+    });
     return saved;
   }
 
@@ -19,17 +23,17 @@ class WorkflowRunRepository {
     return await WorkflowRun.findOne({ _id: id, projectId });
   }
 
-  async listByWorkflow(workflowId, { page = 1, limit = 20, status, isDryRun, externalUserId } = {}) {
+  async listByWorkflow(
+    workflowId,
+    { page = 1, limit = 20, status, isDryRun, externalUserId } = {}
+  ) {
     const filter = { workflowId };
     if (status) filter.status = status;
     if (typeof isDryRun === 'boolean') filter.isDryRun = isDryRun;
     if (externalUserId) filter.externalUserId = externalUserId;
 
     const skip = (page - 1) * limit;
-    return await WorkflowRun.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    return await WorkflowRun.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
   }
 
   async countByWorkflow(workflowId, { status, isDryRun, externalUserId } = {}) {
@@ -47,10 +51,7 @@ class WorkflowRunRepository {
     if (externalUserId) filter.externalUserId = externalUserId;
 
     const skip = (page - 1) * limit;
-    return await WorkflowRun.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    return await WorkflowRun.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit);
   }
 
   async countByProject(projectId, { status, isDryRun, externalUserId } = {}) {
@@ -92,9 +93,21 @@ class WorkflowRunRepository {
     { status = 'completed', output, error, retriesTaken = 0, durationMs = 0, tokens = 0 }
   ) {
     if (status === 'failed') {
-      logger.warn('[WorkflowRunRepository] node run failed', { runId, nodeId, error, retriesTaken });
+      logger.warn('[WorkflowRunRepository] node run failed', {
+        runId,
+        nodeId,
+        error,
+        retriesTaken,
+      });
     } else {
-      logger.debug('[WorkflowRunRepository] node run completed', { runId, nodeId, status, durationMs, tokens, retriesTaken });
+      logger.debug('[WorkflowRunRepository] node run completed', {
+        runId,
+        nodeId,
+        status,
+        durationMs,
+        tokens,
+        retriesTaken,
+      });
     }
     return await WorkflowRun.findOneAndUpdate(
       { _id: runId, 'nodeRuns.nodeId': nodeId },
@@ -157,7 +170,10 @@ class WorkflowRunRepository {
       updatedAt: { $lt: cutoff },
     });
     if (orphans.length > 0) {
-      logger.debug('[WorkflowRunRepository] orphan runs found', { count: orphans.length, staleThresholdMs });
+      logger.debug('[WorkflowRunRepository] orphan runs found', {
+        count: orphans.length,
+        staleThresholdMs,
+      });
     }
     return orphans;
   }

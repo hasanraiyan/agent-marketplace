@@ -133,7 +133,9 @@ export function classifyRuntimeError(err, providerConfig) {
   // whatever it hasn't caught yet (a new model-name pattern, a gateway that
   // ignores the reasoning override, etc).
   const isReasoningToolsUnsupported =
-    lower.includes('reasoning_effort') && lower.includes('not supported') && lower.includes('function tools');
+    lower.includes('reasoning_effort') &&
+    lower.includes('not supported') &&
+    lower.includes('function tools');
   if (isReasoningToolsUnsupported) {
     return { code: 'PROVIDER_MODEL_UNSUPPORTED', retryable: false, providerName };
   }

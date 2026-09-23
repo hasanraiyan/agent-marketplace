@@ -137,7 +137,7 @@ export async function resolveRcpSourceTools(agent, userId, context) {
                     `[RcpSource] "${source.name}" calling "${tool.name}" — paramContextMap:`,
                     JSON.stringify(source.paramContextMap),
                     'turn:',
-                    JSON.stringify(turn),
+                    JSON.stringify(turn)
                   );
                   const result = await client.call(tool, agentArgs, ctx);
                   if (!result.ok) {
@@ -151,7 +151,9 @@ export async function resolveRcpSourceTools(agent, userId, context) {
             })
           );
         } catch (err) {
-          logger.error(`[RcpSource] "${source.name}" failed to build tool "${tool.name}": ${err?.message}`);
+          logger.error(
+            `[RcpSource] "${source.name}" failed to build tool "${tool.name}": ${err?.message}`
+          );
         }
       }
     } catch (err) {

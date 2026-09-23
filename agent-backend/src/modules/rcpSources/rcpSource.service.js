@@ -205,7 +205,9 @@ class RcpSourceService {
       lastTestedAt: new Date(),
     });
 
-    logger.info(`[RcpSource] test connection for "${source.name}": ${toolSummaries.length} tools discovered`);
+    logger.info(
+      `[RcpSource] test connection for "${source.name}": ${toolSummaries.length} tools discovered`
+    );
 
     return { tools: toolSummaries };
   }

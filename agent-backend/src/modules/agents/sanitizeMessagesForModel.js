@@ -32,7 +32,13 @@ export function inspectMessageContent(message, providerType = 'openai') {
   for (const block of content) {
     if (!block || typeof block !== 'object') continue;
 
-    const blockType = block.type || ('functionCall' in block ? 'functionCall' : 'functionResponse' in block ? 'functionResponse' : null);
+    const blockType =
+      block.type ||
+      ('functionCall' in block
+        ? 'functionCall'
+        : 'functionResponse' in block
+          ? 'functionResponse'
+          : null);
 
     // OpenAI and OpenAI-compatible providers (deepseek, custom) reject 'functionCall', 'functionResponse', 'thinking'
     if (providerType === 'openai' || providerType === 'custom' || providerType === 'deepseek') {
@@ -40,7 +46,12 @@ export function inspectMessageContent(message, providerType = 'openai') {
         incompatibleTypes.push(blockType);
         details.push({
           type: blockType,
-          preview: blockType === 'functionCall' ? block.functionCall?.name : blockType === 'thinking' ? (block.thinking?.slice(0, 50) + '...') : blockType,
+          preview:
+            blockType === 'functionCall'
+              ? block.functionCall?.name
+              : blockType === 'thinking'
+                ? block.thinking?.slice(0, 50) + '...'
+                : blockType,
         });
       }
     }
@@ -90,14 +101,18 @@ export function sanitizeMessageForModel(message, providerType = 'openai') {
         const isFunctionCall =
           block.type === 'functionCall' || ('functionCall' in block && Boolean(block.functionCall));
         const isFunctionResponse =
-          block.type === 'functionResponse' || ('functionResponse' in block && Boolean(block.functionResponse));
+          block.type === 'functionResponse' ||
+          ('functionResponse' in block && Boolean(block.functionResponse));
         const isThinking = block.type === 'thinking';
 
         if (isFunctionCall) {
           changes.push(`Stripped 'functionCall' block (${block.functionCall?.name || 'unknown'})`);
           if (block.functionCall?.name) {
             recoveredToolCalls.push({
-              id: block.functionCall.id || block.id || `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+              id:
+                block.functionCall.id ||
+                block.id ||
+                `call_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
               name: block.functionCall.name,
               args: block.functionCall.args || {},
             });
@@ -138,13 +153,21 @@ export function sanitizeMessageForModel(message, providerType = 'openai') {
         const existingToolCalls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
         const mergedToolCalls = [...existingToolCalls];
         for (const rec of recoveredToolCalls) {
-          if (!mergedToolCalls.some((tc) => tc.name === rec.name && JSON.stringify(tc.args) === JSON.stringify(rec.args))) {
+          if (
+            !mergedToolCalls.some(
+              (tc) => tc.name === rec.name && JSON.stringify(tc.args) === JSON.stringify(rec.args)
+            )
+          ) {
             mergedToolCalls.push(rec);
           }
         }
 
         // Clone with sanitized content
-        if (AIMessage.isInstance(message) || message._getType?.() === 'ai' || message.type === 'ai') {
+        if (
+          AIMessage.isInstance(message) ||
+          message._getType?.() === 'ai' ||
+          message.type === 'ai'
+        ) {
           const sanitizedMsg = new AIMessage({
             content: newContent,
             tool_calls: mergedToolCalls,
@@ -166,7 +189,11 @@ export function sanitizeMessageForModel(message, providerType = 'openai') {
     }
 
     // Handle ToolMessage with non-string content
-    if (ToolMessage.isInstance(message) || message._getType?.() === 'tool' || message.type === 'tool') {
+    if (
+      ToolMessage.isInstance(message) ||
+      message._getType?.() === 'tool' ||
+      message.type === 'tool'
+    ) {
       if (Array.isArray(content)) {
         // Flatten or stringify array content for tool message
         const textParts = content
@@ -224,11 +251,14 @@ export function sanitizeMessagesForModel(messages, providerType = 'openai') {
   });
 
   if (totalModified > 0) {
-    logger.info(`[AG-UI][Step 4/6: Message Sanitization] Cleaned ${totalModified} message(s) for provider '${providerType}'`, {
-      providerType,
-      totalModified,
-      details: modificationLog,
-    });
+    logger.info(
+      `[AG-UI][Step 4/6: Message Sanitization] Cleaned ${totalModified} message(s) for provider '${providerType}'`,
+      {
+        providerType,
+        totalModified,
+        details: modificationLog,
+      }
+    );
   }
 
   return {

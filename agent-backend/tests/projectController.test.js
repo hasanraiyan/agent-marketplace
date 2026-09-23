@@ -803,7 +803,9 @@ describe('Project Controller', () => {
 
     test('listAgentThreads skips the ownership check for the Architect sentinel', async () => {
       mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID };
-      jest.spyOn(Conversation, 'find').mockReturnValue({ sort: jest.fn().mockResolvedValue([{ _id: 't1' }]) });
+      jest
+        .spyOn(Conversation, 'find')
+        .mockReturnValue({ sort: jest.fn().mockResolvedValue([{ _id: 't1' }]) });
 
       await projectController.listAgentThreads(mockReq, mockRes, next);
 
@@ -841,7 +843,9 @@ describe('Project Controller', () => {
 
       expect(agentService.getDeveloperAgentById).not.toHaveBeenCalled();
       expect(createSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ threadId: expect.stringMatching(new RegExp(`^architect-${projectId}-`)) })
+        expect.objectContaining({
+          threadId: expect.stringMatching(new RegExp(`^architect-${projectId}-`)),
+        })
       );
       expect(mockRes.status).toHaveBeenCalledWith(201);
     });
@@ -860,7 +864,9 @@ describe('Project Controller', () => {
     test('updateAgentThread skips the ownership check for the Architect sentinel', async () => {
       mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID, threadId: 'thread-1' };
       mockReq.body = { title: 'Renamed' };
-      jest.spyOn(Conversation, 'findOneAndUpdate').mockResolvedValue({ _id: 'thread-1', title: 'Renamed' });
+      jest
+        .spyOn(Conversation, 'findOneAndUpdate')
+        .mockResolvedValue({ _id: 'thread-1', title: 'Renamed' });
 
       await projectController.updateAgentThread(mockReq, mockRes, next);
 
@@ -873,13 +879,18 @@ describe('Project Controller', () => {
 
     test('deleteAgentThread skips the ownership check for the Architect sentinel', async () => {
       mockReq.params = { agentId: PROJECT_ARCHITECT_AGENT_ID, threadId: 'thread-1' };
-      jest.spyOn(Conversation, 'findOneAndDelete').mockResolvedValue({ _id: 'thread-1', threadId: 'architect-project_1-abc' });
+      jest
+        .spyOn(Conversation, 'findOneAndDelete')
+        .mockResolvedValue({ _id: 'thread-1', threadId: 'architect-project_1-abc' });
       checkpointService.cleanupThreads.mockResolvedValue();
 
       await projectController.deleteAgentThread(mockReq, mockRes, next);
 
       expect(agentService.getDeveloperAgentById).not.toHaveBeenCalled();
-      expect(mockRes.json).toHaveBeenCalledWith({ success: true, message: 'Thread deleted successfully' });
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        message: 'Thread deleted successfully',
+      });
     });
   });
 });

@@ -83,6 +83,12 @@ const config = {
     chunkOverlap: parseInt(process.env.KNOWLEDGE_CHUNK_OVERLAP, 10) || 100,
     topK: parseInt(process.env.KNOWLEDGE_TOP_K, 10) || 5,
   },
+  twilio: {
+    accountSid: process.env.TWILIO_ACCOUNT_SID || null,
+    authToken: process.env.TWILIO_AUTH_TOKEN || null,
+    phoneNumber: process.env.TWILIO_PHONE_NUMBER || null,
+    publicUrl: process.env.TWILIO_PUBLIC_URL || process.env.BACKEND_URL || 'http://localhost:3000',
+  },
 };
 
 export default config;

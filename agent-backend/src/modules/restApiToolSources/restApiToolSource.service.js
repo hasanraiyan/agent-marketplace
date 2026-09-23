@@ -151,7 +151,9 @@ class RestApiToolSourceService {
         signal: AbortSignal.timeout(TEST_CONNECTION_TIMEOUT_MS),
       });
     } catch (err) {
-      throw new ValidationError(`Could not reach the manifest URL: ${err?.message || 'network error'}`);
+      throw new ValidationError(
+        `Could not reach the manifest URL: ${err?.message || 'network error'}`
+      );
     }
     if (!res.ok) {
       throw new ValidationError(`Manifest URL responded with status ${res.status}`);

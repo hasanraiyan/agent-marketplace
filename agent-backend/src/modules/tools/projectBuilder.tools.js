@@ -58,7 +58,10 @@ export const manageAgentTool = (context) =>
       'CRUD for this Project\'s agents. action="create"|"read"|"update"|"patch"|"delete". `read` with no `id` lists this Project\'s agents; with `id` fetches one in full. `create`/`update` take `data` (name, description, systemPrompt, webSearchEnabled, avatar, tags, category, visibility, skills[], mcps[], restApiTools[], rcpSources[], knowledgeBases[], storeMounts[] — all attachment fields are arrays of ids and REPLACE the current list; this Project\'s default provider/model is always used automatically, never ask which to use). `patch` takes `id`, `field` (one of the attachment arrays above, or any scalar field), `op` ("set"|"add"|"remove" — add/remove only for the attachment arrays), and `value` — use patch to attach/detach ONE id (e.g. one MCP or RCP source) without resending the whole array.',
     schema: z.object({
       action: z.enum(['create', 'read', 'update', 'patch', 'delete']),
-      id: z.string().optional().describe('Agent id. Required for read (single)/update/patch/delete.'),
+      id: z
+        .string()
+        .optional()
+        .describe('Agent id. Required for read (single)/update/patch/delete.'),
       data: z
         .object({
           name: z.string().optional(),
@@ -166,13 +169,25 @@ export const manageAgentTool = (context) =>
             if (op === 'set') {
               nextValue = Array.isArray(value) ? value : [value];
             } else if (op === 'add') {
-              nextValue = currentIds.includes(String(value)) ? currentIds : [...currentIds, String(value)];
+              nextValue = currentIds.includes(String(value))
+                ? currentIds
+                : [...currentIds, String(value)];
             } else {
               nextValue = currentIds.filter((v) => v !== String(value));
             }
-            const updated = await agentService.updateAgent(id, undefined, { [field]: nextValue }, context);
+            const updated = await agentService.updateAgent(
+              id,
+              undefined,
+              { [field]: nextValue },
+              context
+            );
             const data = normalizeAgentPayload(updated);
-            return JSON.stringify({ status: 'success', message: `Patched '${field}'.`, agentId: data.id, data });
+            return JSON.stringify({
+              status: 'success',
+              message: `Patched '${field}'.`,
+              agentId: data.id,
+              data,
+            });
           }
 
           case 'delete': {
@@ -184,7 +199,10 @@ export const manageAgentTool = (context) =>
           }
 
           default:
-            return JSON.stringify({ status: 'error', message: `Unhandled action '${input.action}'.` });
+            return JSON.stringify({
+              status: 'error',
+              message: `Unhandled action '${input.action}'.`,
+            });
         }
       } catch (err) {
         return JSON.stringify({ status: 'error', message: `Error managing agent: ${err.message}` });
