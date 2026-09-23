@@ -62,6 +62,8 @@ export const getProjectAgents = (projectId: string) =>
 // every other admin call on this page — never a Project credential.
 export const createProjectAgentVoiceSession = (projectId: string, agentId: string) =>
   api.post(`/projects/${projectId}/agents/${agentId}/test/voice/sessions`);
+export const triggerProjectPhoneCall = (projectId: string, agentId: string, to: string) =>
+  api.post('/twilio/call', { projectId, agentId, to });
 export const getProjectSkills = (projectId: string) =>
   api.get(`/projects/${projectId}/skills`);
 export const getProjectKnowledge = (projectId: string) =>
