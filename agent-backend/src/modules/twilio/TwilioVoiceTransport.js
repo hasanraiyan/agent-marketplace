@@ -22,6 +22,16 @@ const PACING_INTERVAL_MS = 20;
  * and Gemini Multimodal Live API.
  */
 export class TwilioVoiceTransport extends EventEmitter {
+  static CONNECTING = 0;
+  static OPEN = 1;
+  static CLOSING = 2;
+  static CLOSED = 3;
+
+  CONNECTING = 0;
+  OPEN = 1;
+  CLOSING = 2;
+  CLOSED = 3;
+
   /**
    * @param {object} params
    * @param {import('ws').WebSocket} params.twilioWs - Twilio Media Stream WebSocket
@@ -42,13 +52,18 @@ export class TwilioVoiceTransport extends EventEmitter {
     this.mulawRemainder = Buffer.alloc(0);
     this.pacingTimer = null;
 
+    // Audio metrics & diagnostic counters
+    this.inboundAudioPackets = 0;
+    this.outboundAudioFrames = 0;
+    this.sentMediaChunks = 0;
+
     this._setupTwilioSocket();
     this._startPacingTimer();
   }
 
   get readyState() {
-    if (this.closed) return WS_CLOSED;
-    return this.twilioWs ? this.twilioWs.readyState : WS_CLOSED;
+    if (this.closed) return this.CLOSED;
+    return this.twilioWs ? this.twilioWs.readyState : this.CLOSED;
   }
 
   _setupTwilioSocket() {
@@ -70,7 +85,7 @@ export class TwilioVoiceTransport extends EventEmitter {
 
   _startPacingTimer() {
     this.pacingTimer = setInterval(() => {
-      if (this.outboundMulawQueue.length > 0 && this.twilioWs?.readyState === WS_OPEN) {
+      if (this.outboundMulawQueue.length > 0 && this.twilioWs?.readyState === this.OPEN) {
         const chunk = this.outboundMulawQueue.shift();
         this._sendMediaToTwilio(chunk);
       }
@@ -114,6 +129,15 @@ export class TwilioVoiceTransport extends EventEmitter {
         const mulawBuffer = Buffer.from(payloadBase64, 'base64');
         if (mulawBuffer.length === 0) return;
 
+        this.inboundAudioPackets++;
+        if (this.inboundAudioPackets === 1 || this.inboundAudioPackets % 200 === 0) {
+          logger.info('[TwilioTransport] Inbound audio received from caller phone (Twilio -> Gemini)', {
+            packetCount: this.inboundAudioPackets,
+            bytes: mulawBuffer.length,
+            streamSid: this.streamSid,
+          });
+        }
+
         // Convert 8kHz mu-law to 16kHz linear PCM16 (LE) for Gemini Live
         const pcm16Buffer = twilioMulawToGeminiPcm16(mulawBuffer);
 
@@ -142,7 +166,7 @@ export class TwilioVoiceTransport extends EventEmitter {
    * Satisfies clientWs.send(data).
    */
   send(data) {
-    if (this.closed || !this.twilioWs || this.twilioWs.readyState !== WS_OPEN) {
+    if (this.closed || !this.twilioWs || this.twilioWs.readyState !== this.OPEN) {
       return;
     }
 
@@ -183,6 +207,17 @@ export class TwilioVoiceTransport extends EventEmitter {
     const { chunks, remainder } = chunkMulawForTwilio(combined);
     this.mulawRemainder = remainder;
 
+    this.outboundAudioFrames++;
+    if (this.outboundAudioFrames === 1 || this.outboundAudioFrames % 50 === 0) {
+      logger.info('[TwilioTransport] Outbound audio received from Gemini (Gemini -> Twilio)', {
+        frameCount: this.outboundAudioFrames,
+        pcmBytes: pcm24k.length,
+        mulawBytes: mulaw.length,
+        queuedChunks: this.outboundMulawQueue.length + chunks.length,
+        streamSid: this.streamSid,
+      });
+    }
+
     // Push into outbound pacing queue
     for (const chunk of chunks) {
       this.outboundMulawQueue.push(chunk);
@@ -201,7 +236,34 @@ export class TwilioVoiceTransport extends EventEmitter {
     }
 
     if (event.type === 'CUSTOM') {
-      if (event.name === 'voice_interrupted') {
+      if (event.name === 'voice_session_ready') {
+        logger.info('[TwilioTransport] Gemini session ready! Triggering proactive initial greeting', {
+          streamSid: this.streamSid,
+          model: event.value?.model,
+        });
+
+        // Trigger Gemini to proactively speak to the caller
+        setTimeout(() => {
+          if (!this.closed && this.readyState === this.OPEN) {
+            logger.info('[TwilioTransport] Sending initial turn to Gemini to introduce itself');
+            this.emit(
+              'message',
+              JSON.stringify({
+                type: 'voice.text',
+                text: 'Hello! Greet the caller warmly, introduce yourself briefly in one sentence, and ask how you can help them today.',
+              }),
+              false
+            );
+          }
+        }, 500);
+      } else if (event.name === 'voice_transcript') {
+        if (event.value?.isFinal) {
+          logger.info('[TwilioTransport] Voice transcript', {
+            speaker: event.value?.speaker,
+            text: event.value?.text,
+          });
+        }
+      } else if (event.name === 'voice_interrupted') {
         // User barged in over the agent!
         this.acceptedTurnSeq = event.value?.turnSeq ?? this.acceptedTurnSeq + 1;
         // 1. Clear our local unplayed audio queue
@@ -210,7 +272,7 @@ export class TwilioVoiceTransport extends EventEmitter {
 
         // 2. Tell Twilio to clear its audio playback buffer immediately
         this._sendClearToTwilio();
-        logger.debug('[TwilioTransport] Sent clear to Twilio on barge-in', {
+        logger.info('[TwilioTransport] Sent clear to Twilio on barge-in', {
           turnSeq: this.acceptedTurnSeq,
           streamSid: this.streamSid,
         });
@@ -228,7 +290,16 @@ export class TwilioVoiceTransport extends EventEmitter {
   }
 
   _sendMediaToTwilio(mulawChunk) {
-    if (!this.streamSid || this.twilioWs?.readyState !== WS_OPEN) return;
+    if (!this.streamSid || this.twilioWs?.readyState !== this.OPEN) return;
+
+    this.sentMediaChunks++;
+    if (this.sentMediaChunks === 1 || this.sentMediaChunks % 250 === 0) {
+      logger.info('[TwilioTransport] Streaming audio to Twilio caller speaker', {
+        sentChunks: this.sentMediaChunks,
+        queuedRemaining: this.outboundMulawQueue.length,
+        streamSid: this.streamSid,
+      });
+    }
 
     const payload = mulawChunk.toString('base64');
     const msg = {
