@@ -8,6 +8,7 @@ import {
   MicrophoneSlashIcon,
   PhoneXIcon,
   CopyIcon,
+  PhoneIcon,
 } from "@phosphor-icons/react";
 import { useVoiceSession, type VoiceSessionState } from "@/hooks/use-voice-session";
 import {
@@ -23,6 +24,16 @@ import {
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { triggerProjectPhoneCall } from "@/lib/api/projects";
 
 const STATE_LABEL: Record<VoiceSessionState, string> = {
   idle: "Idle",
@@ -66,6 +77,42 @@ function VoiceTab({
   const live = isLive(state);
   const [text, setText] = React.useState("");
   const [copied, setCopied] = React.useState(false);
+
+  const [phoneDialogOpen, setPhoneDialogOpen] = React.useState(false);
+  const [phoneNumber, setPhoneNumber] = React.useState("");
+  const [callingPhone, setCallingPhone] = React.useState(false);
+  const [phoneError, setPhoneError] = React.useState<string | null>(null);
+  const [phoneSuccess, setPhoneSuccess] = React.useState<string | null>(null);
+
+  const handleTriggerPhoneCall = React.useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!phoneNumber.trim()) {
+        setPhoneError("Please enter a valid phone number with country code (e.g. +91...)");
+        return;
+      }
+      setCallingPhone(true);
+      setPhoneError(null);
+      setPhoneSuccess(null);
+      try {
+        await triggerProjectPhoneCall(projectId, agentId, phoneNumber.trim());
+        setPhoneSuccess("Call initiated! Your phone will ring shortly.");
+        setTimeout(() => {
+          setPhoneDialogOpen(false);
+          setPhoneSuccess(null);
+        }, 3500);
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          (err as Error)?.message ||
+          "Failed to trigger phone call";
+        setPhoneError(msg);
+      } finally {
+        setCallingPhone(false);
+      }
+    },
+    [projectId, agentId, phoneNumber]
+  );
 
   const handleSendToVoice = React.useCallback(
     (value: string) => {
@@ -350,20 +397,108 @@ function VoiceTab({
             placeholder="Type to voice…"
           />
         ) : (
-          <Button
-            type="button"
-            variant="default"
-            onClick={() => {
-              setText("");
-              void voice.start();
-            }}
-            className="w-full gap-2"
-          >
-            <VoiceModeIcon />
-            {state === "ended" ? "Start new voice call" : "Start voice call"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => {
+                setText("");
+                void voice.start();
+              }}
+              className="flex-1 gap-2"
+            >
+              <VoiceModeIcon />
+              {state === "ended" ? "Start new voice call" : "Start voice call"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setPhoneError(null);
+                setPhoneSuccess(null);
+                setPhoneDialogOpen(true);
+              }}
+              className="gap-2"
+            >
+              <PhoneIcon className="size-4" />
+              Call my phone
+            </Button>
+          </div>
         )}
       </div>
+
+      <Dialog open={phoneDialogOpen} onOpenChange={setPhoneDialogOpen}>
+        <DialogContent>
+          <form onSubmit={handleTriggerPhoneCall} className="flex flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <PhoneIcon className="size-4 text-primary" />
+                Call phone via Twilio
+              </DialogTitle>
+              <DialogDescription>
+                Twilio will place an outbound call to your phone and bridge audio directly into this agent&apos;s Gemini voice session.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="phone-number-input" className="text-xs font-medium text-foreground">
+                Phone Number (E.164 format)
+              </label>
+              <Input
+                id="phone-number-input"
+                type="tel"
+                placeholder="+919876543210"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                disabled={callingPhone}
+                required
+              />
+              <span className="text-[11px] text-muted-foreground">
+                Include country code (e.g. +91 for India, +1 for US). Uses this project&apos;s configured Twilio credentials.
+              </span>
+            </div>
+
+            {phoneError && (
+              <Alert variant="destructive">
+                <AlertDescription>{phoneError}</AlertDescription>
+              </Alert>
+            )}
+
+            {phoneSuccess && (
+              <Alert>
+                <CheckIcon className="size-4 text-emerald-500" />
+                <AlertDescription className="text-emerald-600 dark:text-emerald-400 font-medium">
+                  {phoneSuccess}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPhoneDialogOpen(false)}
+                disabled={callingPhone}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={callingPhone || !phoneNumber.trim()}>
+                {callingPhone ? (
+                  <>
+                    <Spinner className="size-3.5" />
+                    Calling…
+                  </>
+                ) : (
+                  <>
+                    <PhoneIcon className="size-3.5" />
+                    Call now
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
