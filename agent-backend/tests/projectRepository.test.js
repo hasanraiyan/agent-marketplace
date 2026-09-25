@@ -71,7 +71,7 @@ describe('Project Repository', () => {
       expect(Project.findByIdAndUpdate).toHaveBeenCalledWith(
         mockProject._id,
         { name: 'Beyond Campus Inc.' },
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       );
       expect(result).toEqual(updated);
     });
@@ -89,7 +89,7 @@ describe('Project Repository', () => {
       expect(Project.findByIdAndUpdate).toHaveBeenCalledWith(
         mockProject._id,
         { $set: { status: 'SUSPENDED', suspendedAt: expect.any(Date) } },
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       );
       expect(result).toEqual(updated);
     });

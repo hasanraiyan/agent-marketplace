@@ -30,7 +30,7 @@ class ProjectCredentialRepository {
     return await ProjectCredential.findOneAndUpdate(
       { _id: id, status: 'ACTIVE' },
       { $set: { status: 'REVOKED', revokedAt: when } },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 

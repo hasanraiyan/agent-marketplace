@@ -28,7 +28,7 @@ class KnowledgeRepository {
 
   async updateKb(id, updateData) {
     return await KnowledgeBase.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
   }

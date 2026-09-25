@@ -66,7 +66,7 @@ class WorkflowRepository {
 
   async update(id, updateData) {
     const updated = await Workflow.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
     logger.debug('[WorkflowRepository] updated', { workflowId: id });
@@ -77,7 +77,7 @@ class WorkflowRepository {
     const updated = await Workflow.findByIdAndUpdate(
       id,
       { $set: { draft } },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
     logger.debug('[WorkflowRepository] draft updated', { workflowId: id });
     return updated;
@@ -87,7 +87,7 @@ class WorkflowRepository {
     const updated = await Workflow.findByIdAndUpdate(
       id,
       { $inc: { publishedVersion: 1 } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     logger.debug('[WorkflowRepository] published version incremented', {
       workflowId: id,
@@ -120,7 +120,7 @@ class WorkflowRepository {
     const updated = await Workflow.findOneAndUpdate(
       { _id: workflowId, activeRuns: { $lt: maxConcurrent } },
       { $inc: { activeRuns: 1 } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!updated) {
       logger.warn('[WorkflowRepository] concurrency slot reservation failed (limit reached)', {
@@ -143,7 +143,7 @@ class WorkflowRepository {
     const updated = await Workflow.findOneAndUpdate(
       { _id: workflowId, activeRuns: { $gt: 0 } },
       { $inc: { activeRuns: -1 } },
-      { new: true }
+      { returnDocument: 'after' }
     );
     logger.debug('[WorkflowRepository] concurrency slot released', {
       workflowId,

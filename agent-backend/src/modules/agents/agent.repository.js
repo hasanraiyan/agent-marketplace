@@ -30,7 +30,7 @@ class AgentRepository {
 
   async update(id, updateData) {
     return await Agent.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: 'after',
       runValidators: true,
     });
   }
@@ -40,7 +40,7 @@ class AgentRepository {
     return await Agent.findByIdAndUpdate(
       id,
       { isActive: false, deletedAt: new Date() },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 

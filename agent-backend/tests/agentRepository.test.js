@@ -56,7 +56,7 @@ describe('Agent Repository', () => {
         'agent_123',
         { name: 'New' },
         {
-          new: true,
+          returnDocument: 'after',
           runValidators: true,
         }
       );
@@ -68,7 +68,7 @@ describe('Agent Repository', () => {
       expect(Agent.findByIdAndUpdate).toHaveBeenCalledWith(
         'agent_123',
         expect.objectContaining({ isActive: false, deletedAt: expect.any(Date) }),
-        { new: true }
+        { returnDocument: 'after' }
       );
     });
   });

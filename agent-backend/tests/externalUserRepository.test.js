@@ -28,7 +28,7 @@ describe('ExternalUser Repository', () => {
           $set: { lastSeenAt: expect.any(Date) },
           $setOnInsert: { project: beyondCampusId, externalUserId: 'rahul' },
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
       expect(result).toEqual(resolved);
     });

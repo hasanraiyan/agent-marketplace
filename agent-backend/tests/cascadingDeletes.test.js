@@ -81,7 +81,7 @@ describe('Cascading Deletes Integration', () => {
       expect(updateSpy).toHaveBeenCalledWith(
         mockAgentId,
         expect.objectContaining({ isActive: false, deletedAt: expect.any(Date) }),
-        { new: true }
+        { returnDocument: 'after' }
       );
       expect(result.isActive).toBe(false);
     });

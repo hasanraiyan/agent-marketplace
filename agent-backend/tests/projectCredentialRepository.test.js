@@ -106,7 +106,7 @@ describe('ProjectCredential Repository', () => {
       expect(ProjectCredential.findOneAndUpdate).toHaveBeenCalledWith(
         { _id: mockCredential._id, status: 'ACTIVE' },
         { $set: { status: 'REVOKED', revokedAt: expect.any(Date) } },
-        { new: true }
+        { returnDocument: 'after' }
       );
       expect(result.status).toBe('REVOKED');
     });

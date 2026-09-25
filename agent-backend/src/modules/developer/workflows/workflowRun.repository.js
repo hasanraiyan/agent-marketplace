@@ -80,7 +80,7 @@ class WorkflowRunRepository {
           },
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 
@@ -122,7 +122,7 @@ class WorkflowRunRepository {
           'nodeRuns.$.endedAt': new Date(),
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 
@@ -135,7 +135,7 @@ class WorkflowRunRepository {
       update.endedAt = new Date();
     }
     logger.debug('[WorkflowRunRepository] status updated', { runId, status });
-    return await WorkflowRun.findByIdAndUpdate(runId, { $set: update }, { new: true });
+    return await WorkflowRun.findByIdAndUpdate(runId, { $set: update }, { returnDocument: 'after' });
   }
 
   /**
@@ -153,7 +153,7 @@ class WorkflowRunRepository {
           endedAt: new Date(),
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     );
     logger.debug('[WorkflowRunRepository] cancelRun', { runId, cancelled: Boolean(cancelled) });
     return cancelled;

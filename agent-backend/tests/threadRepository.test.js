@@ -92,7 +92,7 @@ describe('Thread Repository', () => {
       expect(Conversation.findOneAndUpdate).toHaveBeenCalledWith(
         { threadId: 'uuid-1234' },
         { title: 'New Title' },
-        { new: true }
+        { returnDocument: 'after' }
       );
     });
 
@@ -102,7 +102,7 @@ describe('Thread Repository', () => {
       expect(Conversation.findOneAndUpdate).toHaveBeenCalledWith(
         { threadId: 'uuid-1234' },
         { lastMessageAt: expect.any(Date) },
-        { new: true }
+        { returnDocument: 'after' }
       );
     });
 

@@ -44,7 +44,7 @@ describe('upsertMemoryFile', () => {
 
     await expect(upsertMemoryFile(FILTER, UPDATE)).resolves.toEqual({ _id: 'doc1' });
     expect(findOneAndUpdate).toHaveBeenCalledTimes(1);
-    expect(findOneAndUpdate).toHaveBeenCalledWith(FILTER, UPDATE, { upsert: true, new: true });
+    expect(findOneAndUpdate).toHaveBeenCalledWith(FILTER, UPDATE, { upsert: true, returnDocument: 'after' });
   });
 
   test('retries once without upsert when the insert race throws E11000', async () => {
@@ -59,7 +59,7 @@ describe('upsertMemoryFile', () => {
     expect(findOneAndUpdate).toHaveBeenCalledTimes(2);
     // The retry must drop `upsert` - the loser of the race is retrying because
     // the document now exists, so asking to insert it again would race afresh.
-    expect(findOneAndUpdate).toHaveBeenLastCalledWith(FILTER, UPDATE, { new: true });
+    expect(findOneAndUpdate).toHaveBeenLastCalledWith(FILTER, UPDATE, { returnDocument: 'after' });
   });
 
   test('does not swallow errors that are not duplicate-key', async () => {

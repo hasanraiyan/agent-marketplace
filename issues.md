@@ -156,7 +156,7 @@ and passed `initialContext: claims.context` to `VoiceSession`.
 
 ---
 
-## 7. Mongoose `findOneAndUpdate` / `findOneAndReplace` `new` Deprecation
+## 7. Mongoose `findOneAndUpdate` / `findOneAndReplace` `new` Deprecation [RESOLVED]
 
 ### Warning
 
@@ -164,9 +164,35 @@ and passed `initialContext: claims.context` to `VoiceSession`.
 (node:112) [MONGOOSE] Warning: mongoose: the `new` option for `findOneAndUpdate()` and `findOneAndReplace()` is deprecated. Use `returnDocument: 'after'` instead.
 ```
 
-### Note
+### Root Cause
 
-In Mongoose 9+, `{ returnDocument: 'after' }` replaces `{ new: true }`. Repository files (`thread.repository.js`, `externalUser.repository.js`) and corresponding unit tests that explicitly assert `{ new: true }` should be migrated in lockstep during planned database layer upgrades.
+In Mongoose 9+, the `{ new: true }` option on `findOneAndUpdate()` and `findOneAndReplace()` is deprecated in favor of MongoDB driver standard `{ returnDocument: 'after' }`. When legacy code passed `{ new: true }`, Mongoose emitted runtime deprecation warnings to stderr.
+
+### Fix
+
+Migrated all occurrences of `{ new: true }` across all repositories, services, models, and unit test suites:
+- **Repositories & Services:**
+  - `agent.repository.js` (`update`, `delete`)
+  - `developer/workflows/workflow.repository.js` (`update`, `updateDraft`, `incrementPublishedVersion`, `checkAndIncrementActiveRuns`, `decrementActiveRuns`)
+  - `developer/workflows/workflowRun.repository.js` (`recordNodeRunStart`, `recordNodeRunCompletion`, `updateStatus`, `cancelRun`)
+  - `externalUser.repository.js` (`update`, `touchActivity`)
+  - `knowledge.repository.js` (`updateKb`)
+  - `memory-file.model.js` (`upsertFile`)
+  - `projects/project.repository.js` (`update`, `touchActivity`)
+  - `projects/project.controller.js` (`updateProject`)
+  - `projects/projectCredential.repository.js` (`updateSecret`)
+  - `providers/provider.repository.js` (`update`)
+  - `stores/store.service.js` (`writeStoreFile`)
+  - `threads/thread.repository.js` (`update`, `touchLastMessageAt`)
+- **Unit Test Expectations:**
+  - `agentRepository.test.js`
+  - `externalUserRepository.test.js`
+  - `memoryFileUpsert.test.js`
+  - `projectRepository.test.js`
+  - `projectCredentialRepository.test.js`
+  - `providerRepository.test.js`
+  - `threadRepository.test.js`
+  - `cascadingDeletes.test.js`
 
 ---
 

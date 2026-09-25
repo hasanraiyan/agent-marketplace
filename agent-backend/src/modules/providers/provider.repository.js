@@ -27,7 +27,7 @@ class ProviderRepository {
   }
 
   async update(id, updateData) {
-    return await Provider.findByIdAndUpdate(id, updateData, { new: true });
+    return await Provider.findByIdAndUpdate(id, updateData, { returnDocument: 'after' });
   }
 
   async delete(id) {

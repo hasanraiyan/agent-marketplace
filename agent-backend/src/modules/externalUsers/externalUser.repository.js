@@ -17,7 +17,7 @@ class ExternalUserRepository {
     return await ExternalUser.findOneAndUpdate(
       { project, externalUserId },
       { $set: setFields, $setOnInsert: { project, externalUserId } },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
     );
   }
 

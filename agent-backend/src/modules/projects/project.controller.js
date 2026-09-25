@@ -1703,7 +1703,7 @@ class ProjectController {
       if (title !== undefined) updates.title = title.trim();
       if (isArchived !== undefined) updates.isArchived = isArchived;
 
-      const updated = await Conversation.findOneAndUpdate(query, updates, { new: true });
+      const updated = await Conversation.findOneAndUpdate(query, updates, { returnDocument: 'after' });
       if (!updated) {
         return res.status(404).json({ success: false, message: 'Thread not found' });
       }

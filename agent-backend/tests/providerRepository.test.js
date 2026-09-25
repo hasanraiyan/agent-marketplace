@@ -83,7 +83,7 @@ describe('Provider Repository', () => {
       expect(Provider.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439022',
         { label: 'OpenAI Prod' },
-        { new: true }
+        { returnDocument: 'after' }
       );
       expect(result).toEqual(updatedProvider);
     });

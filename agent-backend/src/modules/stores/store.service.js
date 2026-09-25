@@ -122,7 +122,7 @@ class StoreService {
     const doc = await MemoryFile.findOneAndUpdate(
       { namespace, key },
       { $set: { content: String(content ?? ''), mimeType: 'text/markdown' } },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
     logger.info(`[StoreService] Wrote file to store "${store.name}": ${key}`);
     return toFileDto(doc);
