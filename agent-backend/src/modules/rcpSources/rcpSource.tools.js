@@ -140,7 +140,10 @@ export async function resolveRcpSourceTools(agent, userId, context) {
                   if (!result.ok) {
                     return `Request failed with status ${result.status}.`;
                   }
-                  return JSON.stringify(result.mapped ?? result.raw);
+                  const output = result.mapped ?? result.raw;
+                  return typeof output === 'string'
+                    ? output
+                    : JSON.stringify(output !== undefined ? output : { status: 'ok' });
                 } catch (err) {
                   return `Error calling ${tool.name}: ${err?.message}`;
                 }

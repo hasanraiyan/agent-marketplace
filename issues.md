@@ -135,3 +135,26 @@ and passed `initialContext: claims.context` to `VoiceSession`.
 
 ### Note
 In Mongoose 9+, `{ returnDocument: 'after' }` replaces `{ new: true }`. Repository files (`thread.repository.js`, `externalUser.repository.js`) and corresponding unit tests that explicitly assert `{ new: true }` should be migrated in lockstep during planned database layer upgrades.
+
+---
+
+## 8. RCP Tool Output Returning Undefined on Empty or Unmapped Payloads
+
+### Symptom
+When an RCP tool call succeeded but returned an empty response body or an unmapped payload where both `result.mapped` and `result.raw` were `undefined`, `JSON.stringify(result.mapped ?? result.raw)` evaluated to `undefined`. Returning `undefined` from a tool's `func` causes LangChain / Gemini / OpenAI tool response serialization failures.
+
+### Root Cause
+In `agent-backend/src/modules/rcpSources/rcpSource.tools.js`:
+```javascript
+return JSON.stringify(result.mapped ?? result.raw);
+```
+In JavaScript, `JSON.stringify(undefined)` returns `undefined` (not `"{}"` or `"null"`). DynamicStructuredTools must return a string or valid object to avoid protocol serialization errors in LangGraph ToolMessages and Gemini FunctionResponses.
+
+### Fix
+Updated `rcpSource.tools.js` to ensure a string is always returned:
+```javascript
+const output = result.mapped ?? result.raw;
+return typeof output === 'string'
+  ? output
+  : JSON.stringify(output !== undefined ? output : { status: 'ok' });
+```
