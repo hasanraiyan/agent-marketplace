@@ -1,9 +1,18 @@
 import { jest } from '@jest/globals';
 import request from 'supertest';
+import express from 'express';
 import { EventEmitter } from 'events';
-import app from '../src/index.js';
+import { twilioWebhookRouter, outboundCallRouter } from '../src/modules/twilio/index.js';
 import twilioService from '../src/modules/twilio/twilio.service.js';
 import TwilioVoiceTransport from '../src/modules/twilio/TwilioVoiceTransport.js';
+import errorHandler from '../src/middlewares/errorHandler.js';
+
+const app = express();
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use('/api/v1/webhooks/twilio', twilioWebhookRouter);
+app.use('/api/v1/twilio', outboundCallRouter);
+app.use(errorHandler);
 
 describe('Twilio Webhooks and Voice Bridge', () => {
   describe('POST /api/v1/webhooks/twilio/voice', () => {

@@ -92,6 +92,9 @@ export class TwilioVoiceTransport extends EventEmitter {
         this._sendMediaToTwilio(chunk);
       }
     }, PACING_INTERVAL_MS);
+    if (this.pacingTimer?.unref) {
+      this.pacingTimer.unref();
+    }
   }
 
   _handleTwilioMessage(data) {
@@ -250,7 +253,7 @@ export class TwilioVoiceTransport extends EventEmitter {
         });
 
         // Trigger Gemini to proactively speak to the caller
-        setTimeout(() => {
+        this.greetingTimer = setTimeout(() => {
           if (!this.closed && this.readyState === this.OPEN) {
             logger.info('[TwilioTransport] Sending initial turn to Gemini to introduce itself');
             this.emit(
@@ -263,6 +266,9 @@ export class TwilioVoiceTransport extends EventEmitter {
             );
           }
         }, 500);
+        if (this.greetingTimer?.unref) {
+          this.greetingTimer.unref();
+        }
       } else if (event.name === 'voice_transcript') {
         if (event.value?.isFinal) {
           logger.info('[TwilioTransport] Voice transcript', {
@@ -289,9 +295,12 @@ export class TwilioVoiceTransport extends EventEmitter {
           streamSid: this.streamSid,
         });
         // Allow a small grace period for the final goodbye audio to flush out
-        setTimeout(() => {
+        this.endedTimer = setTimeout(() => {
           this.close(1000, event.value?.reason || 'voice_session_ended');
         }, 800);
+        if (this.endedTimer?.unref) {
+          this.endedTimer.unref();
+        }
       }
     }
   }
@@ -357,6 +366,14 @@ export class TwilioVoiceTransport extends EventEmitter {
     if (this.pacingTimer) {
       clearInterval(this.pacingTimer);
       this.pacingTimer = null;
+    }
+    if (this.greetingTimer) {
+      clearTimeout(this.greetingTimer);
+      this.greetingTimer = null;
+    }
+    if (this.endedTimer) {
+      clearTimeout(this.endedTimer);
+      this.endedTimer = null;
     }
     this.outboundMulawQueue = [];
     this.mulawRemainder = Buffer.alloc(0);

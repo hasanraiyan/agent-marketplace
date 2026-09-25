@@ -34,7 +34,18 @@ export async function startAgenda() {
 }
 
 export async function stopAgenda() {
-  await agenda.stop();
+  try {
+    await agenda.stop();
+  } catch (err) {
+    logger.warn('[Agenda] error stopping queue:', { err: err?.message });
+  }
+  try {
+    if (agenda._backend && typeof agenda._backend.disconnect === 'function') {
+      await agenda._backend.disconnect();
+    }
+  } catch (err) {
+    logger.warn('[Agenda] error disconnecting backend:', { err: err?.message });
+  }
   logger.info('[Agenda] stopped');
 }
 
