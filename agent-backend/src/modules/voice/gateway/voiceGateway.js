@@ -122,6 +122,22 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
     throw new Error(`Unsupported voice ticket principalType "${claims.principalType}"`);
   }
 
+  // Populate attached tools & resources before building Live config,
+  // matching developerVoice.controller.js, twilioGateway.js, and agent.factory.js.
+  // Otherwise attached MCP/REST API Tool Source/Knowledge Base/RCP Source
+  // remain bare ObjectIds, causing resolveRcpSourceTools to see undefined url.
+  if (typeof agent.populate === 'function') {
+    await agent.populate([
+      'skills',
+      'mcps',
+      'knowledgeBases',
+      'storeMounts',
+      'restApiTools',
+      'restApiToolSources',
+      'rcpSources',
+    ]);
+  }
+
   const provider = await resolveVoiceProvider(agent, claims.domain);
   // Re-resolved here (not carried over from the ticket-mint call) rather
   // than trusting a snapshot from up to 60s ago - also the only place the

@@ -371,13 +371,13 @@ class AgentService {
       await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
       await agent.populate('storeMounts', 'name description scope accessMode');
       await agent.populate('restApiTools', 'name method description isEnabled');
-      await agent.populate('restApiToolSources', 'name description url isEnabled');
+      await agent.populate('restApiToolSources', 'name description url isEnabled authType secretRef');
       // Was missing from this method entirely (predates RCP Sources) —
       // left agent.rcpSources as bare ObjectIds for every caller, breaking
       // anything downstream that reads source.url/source.name off them
       // (e.g. resolveRcpSourceTools, silently logging
       // `[RcpSource] failed to load tools from "undefined"`).
-      await agent.populate('rcpSources', 'name description url isEnabled paramContextMap');
+      await agent.populate('rcpSources', 'name description url isEnabled paramContextMap authType secretRef');
     }
 
     return this._formatSafe(agent, userId);
@@ -395,13 +395,13 @@ class AgentService {
       await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
       await agent.populate('storeMounts', 'name description scope accessMode');
       await agent.populate('restApiTools', 'name method description isEnabled');
-      await agent.populate('restApiToolSources', 'name description url isEnabled');
+      await agent.populate('restApiToolSources', 'name description url isEnabled authType secretRef');
       // Was missing from this method entirely (predates RCP Sources) —
       // left agent.rcpSources as bare ObjectIds for every caller, breaking
       // anything downstream that reads source.url/source.name off them
       // (e.g. resolveRcpSourceTools, silently logging
       // `[RcpSource] failed to load tools from "undefined"`).
-      await agent.populate('rcpSources', 'name description url isEnabled paramContextMap');
+      await agent.populate('rcpSources', 'name description url isEnabled paramContextMap authType secretRef');
     }
 
     return this._formatSafe(agent, userId);
@@ -528,13 +528,13 @@ class AgentService {
       await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
       await agent.populate('storeMounts', 'name description scope accessMode');
       await agent.populate('restApiTools', 'name method description isEnabled');
-      await agent.populate('restApiToolSources', 'name description url isEnabled');
+      await agent.populate('restApiToolSources', 'name description url isEnabled authType secretRef');
       // Was missing from this method entirely (predates RCP Sources) —
       // left agent.rcpSources as bare ObjectIds for every caller, breaking
       // anything downstream that reads source.url/source.name off them
       // (e.g. resolveRcpSourceTools, silently logging
       // `[RcpSource] failed to load tools from "undefined"`).
-      await agent.populate('rcpSources', 'name description url isEnabled paramContextMap');
+      await agent.populate('rcpSources', 'name description url isEnabled paramContextMap authType secretRef');
     }
 
     const obj = agent.toObject ? agent.toObject() : agent;
