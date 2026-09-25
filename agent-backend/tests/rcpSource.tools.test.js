@@ -266,6 +266,43 @@ describe('resolveRcpSourceTools', () => {
       expect(toolCallUrl).toBe('https://api.example.com/weather?city=Paris&key=sk-live-1');
     });
 
+    it('resolves a mapped param live when turnContext is passed via config.configurable (voice invocation pattern)', async () => {
+      global.fetch
+        .mockResolvedValueOnce(
+          manifestOk([
+            {
+              name: 'get_weather',
+              description: 'Get weather',
+              method: 'GET',
+              url: 'https://api.example.com/weather',
+              queryParams: { city: '{{city}}', key: '{{apiKey}}' },
+              params: [
+                { name: 'city', type: 'string', required: true },
+                { name: 'apiKey', type: 'string', required: true },
+              ],
+            },
+          ])
+        )
+        .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+      const tools = await resolveRcpSourceTools(
+        agentWithSources([sourceWithMap([{ param: 'apiKey', contextKey: 'secretApiKey' }])]),
+        'u1',
+        context
+      );
+
+      // Outside LangGraph (e.g. VoiceSession.js direct tool.invoke), getConfig() returns undefined
+      getConfig.mockReturnValue(undefined);
+
+      await tools[0].invoke(
+        { city: 'London' },
+        { configurable: { turnContext: { secretApiKey: 'sk-voice-1' } } }
+      );
+
+      const toolCallUrl = global.fetch.mock.calls[1][0];
+      expect(toolCallUrl).toBe('https://api.example.com/weather?city=London&key=sk-voice-1');
+    });
+
     it('fails the call (never falls back to the model) when the mapped context key has no value this turn', async () => {
       global.fetch.mockResolvedValueOnce(
         manifestOk([

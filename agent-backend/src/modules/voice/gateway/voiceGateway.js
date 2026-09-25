@@ -91,7 +91,16 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
       personaUserId: claims.subjectId,
       membershipRole: claims.membershipRole,
     });
-    agent = await agentService.getDeveloperAgentById(claims.agentId, context);
+    let candidate = null;
+    try {
+      candidate = await agentRepository.findById(claims.agentId);
+    } catch {
+      candidate = null;
+    }
+    if (!candidate || !agentService.canUserExecuteAgent(candidate, context)) {
+      throw new NotFoundError('Agent not found');
+    }
+    agent = candidate;
   } else if (claims.principalType === 'ProjectRuntime') {
     // Machine route (developerVoice.controller.js) - mirrors
     // developerAgui.controller.js's own runtime lookup exactly

@@ -122,16 +122,13 @@ export async function resolveRcpSourceTools(agent, userId, context) {
               name: `${sourceSlug}__${slugify(tool.name)}`,
               description: tool.description || `Calls the ${tool.name} RCP tool.`,
               schema,
-              func: async (agentArgs) => {
+              func: async (agentArgs, runManager, config) => {
                 try {
-                  // `getConfig()` reads *this specific run's* per-invocation
-                  // config (LangGraph's `configurable`), never something
-                  // closed over when this tool was built — the tool object
-                  // may be many turns old (cache hit), but this read always
-                  // reflects the turn actually calling it right now. Same
-                  // mechanism `contextOverrideMiddleware` uses for
-                  // `contextOverride` (agent.factory.js).
-                  const turn = getConfig()?.configurable?.turnContext;
+                  // `config` reads invocation config when passed directly (e.g.
+                  // VoiceSession's `tool.invoke(..., { configurable: { turnContext } })`).
+                  // `getConfig()` reads LangGraph's run config during text runs.
+                  const turn =
+                    config?.configurable?.turnContext ?? getConfig()?.configurable?.turnContext;
                   const ctx = { execution: context, turn };
                   console.log(
                     `[RcpSource] "${source.name}" calling "${tool.name}" — paramContextMap:`,
