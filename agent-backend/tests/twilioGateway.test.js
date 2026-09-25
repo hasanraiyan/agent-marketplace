@@ -87,9 +87,8 @@ jest.unstable_mockModule('../src/modules/twilio/TwilioVoiceTransport.js', () => 
   default: MockTwilioVoiceTransport,
 }));
 
-const { attachTwilioGateway, handleTwilioUpgrade, TWILIO_WS_PATH } = await import(
-  '../src/modules/twilio/twilioGateway.js'
-);
+const { attachTwilioGateway, handleTwilioUpgrade, TWILIO_WS_PATH } =
+  await import('../src/modules/twilio/twilioGateway.js');
 
 describe('Twilio Gateway Unit Tests', () => {
   let mockWss;
@@ -183,7 +182,10 @@ describe('Twilio Gateway Unit Tests', () => {
       'restApiToolSources',
       'rcpSources',
     ]);
-    expect(mockExternalUserService.resolveOrCreate).toHaveBeenCalledWith('proj_test', '+15551234567');
+    expect(mockExternalUserService.resolveOrCreate).toHaveBeenCalledWith(
+      'proj_test',
+      '+15551234567'
+    );
     expect(mockVoiceSessionConstructor).toHaveBeenCalled();
     expect(lastVoiceSessionInstance.start).toHaveBeenCalled();
 

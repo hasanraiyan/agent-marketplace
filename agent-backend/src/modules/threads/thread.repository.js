@@ -63,7 +63,11 @@ class ThreadRepository {
 
   async touchLastMessageAt(id) {
     const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
-    return await Conversation.findOneAndUpdate(query, { lastMessageAt: new Date() }, { returnDocument: 'after' });
+    return await Conversation.findOneAndUpdate(
+      query,
+      { lastMessageAt: new Date() },
+      { returnDocument: 'after' }
+    );
   }
 
   async delete(id) {

@@ -147,11 +147,17 @@ describe('resolveKnowledgeBaseTools', () => {
       ownerId: null,
       domain: 'project_123',
       isPublic: false,
-      documents: [{ fileName: 'spec.pdf', fileSize: 2048, mimeType: 'application/pdf', chunkCount: 5 }],
+      documents: [
+        { fileName: 'spec.pdf', fileSize: 2048, mimeType: 'application/pdf', chunkCount: 5 },
+      ],
     };
     knowledgeRepository.findKbsByIds.mockResolvedValue([projectKb]);
 
-    const context = { principalType: 'ProjectRuntime', domain: 'project_123', externalUserId: 'ext_1' };
+    const context = {
+      principalType: 'ProjectRuntime',
+      domain: 'project_123',
+      externalUserId: 'ext_1',
+    };
     const tools = await resolveKnowledgeBaseTools(['kb_proj'], undefined, context);
     expect(tools).toHaveLength(2);
     expect(tools[0].name).toBe('search_knowledge_base');

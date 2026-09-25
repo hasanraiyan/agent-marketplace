@@ -18,12 +18,10 @@ class DeveloperRestApiToolSourceController {
       res.status(201).json({ success: true, data: restApiToolSourceService.toSafeJson(source) });
     } catch (error) {
       if (error.code === 11000) {
-        return res
-          .status(409)
-          .json({
-            success: false,
-            message: 'A REST API tool source with this exact name already exists',
-          });
+        return res.status(409).json({
+          success: false,
+          message: 'A REST API tool source with this exact name already exists',
+        });
       }
       next(error);
     }
@@ -87,12 +85,10 @@ class DeveloperRestApiToolSourceController {
       res.json({ success: true, data: restApiToolSourceService.toSafeJson(source) });
     } catch (error) {
       if (error.code === 11000) {
-        return res
-          .status(409)
-          .json({
-            success: false,
-            message: 'Another REST API tool source with this name already exists',
-          });
+        return res.status(409).json({
+          success: false,
+          message: 'Another REST API tool source with this name already exists',
+        });
       }
       next(error);
     }

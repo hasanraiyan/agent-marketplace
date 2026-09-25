@@ -74,19 +74,19 @@ sequenceDiagram
 
 ## Public API & Endpoints
 
-| Method | Path | Auth | Purpose |
-| --- | --- | --- | --- |
-| `POST` | `/api/v1/webhooks/twilio/voice` | Public (Twilio Signature) | Inbound call webhook; returns TwiML with `<Stream>` configuration |
-| `POST` | `/api/v1/webhooks/twilio/status` | Public (Twilio Signature) | Call progress/status tracking webhook (ringing, answered, completed) |
-| `POST` | `/api/v1/twilio/call` | ProjectAdmin / Clerk | Triggers outbound phone call from project agent to target number |
-| `GET (WS)` | `/api/v1/twilio/media-stream` | Stream Handshake | Bidirectional audio streaming WebSocket gateway |
+| Method     | Path                             | Auth                      | Purpose                                                              |
+| ---------- | -------------------------------- | ------------------------- | -------------------------------------------------------------------- |
+| `POST`     | `/api/v1/webhooks/twilio/voice`  | Public (Twilio Signature) | Inbound call webhook; returns TwiML with `<Stream>` configuration    |
+| `POST`     | `/api/v1/webhooks/twilio/status` | Public (Twilio Signature) | Call progress/status tracking webhook (ringing, answered, completed) |
+| `POST`     | `/api/v1/twilio/call`            | ProjectAdmin / Clerk      | Triggers outbound phone call from project agent to target number     |
+| `GET (WS)` | `/api/v1/twilio/media-stream`    | Stream Handshake          | Bidirectional audio streaming WebSocket gateway                      |
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-| --- | --- | --- |
-| `voice` module | Internal | Supplies `VoiceSession`, provider resolution, and live configuration |
-| `projects` module | Internal | Resolves encrypted `TWILIO_*` project secrets |
-| `externalUsers` module | Internal | Maps caller phone numbers to external user identities |
-| `threads` module | Internal | Persists cross-call conversation history |
-| `twilio` SDK | External | REST client for placing outbound calls |
+| Dependency             | Type     | Purpose                                                              |
+| ---------------------- | -------- | -------------------------------------------------------------------- |
+| `voice` module         | Internal | Supplies `VoiceSession`, provider resolution, and live configuration |
+| `projects` module      | Internal | Resolves encrypted `TWILIO_*` project secrets                        |
+| `externalUsers` module | Internal | Maps caller phone numbers to external user identities                |
+| `threads` module       | Internal | Persists cross-call conversation history                             |
+| `twilio` SDK           | External | REST client for placing outbound calls                               |

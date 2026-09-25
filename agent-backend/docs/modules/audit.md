@@ -28,13 +28,13 @@ src/modules/audit/
 
 Mounted under `/api/v1/developer/projects/{projectId}/audit-logs`:
 
-| Method | Path | Auth | Purpose |
-| --- | --- | --- | --- |
-| `GET` | `/` | ProjectAdmin | Retrieve paginated audit events with action/actor filters |
+| Method | Path | Auth         | Purpose                                                   |
+| ------ | ---- | ------------ | --------------------------------------------------------- |
+| `GET`  | `/`  | ProjectAdmin | Retrieve paginated audit events with action/actor filters |
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-| --- | --- | --- |
-| `auth` module | Internal | Supplies actor identity from authenticated requests |
-| `projects` module | Internal | Scopes audit trails to project domains |
+| Dependency        | Type     | Purpose                                             |
+| ----------------- | -------- | --------------------------------------------------- |
+| `auth` module     | Internal | Supplies actor identity from authenticated requests |
+| `projects` module | Internal | Scopes audit trails to project domains              |

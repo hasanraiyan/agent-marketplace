@@ -135,7 +135,11 @@ class WorkflowRunRepository {
       update.endedAt = new Date();
     }
     logger.debug('[WorkflowRunRepository] status updated', { runId, status });
-    return await WorkflowRun.findByIdAndUpdate(runId, { $set: update }, { returnDocument: 'after' });
+    return await WorkflowRun.findByIdAndUpdate(
+      runId,
+      { $set: update },
+      { returnDocument: 'after' }
+    );
   }
 
   /**

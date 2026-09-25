@@ -23,7 +23,10 @@ class ProjectRepository {
   }
 
   async updateMetadata(id, updateData) {
-    return await Project.findByIdAndUpdate(id, updateData, { returnDocument: 'after', runValidators: true });
+    return await Project.findByIdAndUpdate(id, updateData, {
+      returnDocument: 'after',
+      runValidators: true,
+    });
   }
 
   async updateStatus(id, status, extra = {}) {

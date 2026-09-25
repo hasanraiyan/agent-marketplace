@@ -44,7 +44,10 @@ describe('upsertMemoryFile', () => {
 
     await expect(upsertMemoryFile(FILTER, UPDATE)).resolves.toEqual({ _id: 'doc1' });
     expect(findOneAndUpdate).toHaveBeenCalledTimes(1);
-    expect(findOneAndUpdate).toHaveBeenCalledWith(FILTER, UPDATE, { upsert: true, returnDocument: 'after' });
+    expect(findOneAndUpdate).toHaveBeenCalledWith(FILTER, UPDATE, {
+      upsert: true,
+      returnDocument: 'after',
+    });
   });
 
   test('retries once without upsert when the insert race throws E11000', async () => {

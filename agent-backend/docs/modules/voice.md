@@ -86,18 +86,18 @@ sequenceDiagram
 
 ## Public API & Endpoints
 
-| Method | Path | Auth | Purpose |
-| --- | --- | --- | --- |
-| `POST` | `/api/v1/developer/projects/{projectId}/agents/{agentId}/voice/test` | ProjectAdmin | Mint single-use voice ticket for Studio agent testing |
-| `POST` | `/api/v1/developer/projects/{projectId}/agents/{agentId}/voice/ticket` | ProjectRuntime | Mint single-use voice ticket for end-user runtime application |
-| `GET (WS)` | `/api/v1/developer/voice?ticket={ticket}` | Ticket Query | Upgrade WebSocket connection to initiate real-time `VoiceSession` |
+| Method     | Path                                                                   | Auth           | Purpose                                                           |
+| ---------- | ---------------------------------------------------------------------- | -------------- | ----------------------------------------------------------------- |
+| `POST`     | `/api/v1/developer/projects/{projectId}/agents/{agentId}/voice/test`   | ProjectAdmin   | Mint single-use voice ticket for Studio agent testing             |
+| `POST`     | `/api/v1/developer/projects/{projectId}/agents/{agentId}/voice/ticket` | ProjectRuntime | Mint single-use voice ticket for end-user runtime application     |
+| `GET (WS)` | `/api/v1/developer/voice?ticket={ticket}`                              | Ticket Query   | Upgrade WebSocket connection to initiate real-time `VoiceSession` |
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-| --- | --- | --- |
-| `agents` module | Internal | Agent configuration, instructions, and tool attachment |
-| `providers` module | Internal | Resolves active Google Gemini provider credentials |
-| `threads` module | Internal | Thread checkpointing and seed excerpt generation |
-| `auth` module | Internal | Principal context validation (`ProjectAdmin`, `ProjectRuntime`) |
-| `@google/genai` / WebSocket | External | Upstream communication with Gemini Multimodal Live API |
+| Dependency                  | Type     | Purpose                                                         |
+| --------------------------- | -------- | --------------------------------------------------------------- |
+| `agents` module             | Internal | Agent configuration, instructions, and tool attachment          |
+| `providers` module          | Internal | Resolves active Google Gemini provider credentials              |
+| `threads` module            | Internal | Thread checkpointing and seed excerpt generation                |
+| `auth` module               | Internal | Principal context validation (`ProjectAdmin`, `ProjectRuntime`) |
+| `@google/genai` / WebSocket | External | Upstream communication with Gemini Multimodal Live API          |

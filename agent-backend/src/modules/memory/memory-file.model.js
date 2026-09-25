@@ -49,7 +49,10 @@ const MemoryFile = mongoose.model('MemoryFile', memoryFileSchema);
  */
 export const upsertMemoryFile = async (filter, update) => {
   try {
-    return await MemoryFile.findOneAndUpdate(filter, update, { upsert: true, returnDocument: 'after' });
+    return await MemoryFile.findOneAndUpdate(filter, update, {
+      upsert: true,
+      returnDocument: 'after',
+    });
   } catch (error) {
     if (error?.code !== 11000) throw error;
     return MemoryFile.findOneAndUpdate(filter, update, { returnDocument: 'after' });

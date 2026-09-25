@@ -27,7 +27,7 @@ src/modules/sandbox/
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-| --- | --- | --- |
+| Dependency         | Type     | Purpose                                               |
+| ------------------ | -------- | ----------------------------------------------------- |
 | `@codesandbox/sdk` | External | Cloud container orchestration and remote VM execution |
-| `agents` module | Internal | Tool exposure (`execute_code`, `read_sandbox_file`) |
+| `agents` module    | Internal | Tool exposure (`execute_code`, `read_sandbox_file`)   |

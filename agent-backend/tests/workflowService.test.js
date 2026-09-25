@@ -47,12 +47,9 @@ const mockCheckpointService = {
   },
 };
 
-jest.unstable_mockModule(
-  '../src/modules/developer/workflows/workflow.repository.js',
-  () => ({
-    default: mockWorkflowRepo,
-  })
-);
+jest.unstable_mockModule('../src/modules/developer/workflows/workflow.repository.js', () => ({
+  default: mockWorkflowRepo,
+}));
 
 jest.unstable_mockModule(
   '../src/modules/developer/workflows/workflowVersion.repository.js',
@@ -61,19 +58,13 @@ jest.unstable_mockModule(
   })
 );
 
-jest.unstable_mockModule(
-  '../src/modules/developer/workflows/workflowRun.repository.js',
-  () => ({
-    default: mockWorkflowRunRepo,
-  })
-);
+jest.unstable_mockModule('../src/modules/developer/workflows/workflowRun.repository.js', () => ({
+  default: mockWorkflowRunRepo,
+}));
 
-jest.unstable_mockModule(
-  '../src/modules/developer/workflows/workflowUsage.service.js',
-  () => ({
-    default: mockUsageService,
-  })
-);
+jest.unstable_mockModule('../src/modules/developer/workflows/workflowUsage.service.js', () => ({
+  default: mockUsageService,
+}));
 
 jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({
   default: mockAgentRepo,
@@ -83,9 +74,8 @@ jest.unstable_mockModule('../src/modules/threads/checkpoint.service.js', () => (
   default: mockCheckpointService,
 }));
 
-const workflowService = (
-  await import('../src/modules/developer/workflows/workflow.service.js')
-).default;
+const workflowService = (await import('../src/modules/developer/workflows/workflow.service.js'))
+  .default;
 
 describe('Workflow Service Unit Tests', () => {
   beforeEach(() => {
@@ -122,7 +112,11 @@ describe('Workflow Service Unit Tests', () => {
       };
 
       await expect(
-        workflowService.createWorkflow('proj_1', { name: 'Bad Flow', draft: cyclicalDraft }, 'usr_1')
+        workflowService.createWorkflow(
+          'proj_1',
+          { name: 'Bad Flow', draft: cyclicalDraft },
+          'usr_1'
+        )
       ).rejects.toThrow('Cycles are not supported in v1');
       expect(mockWorkflowRepo.create).not.toHaveBeenCalled();
     });
@@ -162,12 +156,9 @@ describe('Workflow Service Unit Tests', () => {
         workflowId: 'wf_123',
       });
 
-      const versionDoc = await workflowService.publishWorkflow(
-        'proj_1',
-        'wf_123',
-        'usr_admin',
-        { principalType: 'ProjectAdmin' }
-      );
+      const versionDoc = await workflowService.publishWorkflow('proj_1', 'wf_123', 'usr_admin', {
+        principalType: 'ProjectAdmin',
+      });
 
       expect(versionDoc.version).toBe(2);
       expect(mockAgentRepo.findById).toHaveBeenCalledWith('agent_target');

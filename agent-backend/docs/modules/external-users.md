@@ -27,8 +27,8 @@ src/modules/externalUsers/
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-| --- | --- | --- |
-| `auth` module | Internal | Supplies `ProjectRuntimeContext` |
-| `threads` module | Internal | Filters threads and conversation history by `subjectFilter` |
-| `twilio` / `voice` | Internal | Resolves caller phone numbers to external user records |
+| Dependency         | Type     | Purpose                                                     |
+| ------------------ | -------- | ----------------------------------------------------------- |
+| `auth` module      | Internal | Supplies `ProjectRuntimeContext`                            |
+| `threads` module   | Internal | Filters threads and conversation history by `subjectFilter` |
+| `twilio` / `voice` | Internal | Resolves caller phone numbers to external user records      |

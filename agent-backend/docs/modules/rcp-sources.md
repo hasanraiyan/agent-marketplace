@@ -50,19 +50,19 @@ sequenceDiagram
 
 Mounted under `/api/v1/developer/projects/{projectId}/rcp-sources`:
 
-| Method | Path | Auth | Purpose |
-| --- | --- | --- | --- |
-| `GET` | `/` | ProjectAdmin | List RCP sources in project |
-| `POST` | `/` | ProjectAdmin | Register new RCP source & discover tools |
-| `GET` | `/{id}` | ProjectAdmin | Get RCP source details & cached tools |
-| `PUT` | `/{id}` | ProjectAdmin | Update RCP source configuration |
-| `DELETE`| `/{id}` | ProjectAdmin | Delete RCP source |
-| `POST` | `/{id}/test` | ProjectAdmin | Test connection and re-fetch manifest |
+| Method   | Path         | Auth         | Purpose                                  |
+| -------- | ------------ | ------------ | ---------------------------------------- |
+| `GET`    | `/`          | ProjectAdmin | List RCP sources in project              |
+| `POST`   | `/`          | ProjectAdmin | Register new RCP source & discover tools |
+| `GET`    | `/{id}`      | ProjectAdmin | Get RCP source details & cached tools    |
+| `PUT`    | `/{id}`      | ProjectAdmin | Update RCP source configuration          |
+| `DELETE` | `/{id}`      | ProjectAdmin | Delete RCP source                        |
+| `POST`   | `/{id}/test` | ProjectAdmin | Test connection and re-fetch manifest    |
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-| --- | --- | --- |
-| `rcp-sdk` | External | Manifest discovery, JSON schema parsing, and execution client |
-| `@langchain/core` | External | `DynamicStructuredTool` creation |
-| `agui` / `voice` | Internal | Provides live `turnContext` for runtime parameter resolution |
+| Dependency        | Type     | Purpose                                                       |
+| ----------------- | -------- | ------------------------------------------------------------- |
+| `rcp-sdk`         | External | Manifest discovery, JSON schema parsing, and execution client |
+| `@langchain/core` | External | `DynamicStructuredTool` creation                              |
+| `agui` / `voice`  | Internal | Provides live `turnContext` for runtime parameter resolution  |

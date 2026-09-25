@@ -33,19 +33,19 @@ src/modules/restApiTools/
 
 Mounted under `/api/v1/developer/projects/{projectId}/rest-api-tools`:
 
-| Method | Path | Auth | Purpose |
-| --- | --- | --- | --- |
-| `GET` | `/` | ProjectAdmin | List defined REST API tools in project |
-| `POST` | `/` | ProjectAdmin | Create new REST API tool definition |
-| `GET` | `/{id}` | ProjectAdmin | Get REST tool details |
-| `PUT` | `/{id}` | ProjectAdmin | Update REST tool configuration |
-| `DELETE`| `/{id}` | ProjectAdmin | Delete REST tool |
-| `POST` | `/{id}/test` | ProjectAdmin | Test execution against upstream API |
+| Method   | Path         | Auth         | Purpose                                |
+| -------- | ------------ | ------------ | -------------------------------------- |
+| `GET`    | `/`          | ProjectAdmin | List defined REST API tools in project |
+| `POST`   | `/`          | ProjectAdmin | Create new REST API tool definition    |
+| `GET`    | `/{id}`      | ProjectAdmin | Get REST tool details                  |
+| `PUT`    | `/{id}`      | ProjectAdmin | Update REST tool configuration         |
+| `DELETE` | `/{id}`      | ProjectAdmin | Delete REST tool                       |
+| `POST`   | `/{id}/test` | ProjectAdmin | Test execution against upstream API    |
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-| --- | --- | --- |
-| `agents` module | Internal | Tool attachment to agent graphs |
+| Dependency        | Type     | Purpose                                |
+| ----------------- | -------- | -------------------------------------- |
+| `agents` module   | Internal | Tool attachment to agent graphs        |
 | `projects` module | Internal | Project secret resolution for API keys |
-| `@langchain/core` | External | `DynamicStructuredTool` compilation |
+| `@langchain/core` | External | `DynamicStructuredTool` compilation    |

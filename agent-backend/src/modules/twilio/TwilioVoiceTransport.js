@@ -136,11 +136,14 @@ export class TwilioVoiceTransport extends EventEmitter {
 
         this.inboundAudioPackets++;
         if (this.inboundAudioPackets === 1 || this.inboundAudioPackets % 200 === 0) {
-          logger.info('[TwilioTransport] Inbound audio received from caller phone (Twilio -> Gemini)', {
-            packetCount: this.inboundAudioPackets,
-            bytes: mulawBuffer.length,
-            streamSid: this.streamSid,
-          });
+          logger.info(
+            '[TwilioTransport] Inbound audio received from caller phone (Twilio -> Gemini)',
+            {
+              packetCount: this.inboundAudioPackets,
+              bytes: mulawBuffer.length,
+              streamSid: this.streamSid,
+            }
+          );
         }
 
         // Convert 8kHz mu-law to 16kHz linear PCM16 (LE) for Gemini Live
@@ -247,10 +250,13 @@ export class TwilioVoiceTransport extends EventEmitter {
 
     if (event.type === 'CUSTOM') {
       if (event.name === 'voice_session_ready') {
-        logger.info('[TwilioTransport] Gemini session ready! Triggering proactive initial greeting', {
-          streamSid: this.streamSid,
-          model: event.value?.model,
-        });
+        logger.info(
+          '[TwilioTransport] Gemini session ready! Triggering proactive initial greeting',
+          {
+            streamSid: this.streamSid,
+            model: event.value?.model,
+          }
+        );
 
         // Trigger Gemini to proactively speak to the caller
         this.greetingTimer = setTimeout(() => {

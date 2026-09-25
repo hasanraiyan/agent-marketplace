@@ -31,17 +31,17 @@ src/modules/stores/
 
 Mounted under `/api/v1/developer/projects/{projectId}/stores`:
 
-| Method | Path | Auth | Purpose |
-| --- | --- | --- | --- |
-| `GET` | `/` | ProjectAdmin | List project stores |
-| `POST` | `/` | ProjectAdmin | Create new project store |
-| `GET` | `/{id}` | ProjectAdmin | Get store metadata |
-| `PUT` | `/{id}` | ProjectAdmin | Update store configuration |
-| `DELETE`| `/{id}` | ProjectAdmin | Delete store and attached data |
+| Method   | Path    | Auth         | Purpose                        |
+| -------- | ------- | ------------ | ------------------------------ |
+| `GET`    | `/`     | ProjectAdmin | List project stores            |
+| `POST`   | `/`     | ProjectAdmin | Create new project store       |
+| `GET`    | `/{id}` | ProjectAdmin | Get store metadata             |
+| `PUT`    | `/{id}` | ProjectAdmin | Update store configuration     |
+| `DELETE` | `/{id}` | ProjectAdmin | Delete store and attached data |
 
 ## Dependencies
 
-| Dependency | Type | Purpose |
-| --- | --- | --- |
-| `agents` module | Internal | Mounts store tools to compiled agent graphs |
-| `projects` module | Internal | Scopes stores to project containers |
+| Dependency        | Type     | Purpose                                     |
+| ----------------- | -------- | ------------------------------------------- |
+| `agents` module   | Internal | Mounts store tools to compiled agent graphs |
+| `projects` module | Internal | Scopes stores to project containers         |

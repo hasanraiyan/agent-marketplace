@@ -27,21 +27,21 @@ See [Getting Started →](getting-started/overview.md)
 
 The backend uses a **domain-based modular architecture**. Each business capability lives in its own module under `src/modules/<name>/`, following a consistent `route → controller → service → repository → model` pattern.
 
-| Document                                                                                | Description                                             |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| [Architecture Overview](architecture/overview.md)                                       | High-level architecture, motivations, design principles |
-| [Request Lifecycle](architecture/request-lifecycle.md)                                  | How an HTTP request flows through the system            |
-| [Module System](architecture/module-system.md)                                          | How modules are structured and organized                |
-| [Dependency Rules](architecture/dependency-rules.md)                                    | Allowed and forbidden dependencies between layers       |
-| [Backend Style Guide](architecture/BACKEND_STYLE_GUIDE.md)                              | SOLID principles, conventions, layer by layer           |
-| [AI Memory Systems Guide](architecture/AI_AGENT_MEMORY_SYSTEMS_GUIDE.md)                | AI memory taxonomy and implementation patterns          |
-| [AI Memory Research](architecture/AI_MEMORY_RESEARCH.md)                                | Memory levels mapped to this codebase                   |
-| [LangChain Implementation](architecture/langchain-javascript-backend-implementation.md) | LangChain/LangGraph/Deep Agents integration             |
-| [Voice & Telephony FR/NFR Specification](architecture/VOICE_AND_TELEPHONY_FR_NFR_SPECIFICATION.md) | Full requirements for Gemini Live & Twilio Voice   |
-| [Workflows DAG Engine FR/NFR Specification](architecture/WORKFLOWS_DAG_ENGINE_FR_NFR_SPECIFICATION.md) | Functional & non-functional spec for DAG execution engine |
-| [Dynamic Connectors & Protocols FR/NFR](architecture/DYNAMIC_CONNECTORS_AND_PROTOCOLS_FR_NFR_SPECIFICATION.md) | Spec for RCP, REST API tools, and MCP pipelines |
-| [Store Backend Upgrade Plan](architecture/STORE_BACKEND_UPGRADE_PLAN.md)                | DB-backed filesystem upgrade roadmap                    |
-| [Memory Implementation Plan](architecture/MEMORY_IMPLEMENTATION_PLAN.md)                | Memory persistence & personalization roadmap            |
+| Document                                                                                                       | Description                                               |
+| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| [Architecture Overview](architecture/overview.md)                                                              | High-level architecture, motivations, design principles   |
+| [Request Lifecycle](architecture/request-lifecycle.md)                                                         | How an HTTP request flows through the system              |
+| [Module System](architecture/module-system.md)                                                                 | How modules are structured and organized                  |
+| [Dependency Rules](architecture/dependency-rules.md)                                                           | Allowed and forbidden dependencies between layers         |
+| [Backend Style Guide](architecture/BACKEND_STYLE_GUIDE.md)                                                     | SOLID principles, conventions, layer by layer             |
+| [AI Memory Systems Guide](architecture/AI_AGENT_MEMORY_SYSTEMS_GUIDE.md)                                       | AI memory taxonomy and implementation patterns            |
+| [AI Memory Research](architecture/AI_MEMORY_RESEARCH.md)                                                       | Memory levels mapped to this codebase                     |
+| [LangChain Implementation](architecture/langchain-javascript-backend-implementation.md)                        | LangChain/LangGraph/Deep Agents integration               |
+| [Voice & Telephony FR/NFR Specification](architecture/VOICE_AND_TELEPHONY_FR_NFR_SPECIFICATION.md)             | Full requirements for Gemini Live & Twilio Voice          |
+| [Workflows DAG Engine FR/NFR Specification](architecture/WORKFLOWS_DAG_ENGINE_FR_NFR_SPECIFICATION.md)         | Functional & non-functional spec for DAG execution engine |
+| [Dynamic Connectors & Protocols FR/NFR](architecture/DYNAMIC_CONNECTORS_AND_PROTOCOLS_FR_NFR_SPECIFICATION.md) | Spec for RCP, REST API tools, and MCP pipelines           |
+| [Store Backend Upgrade Plan](architecture/STORE_BACKEND_UPGRADE_PLAN.md)                                       | DB-backed filesystem upgrade roadmap                      |
+| [Memory Implementation Plan](architecture/MEMORY_IMPLEMENTATION_PLAN.md)                                       | Memory persistence & personalization roadmap              |
 
 ---
 
@@ -49,34 +49,34 @@ The backend uses a **domain-based modular architecture**. Each business capabili
 
 The backend is organized into domain modules under `src/modules/`:
 
-| Module                                  | Purpose                              | Key Files                                                    |
-| --------------------------------------- | ------------------------------------ | ------------------------------------------------------------ |
-| [Agents](modules/agents.md)             | AI agent CRUD, configuration, search | `agent.model.js`, `agent.factory.js`, `agent.service.js`     |
-| [AG-UI](modules/agui.md)                | AI-agent streaming protocol (SSE)    | `agui.service.js`, `aguiTranslator.js`, `RunScopeTracker.js` |
-| [Audit](modules/audit.md)               | Security & operational audit logging | `auditLog.model.js`, `auditLog.service.js`                   |
-| [Auth](modules/auth.md)                 | Authentication via Clerk             | `auth.middleware.js`, `auth.service.js`                      |
-| [Cron](modules/cron.md)                 | Scheduled background jobs            | `deleteInactiveUsers.js`                                     |
-| [External Users](modules/external-users.md) | External end-user identities     | `externalUser.model.js`, `externalUser.service.js`           |
-| [Health](modules/health.md)             | Server health checks                 | `health.controller.js`, `health.service.js`                  |
-| [Knowledge](modules/knowledge.md)       | RAG knowledge bases (Qdrant)         | `knowledge.service.js`, `knowledge.tools.js`                 |
-| [Mail](modules/mail.md)                 | Email sending (Resend)               | `mail.service.js`                                            |
-| [MCP](modules/mcp.md)                   | Model Context Protocol connectors    | `mcp.service.js`, `mcp.tools.js`, OAuth client               |
-| [Memory](modules/memory.md)             | File-based agent/user memory         | `memory-files-store.js`, `memory.service.js`                 |
-| [Providers](modules/providers.md)       | LLM provider credentials             | `provider.model.js`, `provider.service.js`                   |
-| [Rate Limiter](modules/rate-limiter.md) | API rate limiting                    | `rateLimiter.middleware.js`, `rateLimiter.service.js`        |
-| [RCP Sources](modules/rcp-sources.md)   | Remote procedure call integrations   | `rcpSource.model.js`, `rcpSource.tools.js`                   |
-| [REST API Tools](modules/rest-api-tools.md) | OpenAPI/REST dynamic tool factory| `restApiTool.model.js`, `restApiTool.service.js`             |
-| [Sandbox](modules/sandbox.md)           | Isolated code execution environment  | `sandbox.service.js`, `sandbox.tools.js`                     |
-| [Skills](modules/skills.md)             | Agent skill library                  | `skill.model.js`, `skillLibraryStore.js`                     |
-| [Stores](modules/stores.md)             | Shared and isolated persistent files | `store.model.js`, `store.service.js`                         |
-| [Threads](modules/threads.md)           | Conversation threads + checkpoints   | `thread.model.js`, `checkpoint.service.js`                   |
-| [Tools](modules/tools.md)               | Agent tool registration              | `builder.tools.js`, `search.tool.js`                         |
-| [Twilio](modules/twilio.md)             | Telephony bridge & media streams     | `twilioGateway.js`, `TwilioVoiceTransport.js`                |
-| [Upload](modules/upload.md)             | File uploads (Multer)                | `upload.routes.js`                                           |
-| [Users](modules/users.md)               | User profiles & admin                | `user.model.js`, `user.service.js`                           |
-| [Voice](modules/voice.md)               | Real-time multimodal voice agent     | `voiceGateway.js`, `VoiceSession.js`, `geminiLiveClient.js`  |
-| [Webhooks](modules/webhooks.md)         | Clerk webhook ingestion              | `webhook.service.js`                                         |
-| [Workflows](modules/workflows.md)       | DAG multi-step workflow execution    | `workflowEngine.js`, `workflowRunDriver.js`                  |
+| Module                                      | Purpose                              | Key Files                                                    |
+| ------------------------------------------- | ------------------------------------ | ------------------------------------------------------------ |
+| [Agents](modules/agents.md)                 | AI agent CRUD, configuration, search | `agent.model.js`, `agent.factory.js`, `agent.service.js`     |
+| [AG-UI](modules/agui.md)                    | AI-agent streaming protocol (SSE)    | `agui.service.js`, `aguiTranslator.js`, `RunScopeTracker.js` |
+| [Audit](modules/audit.md)                   | Security & operational audit logging | `auditLog.model.js`, `auditLog.service.js`                   |
+| [Auth](modules/auth.md)                     | Authentication via Clerk             | `auth.middleware.js`, `auth.service.js`                      |
+| [Cron](modules/cron.md)                     | Scheduled background jobs            | `deleteInactiveUsers.js`                                     |
+| [External Users](modules/external-users.md) | External end-user identities         | `externalUser.model.js`, `externalUser.service.js`           |
+| [Health](modules/health.md)                 | Server health checks                 | `health.controller.js`, `health.service.js`                  |
+| [Knowledge](modules/knowledge.md)           | RAG knowledge bases (Qdrant)         | `knowledge.service.js`, `knowledge.tools.js`                 |
+| [Mail](modules/mail.md)                     | Email sending (Resend)               | `mail.service.js`                                            |
+| [MCP](modules/mcp.md)                       | Model Context Protocol connectors    | `mcp.service.js`, `mcp.tools.js`, OAuth client               |
+| [Memory](modules/memory.md)                 | File-based agent/user memory         | `memory-files-store.js`, `memory.service.js`                 |
+| [Providers](modules/providers.md)           | LLM provider credentials             | `provider.model.js`, `provider.service.js`                   |
+| [Rate Limiter](modules/rate-limiter.md)     | API rate limiting                    | `rateLimiter.middleware.js`, `rateLimiter.service.js`        |
+| [RCP Sources](modules/rcp-sources.md)       | Remote procedure call integrations   | `rcpSource.model.js`, `rcpSource.tools.js`                   |
+| [REST API Tools](modules/rest-api-tools.md) | OpenAPI/REST dynamic tool factory    | `restApiTool.model.js`, `restApiTool.service.js`             |
+| [Sandbox](modules/sandbox.md)               | Isolated code execution environment  | `sandbox.service.js`, `sandbox.tools.js`                     |
+| [Skills](modules/skills.md)                 | Agent skill library                  | `skill.model.js`, `skillLibraryStore.js`                     |
+| [Stores](modules/stores.md)                 | Shared and isolated persistent files | `store.model.js`, `store.service.js`                         |
+| [Threads](modules/threads.md)               | Conversation threads + checkpoints   | `thread.model.js`, `checkpoint.service.js`                   |
+| [Tools](modules/tools.md)                   | Agent tool registration              | `builder.tools.js`, `search.tool.js`                         |
+| [Twilio](modules/twilio.md)                 | Telephony bridge & media streams     | `twilioGateway.js`, `TwilioVoiceTransport.js`                |
+| [Upload](modules/upload.md)                 | File uploads (Multer)                | `upload.routes.js`                                           |
+| [Users](modules/users.md)                   | User profiles & admin                | `user.model.js`, `user.service.js`                           |
+| [Voice](modules/voice.md)                   | Real-time multimodal voice agent     | `voiceGateway.js`, `VoiceSession.js`, `geminiLiveClient.js`  |
+| [Webhooks](modules/webhooks.md)             | Clerk webhook ingestion              | `webhook.service.js`                                         |
+| [Workflows](modules/workflows.md)           | DAG multi-step workflow execution    | `workflowEngine.js`, `workflowRunDriver.js`                  |
 
 ---
 

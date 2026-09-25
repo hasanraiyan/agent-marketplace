@@ -32,17 +32,17 @@ src/modules/developer/workflows/
 
 ## Supported Node Types
 
-| Node Type | Purpose | Configuration & Semantics |
-| --- | --- | --- |
-| `trigger` | Graph entry point | Ingests initial event or manual input payload |
-| `agentStep` | AI Agent execution | Invokes agent graph with prompt template; streams AG-UI events |
-| `toolStep` | Direct tool invocation | Executes REST endpoints, webhooks, or registered tools with input |
-| `knowledgeStep`| Semantic search / RAG | Queries Qdrant vector database collection with template query |
-| `condition` | Dynamic branching | Evaluates expressions and routes to `true` or `false` edges |
-| `approval` | Human-in-the-Loop | Pauses graph execution pending external human confirmation |
-| `parallel` | Concurrent fan-out | Dispatches tasks simultaneously to multiple child branches |
-| `join` | Barrier synchronization | Aggregates outputs from parallel branches before proceeding |
-| `output` | Graph exit point | Structures final workflow response and surfaces top-level output |
+| Node Type       | Purpose                 | Configuration & Semantics                                         |
+| --------------- | ----------------------- | ----------------------------------------------------------------- |
+| `trigger`       | Graph entry point       | Ingests initial event or manual input payload                     |
+| `agentStep`     | AI Agent execution      | Invokes agent graph with prompt template; streams AG-UI events    |
+| `toolStep`      | Direct tool invocation  | Executes REST endpoints, webhooks, or registered tools with input |
+| `knowledgeStep` | Semantic search / RAG   | Queries Qdrant vector database collection with template query     |
+| `condition`     | Dynamic branching       | Evaluates expressions and routes to `true` or `false` edges       |
+| `approval`      | Human-in-the-Loop       | Pauses graph execution pending external human confirmation        |
+| `parallel`      | Concurrent fan-out      | Dispatches tasks simultaneously to multiple child branches        |
+| `join`          | Barrier synchronization | Aggregates outputs from parallel branches before proceeding       |
+| `output`        | Graph exit point        | Structures final workflow response and surfaces top-level output  |
 
 ## Workflow Lifecycle & Architecture
 
@@ -91,23 +91,23 @@ flowchart TD
 
 All routes are mounted under `/api/v1/developer/projects/{projectId}/workflows`:
 
-| Method | Path | Auth | Purpose |
-| --- | --- | --- | --- |
-| `GET` | `/` | ProjectAdmin / Runtime | List project workflows |
-| `POST` | `/` | ProjectAdmin / Runtime | Create new workflow draft |
-| `GET` | `/{id}` | ProjectAdmin / Runtime | Retrieve workflow details & draft |
-| `PUT` | `/{id}` | ProjectAdmin / Owner | Update workflow metadata & settings |
-| `PUT` | `/{id}/draft` | ProjectAdmin / Owner | Save visual canvas draft (nodes & edges) |
-| `DELETE`| `/{id}` | ProjectAdmin / Owner | Delete workflow |
-| `POST` | `/{id}/publish` | ProjectAdmin / Owner | Publish immutable version snapshot |
-| `GET` | `/{id}/versions` | ProjectAdmin / Runtime | List published versions |
-| `GET` | `/{id}/versions/{version}` | ProjectAdmin / Runtime | Retrieve specific published version |
-| `GET` | `/{id}/mermaid` | ProjectAdmin / Runtime | Export workflow DAG as Mermaid diagram |
-| `POST` | `/{id}/run` | ProjectAdmin / Runtime | Execute workflow (supports SSE streaming) |
-| `GET` | `/{id}/runs` | ProjectAdmin / Runtime | List execution history for workflow |
-| `GET` | `/runs/{runId}` | ProjectAdmin / Runtime | Get run details and node run metrics |
-| `GET` | `/runs/{runId}/resume` | ProjectAdmin / Runtime | Re-attach to live SSE stream or snapshot |
-| `POST` | `/runs/{runId}/abort` | ProjectAdmin / Runtime | Abort running workflow execution |
+| Method   | Path                       | Auth                   | Purpose                                   |
+| -------- | -------------------------- | ---------------------- | ----------------------------------------- |
+| `GET`    | `/`                        | ProjectAdmin / Runtime | List project workflows                    |
+| `POST`   | `/`                        | ProjectAdmin / Runtime | Create new workflow draft                 |
+| `GET`    | `/{id}`                    | ProjectAdmin / Runtime | Retrieve workflow details & draft         |
+| `PUT`    | `/{id}`                    | ProjectAdmin / Owner   | Update workflow metadata & settings       |
+| `PUT`    | `/{id}/draft`              | ProjectAdmin / Owner   | Save visual canvas draft (nodes & edges)  |
+| `DELETE` | `/{id}`                    | ProjectAdmin / Owner   | Delete workflow                           |
+| `POST`   | `/{id}/publish`            | ProjectAdmin / Owner   | Publish immutable version snapshot        |
+| `GET`    | `/{id}/versions`           | ProjectAdmin / Runtime | List published versions                   |
+| `GET`    | `/{id}/versions/{version}` | ProjectAdmin / Runtime | Retrieve specific published version       |
+| `GET`    | `/{id}/mermaid`            | ProjectAdmin / Runtime | Export workflow DAG as Mermaid diagram    |
+| `POST`   | `/{id}/run`                | ProjectAdmin / Runtime | Execute workflow (supports SSE streaming) |
+| `GET`    | `/{id}/runs`               | ProjectAdmin / Runtime | List execution history for workflow       |
+| `GET`    | `/runs/{runId}`            | ProjectAdmin / Runtime | Get run details and node run metrics      |
+| `GET`    | `/runs/{runId}/resume`     | ProjectAdmin / Runtime | Re-attach to live SSE stream or snapshot  |
+| `POST`   | `/runs/{runId}/abort`      | ProjectAdmin / Runtime | Abort running workflow execution          |
 
 ## Key Architectural Guarantees
 

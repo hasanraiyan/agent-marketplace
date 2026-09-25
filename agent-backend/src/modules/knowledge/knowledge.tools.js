@@ -88,9 +88,10 @@ export async function resolveKnowledgeBaseTools(knowledgeBaseIds, userId, contex
         );
         const docs =
           kb.documents ||
-          (await (context
-            ? knowledgeService.listDocumentSources(kb._id.toString(), userId, context)
-            : knowledgeService.listDocumentSources(kb._id.toString(), userId)
+          (await (
+            context
+              ? knowledgeService.listDocumentSources(kb._id.toString(), userId, context)
+              : knowledgeService.listDocumentSources(kb._id.toString(), userId)
           ).catch(() => []));
         const formatted = docs.map((d) => ({
           fileName: d.fileName,
