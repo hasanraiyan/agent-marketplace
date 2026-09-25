@@ -167,11 +167,29 @@ export class VoiceSession {
       () => this._closeSession(CLOSE_REASON.MAX_DURATION),
       DEFAULT_MAX_DURATION_MS
     );
+    if (this.maxDurationTimer?.unref) {
+      this.maxDurationTimer.unref();
+    }
+
     this.idleInterval = setInterval(() => {
       if (Date.now() - this.lastClientAudioAt > IDLE_TIMEOUT_MS) {
         this._closeSession(CLOSE_REASON.IDLE);
+        return;
+      }
+      if (
+        typeof this.clientWs?.ping === 'function' &&
+        this.clientWs?.readyState === this.clientWs?.OPEN
+      ) {
+        try {
+          this.clientWs.ping();
+        } catch {
+          // ignore ping error
+        }
       }
     }, IDLE_CHECK_INTERVAL_MS);
+    if (this.idleInterval?.unref) {
+      this.idleInterval.unref();
+    }
 
     await this._connectUpstream(null);
 
@@ -203,9 +221,13 @@ export class VoiceSession {
       config,
       callbacks: {
         onopen: () => logger.debug('[Voice] upstream opened', { generation }),
-        onmessage: (message) => {
+        onmessage: async (message) => {
           if (generation !== this.sessionGeneration) return; // stale connection, superseded by a reconnect
-          this._handleGeminiMessage(message);
+          try {
+            await this._handleGeminiMessage(message);
+          } catch (err) {
+            logger.error('[Voice] error processing upstream message', { err: err?.message });
+          }
         },
         onerror: (e) => {
           if (generation !== this.sessionGeneration) return;
@@ -269,11 +291,14 @@ export class VoiceSession {
     this.goAwayTimer = setTimeout(() => {
       this._reconnectUpstream().catch(() => {});
     }, delay);
+    if (this.goAwayTimer?.unref) {
+      this.goAwayTimer.unref();
+    }
   }
 
   // ---- Gemini -> client -------------------------------------------------
 
-  _handleGeminiMessage(message) {
+  async _handleGeminiMessage(message) {
     if (message.setupComplete) {
       this._sendCustom('voice_session_ready', {
         model: this.model,
@@ -318,9 +343,7 @@ export class VoiceSession {
     }
 
     if (message.toolCall) {
-      this._handleToolCall(message.toolCall).catch((err) => {
-        logger.error('[Voice] tool call batch failed unexpectedly', { err: err?.message });
-      });
+      await this._handleToolCall(message.toolCall);
     }
 
     if (message.toolCallCancellation) {
@@ -518,6 +541,7 @@ export class VoiceSession {
           controller.abort();
           reject(new Error(`Tool call timed out after ${TOOL_CALL_TIMEOUT_MS}ms`));
         }, TOOL_CALL_TIMEOUT_MS);
+        if (timeoutHandle?.unref) timeoutHandle.unref();
       });
 
       // {signal} is best-effort — only the subset of tools that thread
@@ -538,7 +562,13 @@ export class VoiceSession {
         timeoutPromise,
       ]);
 
-      return { id: fc.id, name: fc.name, cancelled: entry.cancelled, response: { output: result } };
+      const safeOutput = result !== undefined ? result : { status: 'ok' };
+      return {
+        id: fc.id,
+        name: fc.name,
+        cancelled: entry.cancelled,
+        response: { output: safeOutput },
+      };
     } catch (err) {
       logger.warn('[Voice] tool call failed', {
         toolCallName: fc.name,
@@ -733,6 +763,19 @@ export class VoiceSession {
     clearTimeout(this.maxDurationTimer);
     clearInterval(this.idleInterval);
     clearTimeout(this.goAwayTimer);
+    this.maxDurationTimer = null;
+    this.idleInterval = null;
+    this.goAwayTimer = null;
+
+    for (const [, entry] of this.pendingToolCalls.entries()) {
+      entry.cancelled = true;
+      try {
+        entry.controller.abort();
+      } catch {
+        // ignore
+      }
+    }
+    this.pendingToolCalls.clear();
 
     // Commit anything the agent said that never reached a turnComplete (call
     // ended mid-utterance) so the thread isn't left missing the last line.
