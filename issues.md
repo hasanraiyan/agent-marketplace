@@ -243,3 +243,42 @@ Tool executions in `VoiceSession` returning empty/undefined payloads risked gene
 - Added `.unref()` to all internal timers in `VoiceSession.js`.
 - Aborted all active `pendingToolCalls` controllers in `VoiceSession._closeSession`.
 - Created comprehensive unit test suite in `agent-backend/tests/voiceSession.test.js` verifying tool execution, context injection, barge-in sequencing, and graceful teardown.
+
+---
+
+## 11. WorkflowRunDriver Eviction Timers Holding Event Loop Open
+
+### Symptom
+
+When running workflow execution tests (`npm test -- tests/workflowEngine.test.js`), the suite completed all 22 tests but Jest hung for over 60 seconds unless forced to exit:
+
+```
+Jest did not exit one second after the test run has completed.
+This usually means that there are asynchronous operations that weren't stopped in your tests.
+Consider running Jest with `--detectOpenHandles` to troubleshoot this issue.
+```
+
+### Root Cause
+
+In `agent-backend/src/modules/developer/workflows/workflowRunDriver.js`:
+- `abort()` schedules a 60-second cleanup timer: `setTimeout(() => WorkflowRunDriver.unregister(this.runId), 60000)`
+- `finish()` schedules a 5-minute cleanup timer: `setTimeout(() => WorkflowRunDriver.unregister(this.runId), 300000)`
+- `fail()` schedules a 5-minute cleanup timer: `setTimeout(() => WorkflowRunDriver.unregister(this.runId), 300000)`
+
+None of these timers had `.unref()` called on them. As a result, Node.js kept the active event loop open for the full duration of the eviction window (60s to 300s) even after all test assertions had concluded and the test process should have terminated.
+
+### Fix
+
+In `workflowRunDriver.js`, assigned the result of `setTimeout` in `abort()`, `finish()`, and `fail()` to local variables and called `.unref()`:
+
+```javascript
+const evictTimer = setTimeout(() => {
+  WorkflowRunDriver.unregister(this.runId);
+}, ...);
+if (evictTimer?.unref) {
+  evictTimer.unref();
+}
+```
+
+This guarantees that the eviction timers still execute normally during continuous server runtime, but will not prevent the Node.js event loop or Jest test runner from exiting cleanly once the main thread finishes.
+

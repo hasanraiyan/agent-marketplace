@@ -186,9 +186,12 @@ export class WorkflowRunDriver {
     this.subscribers.clear();
 
     // Evict after brief buffer window
-    setTimeout(() => {
+    const abortEvictTimer = setTimeout(() => {
       WorkflowRunDriver.unregister(this.runId);
     }, 60000);
+    if (abortEvictTimer?.unref) {
+      abortEvictTimer.unref();
+    }
   }
 
   /**
@@ -217,9 +220,12 @@ export class WorkflowRunDriver {
     });
 
     // Retain buffered frames for 5 minutes so late resumes can inspect final frames
-    setTimeout(() => {
+    const finishEvictTimer = setTimeout(() => {
       WorkflowRunDriver.unregister(this.runId);
     }, 300000);
+    if (finishEvictTimer?.unref) {
+      finishEvictTimer.unref();
+    }
   }
 
   /**
@@ -251,8 +257,11 @@ export class WorkflowRunDriver {
       });
     });
 
-    setTimeout(() => {
+    const failEvictTimer = setTimeout(() => {
       WorkflowRunDriver.unregister(this.runId);
     }, 300000);
+    if (failEvictTimer?.unref) {
+      failEvictTimer.unref();
+    }
   }
 }
