@@ -368,7 +368,7 @@ class AgentService {
     if (typeof agent.populate === 'function') {
       await agent.populate('skills', 'name description isPublic');
       await agent.populate('mcps', 'name description url transport authType authMode isEnabled');
-      await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
+      await agent.populate('knowledgeBases', 'name description documentCount chunkCount collectionName ownerType ownerId domain isPublic');
       await agent.populate('storeMounts', 'name description scope accessMode');
       await agent.populate('restApiTools', 'name method description url isEnabled paramDescriptors authType secretRef');
       await agent.populate('restApiToolSources', 'name description url isEnabled authType secretRef');
@@ -392,7 +392,7 @@ class AgentService {
     if (typeof agent.populate === 'function') {
       await agent.populate('skills', 'name description isPublic');
       await agent.populate('mcps', 'name description url transport authType authMode isEnabled');
-      await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
+      await agent.populate('knowledgeBases', 'name description documentCount chunkCount collectionName ownerType ownerId domain isPublic');
       await agent.populate('storeMounts', 'name description scope accessMode');
       await agent.populate('restApiTools', 'name method description url isEnabled paramDescriptors authType secretRef');
       await agent.populate('restApiToolSources', 'name description url isEnabled authType secretRef');
@@ -525,7 +525,7 @@ class AgentService {
     if (typeof agent.populate === 'function') {
       await agent.populate('skills', 'name description isPublic');
       await agent.populate('mcps', 'name description url transport authType authMode isEnabled');
-      await agent.populate('knowledgeBases', 'name description documentCount chunkCount');
+      await agent.populate('knowledgeBases', 'name description documentCount chunkCount collectionName ownerType ownerId domain isPublic');
       await agent.populate('storeMounts', 'name description scope accessMode');
       await agent.populate('restApiTools', 'name method description url isEnabled paramDescriptors authType secretRef');
       await agent.populate('restApiToolSources', 'name description url isEnabled authType secretRef');

@@ -48,7 +48,11 @@ class KnowledgeRepository {
   }
 
   async findKbsByIds(ids) {
-    return await KnowledgeBase.find({ _id: { $in: ids } });
+    const rawIds = Array.isArray(ids) ? ids : [];
+    const normalizedIds = rawIds.map((id) =>
+      id && typeof id === 'object' && id._id ? id._id : id
+    );
+    return await KnowledgeBase.find({ _id: { $in: normalizedIds } });
   }
 
   /**

@@ -204,6 +204,12 @@ async function startVoiceSessionForTwilio({ transport, agentId, projectId, calle
     subjectId: callerPhone,
     threadId,
     callSid,
+    context: {
+      callerPhone,
+      callSid,
+      from: callerPhone,
+      externalUserId: callerPhone,
+    },
   };
 
   const session = new VoiceSession({
@@ -214,6 +220,7 @@ async function startVoiceSessionForTwilio({ transport, agentId, projectId, calle
     voiceName,
     liveConfig,
     toolsByName,
+    initialContext: claims.context,
     onTranscriptCommit: transcriptSink ? (role, text) => transcriptSink.commit(role, text) : null,
   });
 
