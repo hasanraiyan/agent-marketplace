@@ -146,6 +146,22 @@ describe('Twilio Webhooks and Voice Bridge', () => {
       expect(parsed.streamSid).toBe('MZ_INTERRUPT');
       transport.close();
     });
+
+    test('enforces MAX_OUTBOUND_QUEUE_CHUNKS queue watermarking on high outbound buffer', () => {
+      const mockWs = new MockWebSocket();
+      const transport = new TwilioVoiceTransport({ twilioWs: mockWs, streamSid: 'MZ_QUEUE' });
+
+      // Generate a large 24kHz PCM16 buffer (turnSeq=1 + 10 seconds of 24kHz audio = 480,000 bytes)
+      const bigAudioBuffer = Buffer.alloc(4 + 480000);
+      bigAudioBuffer.writeUInt32LE(1, 0);
+
+      transport.send(bigAudioBuffer);
+
+      // Verify outboundMulawQueue is capped at 250 chunks (5 seconds max buffer)
+      expect(transport.outboundMulawQueue.length).toBeLessThanOrEqual(250);
+      expect(transport.outboundMulawQueue.length).toBeGreaterThan(0);
+      transport.close();
+    });
   });
 
   describe('Project Secret Multi-tenant Credential Resolution', () => {

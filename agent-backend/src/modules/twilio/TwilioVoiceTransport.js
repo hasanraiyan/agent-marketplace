@@ -15,6 +15,8 @@ const WS_CLOSED = 3;
 
 // 20ms pacing interval (Twilio 160 bytes @ 8kHz)
 const PACING_INTERVAL_MS = 20;
+// Maximum allowed buffered audio chunks before dropping stale chunks (5s of audio @ 20ms)
+export const MAX_OUTBOUND_QUEUE_CHUNKS = 250;
 
 /**
  * TwilioVoiceTransport implements the client socket interface expected by
@@ -221,6 +223,11 @@ export class TwilioVoiceTransport extends EventEmitter {
     // Push into outbound pacing queue
     for (const chunk of chunks) {
       this.outboundMulawQueue.push(chunk);
+    }
+
+    // Adaptive queue watermark: drop oldest chunks if queue exceeds cap to eliminate audio lag
+    while (this.outboundMulawQueue.length > MAX_OUTBOUND_QUEUE_CHUNKS) {
+      this.outboundMulawQueue.shift();
     }
   }
 
