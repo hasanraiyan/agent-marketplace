@@ -2,6 +2,7 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import knowledgeRepository from './knowledge.repository.js';
 import knowledgeService from './knowledge.service.js';
+import { isResourceOwner } from '../../utils/resourceOwnership.js';
 import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
@@ -18,12 +19,16 @@ const logger = loggerService.getLogger();
  * @param {string} userId - The user ID for ownership verification
  * @returns {Promise<Array<DynamicStructuredTool>>}
  */
-export async function resolveKnowledgeBaseTools(knowledgeBaseIds, userId) {
+export async function resolveKnowledgeBaseTools(knowledgeBaseIds, userId, context) {
   if (!knowledgeBaseIds || knowledgeBaseIds.length === 0) return [];
 
   const kbs = await knowledgeRepository.findKbsByIds(knowledgeBaseIds);
   const allowedKbs = kbs.filter(
-    (kb) => kb.ownerId.toString() === userId?.toString() || kb.isPublic
+    (kb) =>
+      kb.isPublic ||
+      (context && isResourceOwner(kb, context)) ||
+      (kb.domain && context?.domain && kb.domain === context.domain) ||
+      (kb.ownerId && userId && kb.ownerId.toString() === userId.toString())
   );
 
   if (allowedKbs.length === 0) return [];
@@ -81,7 +86,12 @@ export async function resolveKnowledgeBaseTools(knowledgeBaseIds, userId) {
         logger.info(
           `[KnowledgeTools] Tool "list_knowledge_base_sources" called for KB "${kb.name}"`
         );
-        const docs = await knowledgeService.listDocumentSources(kb._id.toString(), userId);
+        const docs =
+          kb.documents ||
+          (await (context
+            ? knowledgeService.listDocumentSources(kb._id.toString(), userId, context)
+            : knowledgeService.listDocumentSources(kb._id.toString(), userId)
+          ).catch(() => []));
         const formatted = docs.map((d) => ({
           fileName: d.fileName,
           fileSize: d.fileSize,

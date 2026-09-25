@@ -98,7 +98,7 @@ export const resolveAgentTools = async (
 
   // 4. Knowledge Base tools (semantic search + list sources per KB)
   if (agentConfig.knowledgeBases && agentConfig.knowledgeBases.length > 0) {
-    const kbTools = await resolveKnowledgeBaseTools(agentConfig.knowledgeBases, userId);
+    const kbTools = await resolveKnowledgeBaseTools(agentConfig.knowledgeBases, userId, context);
     tools.push(...kbTools);
   }
 

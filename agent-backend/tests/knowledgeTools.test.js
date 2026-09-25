@@ -137,4 +137,29 @@ describe('resolveKnowledgeBaseTools', () => {
     expect(parsed).toHaveLength(1);
     expect(parsed[0].fileName).toBe('doc1.txt');
   });
+
+  it('allows access to Project-owned knowledge bases with null ownerId when domain matches', async () => {
+    const projectKb = {
+      _id: 'kb_proj',
+      name: 'Project Docs',
+      description: 'Project docs',
+      ownerType: 'Project',
+      ownerId: null,
+      domain: 'project_123',
+      isPublic: false,
+      documents: [{ fileName: 'spec.pdf', fileSize: 2048, mimeType: 'application/pdf', chunkCount: 5 }],
+    };
+    knowledgeRepository.findKbsByIds.mockResolvedValue([projectKb]);
+
+    const context = { principalType: 'ProjectRuntime', domain: 'project_123', externalUserId: 'ext_1' };
+    const tools = await resolveKnowledgeBaseTools(['kb_proj'], undefined, context);
+    expect(tools).toHaveLength(2);
+    expect(tools[0].name).toBe('search_knowledge_base');
+
+    const listTool = tools.find((t) => t.name === 'list_knowledge_base_sources');
+    const result = await listTool.func({ knowledgeBaseName: 'Project Docs' });
+    const parsed = JSON.parse(result);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0].fileName).toBe('spec.pdf');
+  });
 });
