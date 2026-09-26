@@ -41,6 +41,7 @@ The backend uses a **domain-based modular architecture**. Each business capabili
 | [Workflows DAG Engine FR/NFR Specification](architecture/WORKFLOWS_DAG_ENGINE_FR_NFR_SPECIFICATION.md)                 | Functional & non-functional spec for DAG execution engine |
 | [Dynamic Connectors & Protocols FR/NFR](architecture/DYNAMIC_CONNECTORS_AND_PROTOCOLS_FR_NFR_SPECIFICATION.md)         | Spec for RCP, REST API tools, and MCP pipelines           |
 | [Developer Projects & Multi-Tenancy FR/NFR](architecture/DEVELOPER_PROJECTS_AND_MULTI_TENANCY_FR_NFR_SPECIFICATION.md) | Multi-tenancy, credentials, RBAC, and domain isolation    |
+| [AG-UI Streaming Protocol FR/NFR](architecture/AGUI_STREAMING_PROTOCOL_FR_NFR_SPECIFICATION.md)                        | Server-Sent Events, subagents, and interrupt streaming    |
 | [Store Backend Upgrade Plan](architecture/STORE_BACKEND_UPGRADE_PLAN.md)                                               | DB-backed filesystem upgrade roadmap                      |
 | [Memory Implementation Plan](architecture/MEMORY_IMPLEMENTATION_PLAN.md)                                               | Memory persistence & personalization roadmap              |
 
