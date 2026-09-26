@@ -49,6 +49,7 @@ import {
   FieldDescription,
 } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProjectResourcePicker } from "@/components/developer/project-resource-picker";
 
 const CATEGORIES = [
   "productivity",
@@ -73,36 +74,6 @@ const PROJECT_ARCHITECT_AGENT_ID = "000000000000000000000001";
 function agentIdFromToolOutput(output) {
   const raw = output?.agentId || output?.data?.id || output?.data?._id;
   return raw ? String(raw) : null;
-}
-
-function AttachmentPicker({ label, items, selected, onToggle, renderBadge }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <FieldLabel>{label}</FieldLabel>
-      {items.length === 0 ? (
-        <p className="text-sm text-muted-foreground">None yet.</p>
-      ) : (
-        <div className="max-h-48 space-y-1 overflow-y-auto rounded-md border p-2">
-          {items.map((item) => {
-            const id = item._id || item.id;
-            return (
-              <label
-                key={id}
-                className="flex cursor-pointer items-center gap-2 rounded-sm px-1.5 py-1 text-sm hover:bg-muted"
-              >
-                <Checkbox
-                  checked={selected.includes(id)}
-                  onCheckedChange={() => onToggle(id)}
-                />
-                <span className="flex-1">{item.name || item.label}</span>
-                {renderBadge?.(item)}
-              </label>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function ProjectAgentEditorPage({ params: paramsPromise }) {
@@ -595,105 +566,30 @@ export default function ProjectAgentEditorPage({ params: paramsPromise }) {
                   />
                 </div>
 
-                <div className="space-y-4 border-t pt-4">
-                  <AttachmentPicker
-                    label="Skills"
-                    items={skills}
-                    selected={formData.skills}
-                    onToggle={(id) => toggleAttachment("skills", id)}
-                  />
-                  <AttachmentPicker
-                    label="MCP Connectors"
-                    items={mcps}
-                    selected={formData.mcps}
-                    onToggle={(id) => toggleAttachment("mcps", id)}
-                    renderBadge={(mcp) => (
-                      <span className="text-xs text-muted-foreground">
-                        {mcp.authMode}
-                      </span>
-                    )}
-                  />
-                  <AttachmentPicker
-                    label="REST API Tools"
-                    items={restApiTools}
-                    selected={formData.restApiTools}
-                    onToggle={(id) => toggleAttachment("restApiTools", id)}
-                    renderBadge={(tool) => (
-                      <span className="text-xs text-muted-foreground">
-                        {tool.method}
-                      </span>
-                    )}
-                  />
-                  <AttachmentPicker
-                    label="REST Tool Sources"
-                    items={restApiToolSources}
-                    selected={formData.restApiToolSources}
-                    onToggle={(id) =>
-                      toggleAttachment("restApiToolSources", id)
+                <div className="border-t pt-4">
+                  <ProjectResourcePicker
+                    projectId={projectId}
+                    formData={formData}
+                    onToggleAttachment={toggleAttachment}
+                    onClearAttachments={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        skills: [],
+                        mcps: [],
+                        restApiTools: [],
+                        restApiToolSources: [],
+                        rcpSources: [],
+                        knowledgeBases: [],
+                        storeMounts: [],
+                      }))
                     }
-                    renderBadge={(source) => (
-                      <span className="text-xs text-muted-foreground">
-                        {(source.tools || []).length} tool
-                        {(source.tools || []).length === 1 ? "" : "s"}
-                      </span>
-                    )}
-                  />
-                  <AttachmentPicker
-                    label="RCP Sources"
-                    items={rcpSources}
-                    selected={formData.rcpSources}
-                    onToggle={(id) => toggleAttachment("rcpSources", id)}
-                    renderBadge={(source) => (
-                      <span className="text-xs text-muted-foreground">
-                        {(source.tools || []).length} tool
-                        {(source.tools || []).length === 1 ? "" : "s"}
-                      </span>
-                    )}
-                  />
-                  {rcpSources
-                    .filter(
-                      (source) =>
-                        formData.rcpSources.includes(source._id || source.id) &&
-                        (source.paramContextMap || []).length > 0,
-                    )
-                    .map((source) => (
-                      <div
-                        key={source._id || source.id}
-                        className="-mt-3 rounded-md border border-dashed p-3 text-xs text-muted-foreground"
-                      >
-                        <p className="font-medium text-foreground">
-                          &quot;{source.name}&quot; expects this context on every message:
-                        </p>
-                        <ul className="mt-1 list-inside list-disc">
-                          {source.paramContextMap.map((entry) => (
-                            <li key={entry.param}>
-                              <code className="font-mono">{entry.contextKey}</code> — resolves param{" "}
-                              <code className="font-mono">{entry.param}</code>
-                            </li>
-                          ))}
-                        </ul>
-                        <p className="mt-1">
-                          Edit this mapping from the source&apos;s own page, not here.
-                        </p>
-                      </div>
-                    ))}
-                  <AttachmentPicker
-                    label="Knowledge Bases"
-                    items={knowledgeBases}
-                    selected={formData.knowledgeBases}
-                    onToggle={(id) => toggleAttachment("knowledgeBases", id)}
-                  />
-                  <AttachmentPicker
-                    label="Stores"
-                    items={stores}
-                    selected={formData.storeMounts}
-                    onToggle={(id) => toggleAttachment("storeMounts", id)}
-                    renderBadge={(store) => (
-                      <span className="text-xs text-muted-foreground">
-                        {store.scope}
-                        {store.accessMode === "readonly" ? " · read-only" : ""}
-                      </span>
-                    )}
+                    skills={skills}
+                    mcps={mcps}
+                    restApiTools={restApiTools}
+                    restApiToolSources={restApiToolSources}
+                    rcpSources={rcpSources}
+                    knowledgeBases={knowledgeBases}
+                    stores={stores}
                   />
                 </div>
               </FieldGroup>

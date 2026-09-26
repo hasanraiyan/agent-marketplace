@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SecretPicker } from "@/components/tools/secret-picker";
+import { ContextParamMapper } from "@/components/tools/context-param-mapper";
 
 /**
  * RCP (REST Connector Protocol, npm `rcp-sdk`) Source editor — mirrors
@@ -110,7 +111,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
           router.push(developerRoutes.project(projectId));
         }
       } catch (err) {
-        toast.error(err.response?.data?.message || "Failed to load RCP source.");
+        toast.error(
+          err.response?.data?.message || "Failed to load RCP source.",
+        );
       } finally {
         setLoading(false);
       }
@@ -137,7 +140,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
         authType: formData.authType,
         isEnabled: formData.isEnabled,
         paramContextMap: formData.paramContextMap,
-        ...(formData.authType === "header" ? { secretRef: formData.secretRef } : {}),
+        ...(formData.authType === "header"
+          ? { secretRef: formData.secretRef }
+          : {}),
       };
 
       if (isEditing) {
@@ -188,13 +193,17 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
 
   const handleParamContextChange = (paramName, contextKey) => {
     setFormData((prev) => {
-      const rest = prev.paramContextMap.filter((entry) => entry.param !== paramName);
+      const rest = prev.paramContextMap.filter(
+        (entry) => entry.param !== paramName,
+      );
       const trimmed = contextKey.trim();
       return {
         ...prev,
         // An emptied field un-maps the param (back to model-fillable) rather
         // than persisting a mapping to an empty context key.
-        paramContextMap: trimmed ? [...rest, { param: paramName, contextKey: trimmed }] : rest,
+        paramContextMap: trimmed
+          ? [...rest, { param: paramName, contextKey: trimmed }]
+          : rest,
       };
     });
   };
@@ -223,10 +232,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
             <CardDescription>
               A URL your own backend hosts (e.g. via{" "}
               <code>@personaai/runtime</code>&apos;s <code>rcpManifest</code>{" "}
-              option, or any server built with{" "}
-              <code>rcp-sdk/server</code>), describing RCP tools your Agents
-              can call — discovered live, the same way an MCP server&apos;s
-              tools are.
+              option, or any server built with <code>rcp-sdk/server</code>),
+              describing RCP tools your Agents can call — discovered live, the
+              same way an MCP server&apos;s tools are.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -284,7 +292,9 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
-                    <SelectItem value="header">Header (bearer token)</SelectItem>
+                    <SelectItem value="header">
+                      Header (bearer token)
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </Field>
@@ -325,110 +335,145 @@ export default function ProjectRcpSourceEditorPage({ params: paramsPromise }) {
             </FieldGroup>
 
             {isEditing && (
-              <div className="mt-8 space-y-3 border-t pt-6">
-                <div className="flex items-center justify-between">
+              <div className="mt-8 space-y-4 border-t pt-6">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-sm font-medium">Discovered tools</p>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="text-sm font-semibold tracking-tight text-foreground">
+                      Discovered Tools
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
                       {lastTestedAt
-                        ? `Last tested ${new Date(lastTestedAt).toLocaleString()} — fetched live again on every Agent call, this list is just a preview.`
-                        : "Run Test Connection to discover this source's tools."}
+                        ? `Last tested ${new Date(lastTestedAt).toLocaleString()} — fetched live on every Agent invocation.`
+                        : "Click Test Connection to fetch live tools from this manifest."}
                     </p>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
+                    size="sm"
                     onClick={handleTestConnection}
                     disabled={testing}
+                    className="self-start sm:self-auto gap-1.5"
                   >
                     {testing ? (
-                      <Loader2 className="mr-1.5 size-4 animate-spin" />
+                      <Loader2 className="size-3.5 animate-spin" />
                     ) : (
-                      <Play className="mr-1.5 size-4" />
+                      <Play className="size-3.5" />
                     )}
                     Test Connection
                   </Button>
                 </div>
+
                 {discoveredTools.length > 0 ? (
-                  <div className="flex flex-col gap-2">
+                  <div className="grid gap-2.5">
                     {discoveredTools.map((tool, idx) => (
                       <div
                         key={`${tool.name}-${idx}`}
-                        className="flex items-center gap-2 rounded-lg border p-3 text-sm"
+                        className="rounded-lg border bg-card p-3 text-sm space-y-2"
                       >
-                        <Badge variant="outline" className="shrink-0 font-mono">
-                          {tool.method}
-                        </Badge>
-                        <span className="font-medium">{tool.name}</span>
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="outline"
+                              className={`shrink-0 font-mono text-xs font-semibold ${
+                                tool.method === "POST"
+                                  ? "border-blue-500/30 text-blue-600 dark:text-blue-400 bg-blue-500/5"
+                                  : tool.method === "DELETE"
+                                    ? "border-red-500/30 text-red-600 dark:text-red-400 bg-red-500/5"
+                                    : "border-emerald-500/30 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5"
+                              }`}
+                            >
+                              {tool.method || "RCP"}
+                            </Badge>
+                            <span className="font-mono font-medium text-foreground">
+                              {tool.name}
+                            </span>
+                          </div>
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] font-mono"
+                          >
+                            {(tool.params || []).length} param
+                            {(tool.params || []).length === 1 ? "" : "s"}
+                          </Badge>
+                        </div>
+
                         {tool.description && (
-                          <span className="truncate text-muted-foreground">
-                            — {tool.description}
-                          </span>
+                          <p className="text-xs text-muted-foreground">
+                            {tool.description}
+                          </p>
+                        )}
+
+                        {tool.params && tool.params.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/50">
+                            {tool.params.map((p) => {
+                              const isMapped = formData.paramContextMap.some(
+                                (m) => m.param === p.name,
+                              );
+                              return (
+                                <span
+                                  key={p.name}
+                                  className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-mono border ${
+                                    isMapped
+                                      ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                                      : "bg-muted/40 border-border text-muted-foreground"
+                                  }`}
+                                  title={
+                                    isMapped
+                                      ? `Resolved from context: ${formData.paramContextMap.find((m) => m.param === p.name)?.contextKey}`
+                                      : `${p.type || "string"} ${p.required ? "(required)" : "(optional)"}`
+                                  }
+                                >
+                                  {p.name}
+                                  <span className="text-[9px] opacity-70">
+                                    :{p.type || "str"}
+                                  </span>
+                                </span>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    No tools discovered yet.
-                  </p>
+                  <div className="rounded-lg border border-dashed p-6 text-center">
+                    <p className="text-xs text-muted-foreground mb-3">
+                      No tools discovered yet. Run Test Connection to discover
+                      tools from this manifest.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTestConnection}
+                      disabled={testing}
+                      className="gap-1.5"
+                    >
+                      {testing ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Play className="size-3.5" />
+                      )}
+                      Discover Tools Live
+                    </Button>
+                  </div>
                 )}
               </div>
             )}
 
             {isEditing && uniqueParams.length > 0 && (
-              <div className="mt-8 space-y-3 border-t pt-6">
-                <div>
-                  <p className="text-sm font-medium">Context mapping</p>
-                  <p className="text-sm text-muted-foreground">
-                    Map a param to a context key your frontend sends with each
-                    message. A mapped param is hidden from the model on every
-                    turn and resolved live from that key instead of being
-                    left for the model to fill in — leave a param unmapped to
-                    keep it a normal, model-fillable argument.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {uniqueParams.map((param) => {
-                    const mapped = formData.paramContextMap.find(
-                      (entry) => entry.param === param.name,
-                    );
-                    return (
-                      <div
-                        key={param.name}
-                        className="flex items-center gap-3 rounded-lg border p-3"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="shrink-0 font-mono">
-                              {param.type}
-                            </Badge>
-                            <span className="truncate font-mono text-sm font-medium">
-                              {param.name}
-                            </span>
-                          </div>
-                          {param.description && (
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                              {param.description}
-                            </p>
-                          )}
-                        </div>
-                        <Input
-                          placeholder="Unmapped — model-fillable"
-                          className="w-56 shrink-0 font-mono text-sm"
-                          value={mapped?.contextKey || ""}
-                          onChange={(e) =>
-                            handleParamContextChange(param.name, e.target.value)
-                          }
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Caller-supplied, not server-verified — don&apos;t map a tenant id or real user id
-                  here; those should keep resolving from the verified execution context instead.
-                </p>
+              <div className="mt-8 border-t pt-6">
+                <ContextParamMapper
+                  params={uniqueParams}
+                  paramContextMap={formData.paramContextMap}
+                  onChange={(newMap) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      paramContextMap: newMap,
+                    }))
+                  }
+                />
               </div>
             )}
           </CardContent>
