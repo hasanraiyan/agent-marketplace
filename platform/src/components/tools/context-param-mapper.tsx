@@ -297,14 +297,14 @@ export function ContextParamMapper({
             return (
               <div
                 key={param.name}
-                className={`flex flex-col gap-2 rounded-none border p-3 transition-colors sm:flex-row sm:items-center sm:justify-between ${
+                className={`flex flex-col gap-3 rounded-none border p-3.5 transition-colors md:flex-row md:items-center md:justify-between ${
                   isMapped
                     ? "border-primary/40 bg-primary/5"
                     : "border-border bg-card hover:bg-muted/30"
                 }`}
               >
                 {/* Param Details */}
-                <div className="min-w-0 flex-1 space-y-1">
+                <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-mono text-sm font-semibold text-foreground">
                       {param.name}
@@ -337,29 +337,29 @@ export function ContextParamMapper({
                   </div>
 
                   {param.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-1">
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                       {param.description}
                     </p>
                   )}
                 </div>
 
                 {/* Mapping Controls */}
-                <div className="flex items-center gap-2 shrink-0 pt-1 sm:pt-0">
+                <div className="flex flex-wrap items-center gap-2 shrink-0 pt-1 md:pt-0">
                   {isMapped ? (
-                    <div className="flex items-center gap-1.5 bg-background border border-border rounded-none px-2 py-1 shadow-xs">
-                      <div className="flex items-center gap-1 text-xs font-mono font-medium text-foreground">
+                    <div className="flex items-center gap-1.5 bg-background border border-border rounded-none px-2 py-1 shadow-xs max-w-full">
+                      <div className="flex items-center gap-1 text-xs font-mono font-medium text-foreground min-w-0">
                         {meta?.type === "system" ? (
                           <ShieldCheckIcon className="size-3.5 text-blue-500 shrink-0" />
                         ) : (
                           <LightningIcon className="size-3.5 text-amber-500 shrink-0" />
                         )}
-                        <span className="max-w-[130px] truncate">
+                        <span className="max-w-[110px] sm:max-w-[150px] truncate">
                           {currentMappedKey}
                         </span>
                       </div>
                       <Badge
                         variant="outline"
-                        className={`text-[9px] px-1 py-0 font-normal ${
+                        className={`text-[9px] px-1 py-0 font-normal shrink-0 ${
                           meta?.type === "system"
                             ? "border-blue-500/30 text-blue-600 dark:text-blue-400"
                             : "border-amber-500/30 text-amber-600 dark:text-amber-400"
@@ -371,7 +371,7 @@ export function ContextParamMapper({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="size-5 rounded-none hover:bg-destructive/10 hover:text-destructive"
+                        className="size-5 rounded-none hover:bg-destructive/10 hover:text-destructive shrink-0"
                         onClick={() => handleUnmap(param.name)}
                         title="Revert to Model-Fillable argument"
                       >
