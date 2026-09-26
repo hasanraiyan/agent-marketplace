@@ -382,17 +382,19 @@ export function ContextParamMapper({
 
                   {/* Dropdown to pick preset or insert custom */}
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant={isMapped ? "outline" : "secondary"}
-                        size="sm"
-                        className="h-8 gap-1.5 text-xs font-medium"
-                      >
-                        {isMapped ? "Change Key" : "Map to Context"}
-                        <CaretDownIcon className="size-3 text-muted-foreground" />
-                      </Button>
-                    </DropdownMenuTrigger>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button
+                          type="button"
+                          variant={isMapped ? "outline" : "secondary"}
+                          size="sm"
+                          className="h-8 gap-1.5 text-xs font-medium"
+                        >
+                          {isMapped ? "Change Key" : "Map to Context"}
+                          <CaretDownIcon className="size-3 text-muted-foreground" />
+                        </Button>
+                      }
+                    />
                     <DropdownMenuContent align="end" className="w-72">
                       <DropdownMenuGroup>
                         <DropdownMenuLabel className="flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400">
