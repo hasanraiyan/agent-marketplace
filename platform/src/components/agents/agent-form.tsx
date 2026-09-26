@@ -16,9 +16,27 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -45,6 +63,7 @@ import {
 } from "@/lib/api/projects";
 import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
 import { AttachItem, AttachPicker } from "@/components/agents/attach-picker";
+import { ProjectResourcePicker } from "@/components/agents/project-resource-picker";
 
 const CATEGORIES = [
   { value: "productivity", label: "Productivity" },
@@ -56,9 +75,21 @@ const CATEGORIES = [
 ] as const;
 
 const VISIBILITY = [
-  { value: "private", label: "Private", description: "Only members of this Project can run it." },
-  { value: "unlisted", label: "Unlisted", description: "Anyone with the link can run it." },
-  { value: "public", label: "Public", description: "Listed on the marketplace / Explore." },
+  {
+    value: "private",
+    label: "Private",
+    description: "Only members of this Project can run it.",
+  },
+  {
+    value: "unlisted",
+    label: "Unlisted",
+    description: "Anyone with the link can run it.",
+  },
+  {
+    value: "public",
+    label: "Public",
+    description: "Listed on the marketplace / Explore.",
+  },
 ] as const;
 
 type Category = (typeof CATEGORIES)[number]["value"];
@@ -93,7 +124,13 @@ interface AgentDoc {
   storeMounts?: unknown[];
 }
 
-type AttachField = "skills" | "mcps" | "knowledgeBases" | "restApiTools" | "rcpSources" | "storeMounts";
+type AttachField =
+  | "skills"
+  | "mcps"
+  | "knowledgeBases"
+  | "restApiTools"
+  | "rcpSources"
+  | "storeMounts";
 
 interface AgentFormState {
   name: string;
@@ -140,23 +177,32 @@ interface FieldErrors {
 }
 
 function errorMessage(err: unknown, fallback: string) {
-  return (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
+  return (
+    (err as { response?: { data?: { message?: string } } })?.response?.data
+      ?.message || fallback
+  );
 }
 
 // Normalizes every Project list endpoint's body to a plain array — same shape
 // ResourceListPage relies on ({ data: data | { items } }).
 function rowsOf(res: { data?: { data?: unknown } }): Record<string, unknown>[] {
   const raw = (res.data as { data?: unknown } | undefined)?.data;
-  const list = Array.isArray(raw) ? raw : ((raw as { items?: unknown } | undefined)?.items ?? raw ?? []);
+  const list = Array.isArray(raw)
+    ? raw
+    : ((raw as { items?: unknown } | undefined)?.items ?? raw ?? []);
   return Array.isArray(list) ? (list as Record<string, unknown>[]) : [];
 }
 
-function toItem(row: Record<string, unknown>, meta: string | undefined): AttachItem {
+function toItem(
+  row: Record<string, unknown>,
+  meta: string | undefined,
+): AttachItem {
   return {
     _id: (row._id as string) ?? undefined,
     id: (row.id as string) ?? undefined,
     name: String(row.name ?? ""),
     meta: meta || undefined,
+    raw: row,
   };
 }
 
@@ -170,7 +216,13 @@ function num(row: Record<string, unknown>, key: string): number {
   return typeof v === "number" ? v : 0;
 }
 
-export function AgentForm({ projectId, agentId }: { projectId: string; agentId?: string }) {
+export function AgentForm({
+  projectId,
+  agentId,
+}: {
+  projectId: string;
+  agentId?: string;
+}) {
   const router = useRouter();
   const params = useParams<{ projectId: string }>();
   const pid = params.projectId ?? projectId;
@@ -199,7 +251,7 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
   // The selected provider (for the default-model hint under the model input).
   const selectedProvider = React.useMemo(
     () => providers.find((p) => (p.id ?? p._id) === form.providerId),
-    [providers, form.providerId]
+    [providers, form.providerId],
   );
 
   // Load Project providers once (create + edit both need the picker).
@@ -242,7 +294,11 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
           typeof providerIdRaw === "string"
             ? providerIdRaw
             : providerIdRaw && typeof providerIdRaw === "object"
-              ? String((providerIdRaw as { _id?: string; id?: string })._id ?? (providerIdRaw as { id?: string }).id ?? "")
+              ? String(
+                  (providerIdRaw as { _id?: string; id?: string })._id ??
+                    (providerIdRaw as { id?: string }).id ??
+                    "",
+                )
               : "";
         setForm({
           name: str(found, "name"),
@@ -255,36 +311,42 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
           visibility: (found.visibility as Visibility) || "private",
           category: (found.category as Category) || "other",
           isActive: found.isActive !== false,
-          skills: (found.skills as unknown[] | undefined)?.map((x) => {
-            if (typeof x === "string") return x;
-            const o = x as { _id?: string; id?: string };
-            return String(o._id ?? o.id ?? "");
-          }) ?? [],
-          mcps: (found.mcps as unknown[] | undefined)?.map((x) => {
-            if (typeof x === "string") return x;
-            const o = x as { _id?: string; id?: string };
-            return String(o._id ?? o.id ?? "");
-          }) ?? [],
-          knowledgeBases: (found.knowledgeBases as unknown[] | undefined)?.map((x) => {
-            if (typeof x === "string") return x;
-            const o = x as { _id?: string; id?: string };
-            return String(o._id ?? o.id ?? "");
-          }) ?? [],
-          restApiTools: (found.restApiTools as unknown[] | undefined)?.map((x) => {
-            if (typeof x === "string") return x;
-            const o = x as { _id?: string; id?: string };
-            return String(o._id ?? o.id ?? "");
-          }) ?? [],
-          rcpSources: (found.rcpSources as unknown[] | undefined)?.map((x) => {
-            if (typeof x === "string") return x;
-            const o = x as { _id?: string; id?: string };
-            return String(o._id ?? o.id ?? "");
-          }) ?? [],
-          storeMounts: (found.storeMounts as unknown[] | undefined)?.map((x) => {
-            if (typeof x === "string") return x;
-            const o = x as { _id?: string; id?: string };
-            return String(o._id ?? o.id ?? "");
-          }) ?? [],
+          skills:
+            (found.skills as unknown[] | undefined)?.map((x) => {
+              if (typeof x === "string") return x;
+              const o = x as { _id?: string; id?: string };
+              return String(o._id ?? o.id ?? "");
+            }) ?? [],
+          mcps:
+            (found.mcps as unknown[] | undefined)?.map((x) => {
+              if (typeof x === "string") return x;
+              const o = x as { _id?: string; id?: string };
+              return String(o._id ?? o.id ?? "");
+            }) ?? [],
+          knowledgeBases:
+            (found.knowledgeBases as unknown[] | undefined)?.map((x) => {
+              if (typeof x === "string") return x;
+              const o = x as { _id?: string; id?: string };
+              return String(o._id ?? o.id ?? "");
+            }) ?? [],
+          restApiTools:
+            (found.restApiTools as unknown[] | undefined)?.map((x) => {
+              if (typeof x === "string") return x;
+              const o = x as { _id?: string; id?: string };
+              return String(o._id ?? o.id ?? "");
+            }) ?? [],
+          rcpSources:
+            (found.rcpSources as unknown[] | undefined)?.map((x) => {
+              if (typeof x === "string") return x;
+              const o = x as { _id?: string; id?: string };
+              return String(o._id ?? o.id ?? "");
+            }) ?? [],
+          storeMounts:
+            (found.storeMounts as unknown[] | undefined)?.map((x) => {
+              if (typeof x === "string") return x;
+              const o = x as { _id?: string; id?: string };
+              return String(o._id ?? o.id ?? "");
+            }) ?? [],
         });
       })
       .catch((err) => {
@@ -306,7 +368,9 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
     Promise.allSettled([
       getProjectSkills(pid).then((res) => {
         const rows = rowsOf(res as never);
-        setSkills(rows.map((r) => toItem(r, str(r, "description") || undefined)));
+        setSkills(
+          rows.map((r) => toItem(r, str(r, "description") || undefined)),
+        );
       }),
       getProjectKnowledge(pid).then((res) => {
         const rows = rowsOf(res as never);
@@ -314,8 +378,11 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
           rows.map((r) => {
             const docCount = num(r, "documentCount");
             const desc = str(r, "description");
-            return toItem(r, desc || (docCount > 0 ? `${docCount} docs` : undefined));
-          })
+            return toItem(
+              r,
+              desc || (docCount > 0 ? `${docCount} docs` : undefined),
+            );
+          }),
         );
       }),
       getProjectMcps(pid).then((res) => {
@@ -329,8 +396,11 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
             const desc = str(r, "description");
             const method = str(r, "method").toUpperCase();
             const url = str(r, "url");
-            return toItem(r, desc || (method && url ? `${method} ${url}` : undefined));
-          })
+            return toItem(
+              r,
+              desc || (method && url ? `${method} ${url}` : undefined),
+            );
+          }),
         );
       }),
       getProjectRcpSources(pid).then((res) => {
@@ -343,8 +413,15 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
           rows.map((r) => {
             const scope = str(r, "scope");
             const accessMode = str(r, "accessMode");
-            return toItem(r, scope ? (accessMode ? `${scope} · ${accessMode}` : scope) : undefined);
-          })
+            return toItem(
+              r,
+              scope
+                ? accessMode
+                  ? `${scope} · ${accessMode}`
+                  : scope
+                : undefined,
+            );
+          }),
         );
       }),
     ]).finally(() => {
@@ -368,7 +445,11 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
       .then((res) => {
         if (cancelled) return;
         const fetched = res.data?.data ?? [];
-        setModels(Array.isArray(fetched) ? fetched.map((m: { id?: string }) => ({ id: m?.id ?? "" })) : []);
+        setModels(
+          Array.isArray(fetched)
+            ? fetched.map((m: { id?: string }) => ({ id: m?.id ?? "" }))
+            : [],
+        );
       })
       .catch(() => {
         if (!cancelled) setModels([]);
@@ -381,13 +462,17 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
     };
   }, [pid, form.providerId]);
 
-  const update = <K extends keyof AgentFormState>(key: K, value: AgentFormState[K]) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const update = <K extends keyof AgentFormState>(
+    key: K,
+    value: AgentFormState[K],
+  ) => setForm((prev) => ({ ...prev, [key]: value }));
 
   const toggle = (field: AttachField) => (id: string) =>
     setForm((prev) => {
       const arr = prev[field] as string[];
-      const next = arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
+      const next = arr.includes(id)
+        ? arr.filter((x) => x !== id)
+        : [...arr, id];
       return { ...prev, [field]: next };
     });
 
@@ -398,8 +483,10 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
     const nextErrors: FieldErrors = {};
     const name = form.name.trim();
     const systemPrompt = form.systemPrompt.trim();
-    if (name.length < 2 || name.length > 100) nextErrors.name = "Name must be 2–100 characters.";
-    if (systemPrompt.length < 10) nextErrors.systemPrompt = "System prompt must be at least 10 characters.";
+    if (name.length < 2 || name.length > 100)
+      nextErrors.name = "Name must be 2–100 characters.";
+    if (systemPrompt.length < 10)
+      nextErrors.systemPrompt = "System prompt must be at least 10 characters.";
     if (!form.providerId) nextErrors.providerId = "Select an AI provider.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
@@ -436,7 +523,12 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
       deleteCachedByPrefix(cacheKey.resource(pid, "agents"));
       router.push(`/projects/${pid}/agents`);
     } catch (err) {
-      setSaveError(errorMessage(err, isEdit ? "Failed to save agent." : "Failed to create agent."));
+      setSaveError(
+        errorMessage(
+          err,
+          isEdit ? "Failed to save agent." : "Failed to create agent.",
+        ),
+      );
       setSaving(false);
     }
   };
@@ -459,7 +551,11 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink render={<Link href={`/projects/${pid}/agents`} />}>Agents</BreadcrumbLink>
+              <BreadcrumbLink
+                render={<Link href={`/projects/${pid}/agents`} />}
+              >
+                Agents
+              </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
@@ -470,7 +566,12 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
         <Card>
           <CardContent className="flex flex-col items-start gap-3 p-6">
             <FieldError>Agent not found in this Project.</FieldError>
-            <Button type="button" variant="outline" size="sm" render={<Link href={`/projects/${pid}/agents`} />}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              render={<Link href={`/projects/${pid}/agents`} />}
+            >
               <ArrowLeftIcon data-icon="inline-start" />
               Back to Agents
             </Button>
@@ -487,11 +588,15 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink render={<Link href={`${resourceBase}/agents`} />}>Agents</BreadcrumbLink>
+            <BreadcrumbLink render={<Link href={`${resourceBase}/agents`} />}>
+              Agents
+            </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbPage>{isEdit ? `Edit ${form.name || agentId}` : "New agent"}</BreadcrumbPage>
+            <BreadcrumbPage>
+              {isEdit ? `Edit ${form.name || agentId}` : "New agent"}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -505,7 +610,8 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
             {isEdit ? "Edit agent" : "New agent"}
           </h1>
           <p className="max-w-2xl text-xs leading-snug text-muted-foreground sm:text-sm">
-            An Agent pairs a model provider with instructions and the Project resources it can use at run time.
+            An Agent pairs a model provider with instructions and the Project
+            resources it can use at run time.
           </p>
         </div>
         {isEdit && agentId && (
@@ -514,7 +620,9 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
             variant="outline"
             size="sm"
             className="w-fit shrink-0 gap-1.5 hover:border-primary/40 hover:bg-primary/5"
-            render={<Link href={`/projects/${pid}/playground?agentId=${agentId}`} />}
+            render={
+              <Link href={`/projects/${pid}/playground?agentId=${agentId}`} />
+            }
           >
             <PlayIcon className="size-3.5 text-primary" weight="fill" />
             Test in Playground
@@ -524,13 +632,17 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
 
       <Separator />
 
-      <form onSubmit={handleSubmit} className="grid w-full items-start gap-4 sm:gap-6 lg:grid-cols-[1.65fr_0.85fr]">
+      <form
+        onSubmit={handleSubmit}
+        className="grid w-full items-start gap-4 sm:gap-6 lg:grid-cols-[1.65fr_0.85fr]"
+      >
         <div className="flex flex-col gap-4 sm:gap-6">
           <Card>
             <CardHeader>
               <CardTitle>Configuration</CardTitle>
               <CardDescription>
-                Name, model, and the instructions that define how the Agent behaves.
+                Name, model, and the instructions that define how the Agent
+                behaves.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -545,7 +657,10 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                     maxLength={100}
                     placeholder="e.g. Research Assistant"
                   />
-                  <FieldDescription>2–100 characters. The backend derives a unique slug from this.</FieldDescription>
+                  <FieldDescription>
+                    2–100 characters. The backend derives a unique slug from
+                    this.
+                  </FieldDescription>
                   {errors.name && <FieldError>{errors.name}</FieldError>}
                 </Field>
 
@@ -554,7 +669,9 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                     <FieldLabel htmlFor="category">Category</FieldLabel>
                     <Select
                       value={form.category}
-                      onValueChange={(value) => update("category", (value ?? "other") as Category)}
+                      onValueChange={(value) =>
+                        update("category", (value ?? "other") as Category)
+                      }
                     >
                       <SelectTrigger id="category" className="w-full">
                         <SelectValue />
@@ -573,7 +690,9 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                     <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
                     <Select
                       value={form.visibility}
-                      onValueChange={(value) => update("visibility", (value ?? "private") as Visibility)}
+                      onValueChange={(value) =>
+                        update("visibility", (value ?? "private") as Visibility)
+                      }
                     >
                       <SelectTrigger id="visibility" className="w-full">
                         <SelectValue />
@@ -587,7 +706,10 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                       </SelectContent>
                     </Select>
                     <FieldDescription>
-                      {VISIBILITY.find((v) => v.value === form.visibility)?.description}
+                      {
+                        VISIBILITY.find((v) => v.value === form.visibility)
+                          ?.description
+                      }
                     </FieldDescription>
                   </Field>
                 </div>
@@ -598,7 +720,10 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                     <AlertTitle>No AI provider configured</AlertTitle>
                     <AlertDescription>
                       Add an LLM provider before creating an Agent.{" "}
-                      <Link className="underline underline-offset-4" href={`${resourceBase}/providers/new`}>
+                      <Link
+                        className="underline underline-offset-4"
+                        href={`${resourceBase}/providers/new`}
+                      >
                         Create a provider
                       </Link>
                       .
@@ -623,7 +748,7 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                           // show a name when the root maps the id back to a label).
                           itemToStringLabel={(value) => {
                             const provider = providers.find(
-                              (p) => (p.id ?? p._id) === value
+                              (p) => (p.id ?? p._id) === value,
                             );
                             return provider
                               ? provider.label || provider.id
@@ -635,7 +760,10 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                           </SelectTrigger>
                           <SelectContent>
                             {providers.map((p) => (
-                              <SelectItem key={p.id ?? p._id!} value={p.id ?? p._id!}>
+                              <SelectItem
+                                key={p.id ?? p._id!}
+                                value={p.id ?? p._id!}
+                              >
                                 {p.label || p.id}
                                 {p.isDefault ? " (default)" : ""}
                               </SelectItem>
@@ -643,7 +771,9 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                           </SelectContent>
                         </Select>
                       )}
-                      {errors.providerId && <FieldError>{errors.providerId}</FieldError>}
+                      {errors.providerId && (
+                        <FieldError>{errors.providerId}</FieldError>
+                      )}
                     </Field>
 
                     <Field>
@@ -670,7 +800,8 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                         ))}
                       </datalist>
                       <FieldDescription>
-                        Model id for this provider — blank uses the provider&apos;s default model.
+                        Model id for this provider — blank uses the
+                        provider&apos;s default model.
                       </FieldDescription>
                     </Field>
                   </div>
@@ -700,20 +831,32 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                     className="font-mono text-sm"
                     placeholder="What does this agent do? How does it behave? What should it avoid?"
                   />
-                  <FieldDescription>At least 10 characters. This is the agent&apos;s core instruction.</FieldDescription>
-                  {errors.systemPrompt && <FieldError>{errors.systemPrompt}</FieldError>}
+                  <FieldDescription>
+                    At least 10 characters. This is the agent&apos;s core
+                    instruction.
+                  </FieldDescription>
+                  {errors.systemPrompt && (
+                    <FieldError>{errors.systemPrompt}</FieldError>
+                  )}
                 </Field>
 
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">
                     <div className="flex flex-col gap-0.5">
-                      <Label htmlFor="webSearchEnabled" className="text-sm font-medium">
+                      <Label
+                        htmlFor="webSearchEnabled"
+                        className="text-sm font-medium"
+                      >
                         Web search
                       </Label>
                       <span className="text-xs text-muted-foreground">
-                        Allow the agent to search the web. Uses the platform&apos;s search key by
-                        default — add a <code className="font-mono">TAVILY_API_KEY</code>{" "}
-                        <Link href={`/projects/${pid}/secrets`} className="underline underline-offset-2">
+                        Allow the agent to search the web. Uses the
+                        platform&apos;s search key by default — add a{" "}
+                        <code className="font-mono">TAVILY_API_KEY</code>{" "}
+                        <Link
+                          href={`/projects/${pid}/secrets`}
+                          className="underline underline-offset-2"
+                        >
                           Project Secret
                         </Link>{" "}
                         to use this Project&apos;s own key instead.
@@ -727,13 +870,20 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                   </div>
                   <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">
                     <div className="flex flex-col gap-0.5">
-                      <Label htmlFor="sandboxEnabled" className="text-sm font-medium">
+                      <Label
+                        htmlFor="sandboxEnabled"
+                        className="text-sm font-medium"
+                      >
                         Sandbox
                       </Label>
                       <span className="text-xs text-muted-foreground">
-                        Let the agent run real shell commands in an isolated CodeSandbox VM.
-                        Requires a <code className="font-mono">CSB_API_KEY</code>{" "}
-                        <Link href={`/projects/${pid}/secrets`} className="underline underline-offset-2">
+                        Let the agent run real shell commands in an isolated
+                        CodeSandbox VM. Requires a{" "}
+                        <code className="font-mono">CSB_API_KEY</code>{" "}
+                        <Link
+                          href={`/projects/${pid}/secrets`}
+                          className="underline underline-offset-2"
+                        >
                           Project Secret
                         </Link>
                         .
@@ -750,7 +900,9 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
                       <Label htmlFor="isActive" className="text-sm font-medium">
                         Active
                       </Label>
-                      <span className="text-xs text-muted-foreground">Can this agent be run in the Playground?</span>
+                      <span className="text-xs text-muted-foreground">
+                        Can this agent be run in the Playground?
+                      </span>
                     </div>
                     <Switch
                       id="isActive"
@@ -764,84 +916,40 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Attachments</CardTitle>
-              <CardDescription>
-                The Project resources this Agent can use at run time. Picks persist as the attach arrays on the Agent.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <AttachPicker
-                  field="skills"
-                  title="Skills"
-                  hint="skills — reusable instructions"
-                  items={skills}
-                  loading={loadingAttaches}
-                  selected={form.skills}
-                  onToggle={toggle("skills")}
-                  createHref={`${resourceBase}/skills/new`}
-                  emptyNoun="a skill"
-                />
-                <AttachPicker
-                  field="knowledgeBases"
-                  title="Knowledge"
-                  hint="knowledgeBases — documents to search"
-                  items={knowledge}
-                  loading={loadingAttaches}
-                  selected={form.knowledgeBases}
-                  onToggle={toggle("knowledgeBases")}
-                  createHref={`${resourceBase}/knowledge/new`}
-                  emptyNoun="a knowledge base"
-                />
-                <AttachPicker
-                  field="mcps"
-                  title="MCP"
-                  hint="mcps — MCP tool servers"
-                  items={mcps}
-                  loading={loadingAttaches}
-                  selected={form.mcps}
-                  onToggle={toggle("mcps")}
-                  createHref={`${resourceBase}/mcps/new`}
-                  emptyNoun="an MCP server"
-                />
-                <AttachPicker
-                  field="restApiTools"
-                  title="REST Tools"
-                  hint="restApiTools — no-code HTTP tools"
-                  items={restTools}
-                  loading={loadingAttaches}
-                  selected={form.restApiTools}
-                  onToggle={toggle("restApiTools")}
-                  createHref={`${resourceBase}/rest-tools/new`}
-                  emptyNoun="a REST tool"
-                />
-                <AttachPicker
-                  field="rcpSources"
-                  title="RCP Sources"
-                  hint="rcpSources — REST Connector Protocol sources"
-                  items={rcpSources}
-                  loading={loadingAttaches}
-                  selected={form.rcpSources}
-                  onToggle={toggle("rcpSources")}
-                  createHref={`${resourceBase}/rcp-sources/new`}
-                  emptyNoun="an RCP source"
-                />
-                <AttachPicker
-                  field="storeMounts"
-                  title="Stores"
-                  hint="storeMounts — scoped mount points"
-                  items={stores}
-                  loading={loadingAttaches}
-                  selected={form.storeMounts}
-                  onToggle={toggle("storeMounts")}
-                  createHref={`${resourceBase}/stores/new`}
-                  emptyNoun="a store"
-                />
-              </div>
+            <CardContent className="p-4 sm:p-6">
+              <ProjectResourcePicker
+                projectId={pid}
+                skills={skills}
+                knowledge={knowledge}
+                mcps={mcps}
+                restTools={restTools}
+                rcpSources={rcpSources}
+                stores={stores}
+                loading={loadingAttaches}
+                selected={{
+                  skills: form.skills,
+                  knowledgeBases: form.knowledgeBases,
+                  mcps: form.mcps,
+                  restApiTools: form.restApiTools,
+                  rcpSources: form.rcpSources,
+                  storeMounts: form.storeMounts,
+                }}
+                onToggle={(field, id) => toggle(field)(id)}
+                onClearAll={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    skills: [],
+                    knowledgeBases: [],
+                    mcps: [],
+                    restApiTools: [],
+                    rcpSources: [],
+                    storeMounts: [],
+                  }))
+                }
+              />
               <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
-                Secrets and REST Tool Sources aren&apos;t attachable to Agents — they configure individual tools/MCP
-                servers, and Platform has no Agent-level secrets field.
+                Secrets and REST Tool Sources aren&apos;t attachable directly to
+                Agents — they configure individual tools and MCP servers.
               </p>
             </CardContent>
           </Card>
@@ -849,7 +957,12 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
           {saveError && <FieldError>{saveError}</FieldError>}
 
           <div className="flex items-center justify-between gap-3 pt-1">
-            <Button type="button" variant="ghost" size="sm" render={<Link href={`${resourceBase}/agents`} />}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              render={<Link href={`${resourceBase}/agents`} />}
+            >
               <ArrowLeftIcon data-icon="inline-start" />
               Back
             </Button>
@@ -862,7 +975,12 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
               >
                 Cancel
               </Button>
-              <Button type="submit" disabled={saving || (isEdit ? false : noProviders) || !form.providerId}>
+              <Button
+                type="submit"
+                disabled={
+                  saving || (isEdit ? false : noProviders) || !form.providerId
+                }
+              >
                 {saving ? "Saving…" : isEdit ? "Save agent" : "Create agent"}
               </Button>
             </div>
@@ -879,9 +997,10 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
             </CardHeader>
             <CardContent className="flex flex-col gap-2 text-xs leading-relaxed text-muted-foreground">
               <p>
-                At run time the agent loads its system prompt, the provider&apos;s model, and every attached resource:
-                skills (instructions), knowledge bases (retrieval), MCP + REST + RCP sources (tools), and stores
-                (mounted filesystems).
+                At run time the agent loads its system prompt, the
+                provider&apos;s model, and every attached resource: skills
+                (instructions), knowledge bases (retrieval), MCP + REST + RCP
+                sources (tools), and stores (mounted filesystems).
               </p>
             </CardContent>
           </Card>
@@ -889,10 +1008,15 @@ export function AgentForm({ projectId, agentId }: { projectId: string; agentId?:
             <InfoIcon />
             <AlertTitle>Tip</AlertTitle>
             <AlertDescription>
-              Start with a provider and one skill or knowledge base — then test the agent in the{" "}
+              Start with a provider and one skill or knowledge base — then test
+              the agent in the{" "}
               <Link
                 className="underline underline-offset-4"
-                href={isEdit && agentId ? `${resourceBase}/playground?agentId=${agentId}` : `${resourceBase}/playground`}
+                href={
+                  isEdit && agentId
+                    ? `${resourceBase}/playground?agentId=${agentId}`
+                    : `${resourceBase}/playground`
+                }
               >
                 Playground
               </Link>

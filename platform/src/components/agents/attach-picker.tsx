@@ -16,6 +16,7 @@ export interface AttachItem {
   id?: string;
   name: string;
   meta?: string;
+  raw?: Record<string, unknown>;
 }
 
 export function attachId(item: AttachItem) {
@@ -50,7 +51,9 @@ function AttachPicker({
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className="text-xs font-semibold tracking-tight">{title}</span>
-          <span className="text-[11px] leading-snug text-muted-foreground">{hint}</span>
+          <span className="text-[11px] leading-snug text-muted-foreground">
+            {hint}
+          </span>
         </div>
         {selectedCount > 0 && (
           <Badge variant="secondary" className="shrink-0 text-[10px]">
@@ -94,9 +97,13 @@ function AttachPicker({
                   onCheckedChange={() => onToggle(id)}
                 />
                 <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-xs font-medium">{item.name}</span>
+                  <span className="truncate text-xs font-medium">
+                    {item.name}
+                  </span>
                   {item.meta ? (
-                    <span className="truncate text-[11px] text-muted-foreground">{item.meta}</span>
+                    <span className="truncate text-[11px] text-muted-foreground">
+                      {item.meta}
+                    </span>
                   ) : null}
                 </span>
               </label>
