@@ -5,17 +5,26 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeftIcon,
+  CheckIcon,
+  ClockIcon,
+  CopyIcon,
+  FingerprintIcon,
+  GlobeIcon,
   InfoIcon,
   PlayIcon,
   RobotIcon,
   ShieldCheckIcon,
+  SparkleIcon,
+  TerminalWindowIcon,
   WarningCircleIcon,
+  WrenchIcon,
 } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Field,
   FieldDescription,
@@ -62,7 +71,7 @@ import {
   getProjectStores,
 } from "@/lib/api/projects";
 import { cacheKey, deleteCachedByPrefix } from "@/lib/cache";
-import { AttachItem, AttachPicker } from "@/components/agents/attach-picker";
+import { AttachItem } from "@/components/agents/attach-picker";
 import { ProjectResourcePicker } from "@/components/agents/project-resource-picker";
 
 const CATEGORIES = [
@@ -88,7 +97,7 @@ const VISIBILITY = [
   {
     value: "public",
     label: "Public",
-    description: "Listed on the marketplace / Explore.",
+    description: "Listed on the public marketplace / Explore.",
   },
 ] as const;
 
@@ -101,27 +110,6 @@ interface Provider {
   label?: string;
   defaultModel?: string;
   isDefault?: boolean;
-}
-
-interface AgentDoc {
-  _id: string;
-  id?: string;
-  name?: string;
-  description?: string;
-  systemPrompt?: string;
-  providerId?: string | { _id?: string; id?: string };
-  modelName?: string;
-  webSearchEnabled?: boolean;
-  sandboxEnabled?: boolean;
-  visibility?: Visibility;
-  category?: Category;
-  isActive?: boolean;
-  skills?: unknown[];
-  mcps?: unknown[];
-  knowledgeBases?: unknown[];
-  restApiTools?: unknown[];
-  rcpSources?: unknown[];
-  storeMounts?: unknown[];
 }
 
 type AttachField =
@@ -183,8 +171,6 @@ function errorMessage(err: unknown, fallback: string) {
   );
 }
 
-// Normalizes every Project list endpoint's body to a plain array — same shape
-// ResourceListPage relies on ({ data: data | { items } }).
 function rowsOf(res: { data?: { data?: unknown } }): Record<string, unknown>[] {
   const raw = (res.data as { data?: unknown } | undefined)?.data;
   const list = Array.isArray(raw)
@@ -229,6 +215,12 @@ export function AgentForm({
   const isEdit = !!agentId;
 
   const [form, setForm] = React.useState<AgentFormState>(EMPTY_FORM);
+  const [agentMeta, setAgentMeta] = React.useState<{
+    createdAt?: string;
+    updatedAt?: string;
+  } | null>(null);
+  const [copiedId, setCopiedId] = React.useState(false);
+
   const [providers, setProviders] = React.useState<Provider[]>([]);
   const [loadingProviders, setLoadingProviders] = React.useState(true);
   const [models, setModels] = React.useState<{ id: string }[]>([]);
@@ -248,13 +240,32 @@ export function AgentForm({
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [errors, setErrors] = React.useState<FieldErrors>({});
 
-  // The selected provider (for the default-model hint under the model input).
+  // Selected provider
   const selectedProvider = React.useMemo(
     () => providers.find((p) => (p.id ?? p._id) === form.providerId),
     [providers, form.providerId],
   );
 
-  // Load Project providers once (create + edit both need the picker).
+  // Total attached resources count
+  const totalAttachedCount = React.useMemo(() => {
+    return (
+      form.skills.length +
+      form.knowledgeBases.length +
+      form.mcps.length +
+      form.restApiTools.length +
+      form.rcpSources.length +
+      form.storeMounts.length
+    );
+  }, [
+    form.skills,
+    form.knowledgeBases,
+    form.mcps,
+    form.restApiTools,
+    form.rcpSources,
+    form.storeMounts,
+  ]);
+
+  // Load Project providers once
   React.useEffect(() => {
     let cancelled = false;
     setLoadingProviders(true);
@@ -274,8 +285,7 @@ export function AgentForm({
     };
   }, [pid]);
 
-  // Edit mode: there is no single-item GET — find the Agent in the Project's
-  // list (the Platform convention) and hydrate the form from it.
+  // Edit mode: hydrate form from list
   React.useEffect(() => {
     if (!agentId) return;
     let cancelled = false;
@@ -289,6 +299,10 @@ export function AgentForm({
           setNotFound(true);
           return;
         }
+        setAgentMeta({
+          createdAt: str(found, "createdAt"),
+          updatedAt: str(found, "updatedAt"),
+        });
         const providerIdRaw = found.providerId;
         const providerId =
           typeof providerIdRaw === "string"
@@ -349,7 +363,7 @@ export function AgentForm({
             }) ?? [],
         });
       })
-      .catch((err) => {
+      .catch(() => {
         if (!cancelled) setNotFound(true);
       })
       .finally(() => {
@@ -360,8 +374,7 @@ export function AgentForm({
     };
   }, [pid, agentId]);
 
-  // Load all six attachable Project resource lists in parallel. Each list is
-  // independent — one failing list just renders as its empty state.
+  // Load attachable Project resource lists in parallel
   React.useEffect(() => {
     let cancelled = false;
     setLoadingAttaches(true);
@@ -432,8 +445,7 @@ export function AgentForm({
     };
   }, [pid]);
 
-  // When the provider changes, preload that provider's model ids so the model
-  // input can suggest valid choices (saved provider creds are used server-side).
+  // Preload provider's model choices
   React.useEffect(() => {
     if (!form.providerId) {
       setModels([]);
@@ -535,11 +547,12 @@ export function AgentForm({
 
   if (loading) {
     return (
-      <div className="flex w-full flex-col gap-4 p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
         <Skeleton className="h-6 w-32" />
-        <div className="grid w-full items-start gap-6 lg:grid-cols-[1.65fr_0.85fr]">
-          <Skeleton className="h-[560px] w-full" />
-          <Skeleton className="h-[320px] w-full" />
+        <Skeleton className="h-8 w-48" />
+        <div className="grid w-full items-start gap-6 lg:grid-cols-12">
+          <Skeleton className="h-[500px] w-full lg:col-span-8" />
+          <Skeleton className="h-[320px] w-full lg:col-span-4" />
         </div>
       </div>
     );
@@ -547,7 +560,7 @@ export function AgentForm({
 
   if (notFound) {
     return (
-      <div className="flex w-full flex-col gap-4 p-4 sm:p-6 lg:p-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -584,87 +597,113 @@ export function AgentForm({
   const resourceBase = `/projects/${pid}`;
 
   return (
-    <div className="flex w-full flex-col gap-4 overflow-y-auto p-4 sm:gap-6 sm:p-6 lg:p-8">
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink render={<Link href={`${resourceBase}/agents`} />}>
-              Agents
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbItem>
-            <BreadcrumbPage>
-              {isEdit ? `Edit ${form.name || agentId}` : "New agent"}
-            </BreadcrumbPage>
-          </BreadcrumbItem>
-        </BreadcrumbList>
-      </Breadcrumb>
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 sm:p-6 lg:p-8">
+      {/* Top Breadcrumb & Header */}
+      <div className="flex flex-col gap-2">
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink render={<Link href={`${resourceBase}/agents`} />}>
+                Agents
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="max-w-[240px] truncate">
+                {isEdit ? form.name || "Edit agent" : "New agent"}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="flex items-center gap-2 text-lg font-semibold tracking-tight sm:text-xl">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-none bg-primary text-primary-foreground">
-              <RobotIcon />
-            </span>
-            {isEdit ? "Edit agent" : "New agent"}
-          </h1>
-          <p className="max-w-2xl text-xs leading-snug text-muted-foreground sm:text-sm">
-            An Agent pairs a model provider with instructions and the Project
-            resources it can use at run time.
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <h1 className="flex items-center gap-2 text-xl font-semibold tracking-tight sm:text-2xl">
+              <span className="flex size-8 shrink-0 items-center justify-center bg-primary text-primary-foreground">
+                <RobotIcon className="size-4" />
+              </span>
+              <span className="truncate">
+                {isEdit ? form.name || "Edit agent" : "New agent"}
+              </span>
+            </h1>
+            <p className="text-xs text-muted-foreground sm:text-sm">
+              An Agent pairs an LLM provider with behavioral instructions and
+              connected Project resources.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {isEdit && agentId && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                render={
+                  <Link
+                    href={`${resourceBase}/playground?agentId=${agentId}`}
+                  />
+                }
+                className="gap-1.5 hover:border-primary/40 hover:bg-primary/5"
+              >
+                <PlayIcon className="size-3.5 text-primary" weight="fill" />
+                Test in Playground
+              </Button>
+            )}
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleSubmit}
+              disabled={
+                saving || (isEdit ? false : noProviders) || !form.providerId
+              }
+            >
+              <CheckIcon data-icon="inline-start" />
+              {saving ? "Saving…" : isEdit ? "Save agent" : "Create agent"}
+            </Button>
+          </div>
         </div>
-        {isEdit && agentId && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-fit shrink-0 gap-1.5 hover:border-primary/40 hover:bg-primary/5"
-            render={
-              <Link href={`/projects/${pid}/playground?agentId=${agentId}`} />
-            }
-          >
-            <PlayIcon className="size-3.5 text-primary" weight="fill" />
-            Test in Playground
-          </Button>
-        )}
       </div>
 
       <Separator />
 
+      {/* Main Responsive Grid: 8 columns Workspace, 4 columns Control Sidebar */}
       <form
         onSubmit={handleSubmit}
-        className="grid w-full items-start gap-4 sm:gap-6 lg:grid-cols-[1.65fr_0.85fr]"
+        className="grid w-full items-start gap-6 lg:grid-cols-12"
       >
-        <div className="flex flex-col gap-4 sm:gap-6">
+        {/* Main Workspace (col-span-8) */}
+        <div className="flex flex-col gap-6 lg:col-span-8">
+          {/* 1. Identity & Model Setup */}
           <Card>
             <CardHeader>
-              <CardTitle>Configuration</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base font-medium">
+                <SparkleIcon className="size-4 text-muted-foreground" />
+                Identity & Model
+              </CardTitle>
               <CardDescription>
-                Name, model, and the instructions that define how the Agent
-                behaves.
+                Define the agent&apos;s identity and select the foundation AI
+                model provider.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="name">Name</FieldLabel>
-                  <Input
-                    id="name"
-                    value={form.name}
-                    onChange={(e) => update("name", e.target.value)}
-                    required
-                    maxLength={100}
-                    placeholder="e.g. Research Assistant"
-                  />
-                  <FieldDescription>
-                    2–100 characters. The backend derives a unique slug from
-                    this.
-                  </FieldDescription>
-                  {errors.name && <FieldError>{errors.name}</FieldError>}
-                </Field>
-
+              <FieldGroup className="flex flex-col gap-4">
                 <div className="grid gap-4 sm:grid-cols-2">
+                  <Field>
+                    <FieldLabel htmlFor="name">Agent Name</FieldLabel>
+                    <Input
+                      id="name"
+                      value={form.name}
+                      onChange={(e) => update("name", e.target.value)}
+                      required
+                      maxLength={100}
+                      placeholder="e.g. Research Assistant"
+                    />
+                    <FieldDescription>
+                      A clear, identifiable name for your agent.
+                    </FieldDescription>
+                    {errors.name && <FieldError>{errors.name}</FieldError>}
+                  </Field>
+
                   <Field>
                     <FieldLabel htmlFor="category">Category</FieldLabel>
                     <Select
@@ -684,44 +723,22 @@ export function AgentForm({
                         ))}
                       </SelectContent>
                     </Select>
-                  </Field>
-
-                  <Field>
-                    <FieldLabel htmlFor="visibility">Visibility</FieldLabel>
-                    <Select
-                      value={form.visibility}
-                      onValueChange={(value) =>
-                        update("visibility", (value ?? "private") as Visibility)
-                      }
-                    >
-                      <SelectTrigger id="visibility" className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {VISIBILITY.map((v) => (
-                          <SelectItem key={v.value} value={v.value}>
-                            {v.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                     <FieldDescription>
-                      {
-                        VISIBILITY.find((v) => v.value === form.visibility)
-                          ?.description
-                      }
+                      Category for discovery and grouping.
                     </FieldDescription>
                   </Field>
                 </div>
 
                 {noProviders ? (
-                  <Alert>
-                    <WarningCircleIcon />
-                    <AlertTitle>No AI provider configured</AlertTitle>
-                    <AlertDescription>
-                      Add an LLM provider before creating an Agent.{" "}
+                  <Alert className="text-xs">
+                    <WarningCircleIcon className="size-4" />
+                    <AlertTitle className="text-xs">
+                      No AI provider configured
+                    </AlertTitle>
+                    <AlertDescription className="text-xs">
+                      Add an LLM provider before configuring this Agent.{" "}
                       <Link
-                        className="underline underline-offset-4"
+                        className="font-medium text-primary underline underline-offset-4"
                         href={`${resourceBase}/providers/new`}
                       >
                         Create a provider
@@ -740,12 +757,8 @@ export function AgentForm({
                           value={form.providerId}
                           onValueChange={(value) => {
                             update("providerId", value ?? "");
-                            // A model only makes sense for the provider that owns it.
                             update("modelName", "");
                           }}
-                          // Without this the trigger falls back to rendering the
-                          // provider id once one is selected (SelectValue can only
-                          // show a name when the root maps the id back to a label).
                           itemToStringLabel={(value) => {
                             const provider = providers.find(
                               (p) => (p.id ?? p._id) === value,
@@ -790,7 +803,7 @@ export function AgentForm({
                             ? "Loading models…"
                             : selectedProvider?.defaultModel
                               ? `e.g. ${selectedProvider.defaultModel}`
-                              : "Leave blank for the provider default"
+                              : "Leave blank for provider default"
                         }
                         className="font-mono text-sm"
                       />
@@ -800,8 +813,7 @@ export function AgentForm({
                         ))}
                       </datalist>
                       <FieldDescription>
-                        Model id for this provider — blank uses the
-                        provider&apos;s default model.
+                        Model ID — blank uses provider default.
                       </FieldDescription>
                     </Field>
                   </div>
@@ -815,106 +827,57 @@ export function AgentForm({
                     onChange={(e) => update("description", e.target.value)}
                     maxLength={500}
                     rows={2}
-                    placeholder="What this Agent specializes in…"
-                  />
-                  <FieldDescription>Under 500 characters.</FieldDescription>
-                </Field>
-
-                <Field>
-                  <FieldLabel htmlFor="systemPrompt">System prompt</FieldLabel>
-                  <Textarea
-                    id="systemPrompt"
-                    value={form.systemPrompt}
-                    onChange={(e) => update("systemPrompt", e.target.value)}
-                    required
-                    rows={10}
-                    className="font-mono text-sm"
-                    placeholder="What does this agent do? How does it behave? What should it avoid?"
+                    placeholder="Briefly describe what this Agent specializes in…"
                   />
                   <FieldDescription>
-                    At least 10 characters. This is the agent&apos;s core
-                    instruction.
+                    Short summary shown in cards and lists (under 500
+                    characters).
                   </FieldDescription>
-                  {errors.systemPrompt && (
-                    <FieldError>{errors.systemPrompt}</FieldError>
-                  )}
                 </Field>
-
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">
-                    <div className="flex flex-col gap-0.5">
-                      <Label
-                        htmlFor="webSearchEnabled"
-                        className="text-sm font-medium"
-                      >
-                        Web search
-                      </Label>
-                      <span className="text-xs text-muted-foreground">
-                        Allow the agent to search the web. Uses the
-                        platform&apos;s search key by default — add a{" "}
-                        <code className="font-mono">TAVILY_API_KEY</code>{" "}
-                        <Link
-                          href={`/projects/${pid}/secrets`}
-                          className="underline underline-offset-2"
-                        >
-                          Project Secret
-                        </Link>{" "}
-                        to use this Project&apos;s own key instead.
-                      </span>
-                    </div>
-                    <Switch
-                      id="webSearchEnabled"
-                      checked={form.webSearchEnabled}
-                      onCheckedChange={(c) => update("webSearchEnabled", !!c)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">
-                    <div className="flex flex-col gap-0.5">
-                      <Label
-                        htmlFor="sandboxEnabled"
-                        className="text-sm font-medium"
-                      >
-                        Sandbox
-                      </Label>
-                      <span className="text-xs text-muted-foreground">
-                        Let the agent run real shell commands in an isolated
-                        CodeSandbox VM. Requires a{" "}
-                        <code className="font-mono">CSB_API_KEY</code>{" "}
-                        <Link
-                          href={`/projects/${pid}/secrets`}
-                          className="underline underline-offset-2"
-                        >
-                          Project Secret
-                        </Link>
-                        .
-                      </span>
-                    </div>
-                    <Switch
-                      id="sandboxEnabled"
-                      checked={form.sandboxEnabled}
-                      onCheckedChange={(c) => update("sandboxEnabled", !!c)}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between rounded-none border border-dashed bg-muted/10 px-3 py-2.5">
-                    <div className="flex flex-col gap-0.5">
-                      <Label htmlFor="isActive" className="text-sm font-medium">
-                        Active
-                      </Label>
-                      <span className="text-xs text-muted-foreground">
-                        Can this agent be run in the Playground?
-                      </span>
-                    </div>
-                    <Switch
-                      id="isActive"
-                      checked={form.isActive}
-                      onCheckedChange={(c) => update("isActive", !!c)}
-                    />
-                  </div>
-                </div>
               </FieldGroup>
             </CardContent>
           </Card>
 
+          {/* 2. Persona & Core Instructions (System Prompt) */}
+          <Card>
+            <CardHeader className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base font-medium">
+                  <RobotIcon className="size-4 text-muted-foreground" />
+                  System Prompt
+                </CardTitle>
+                <CardDescription>
+                  The foundational instructions and behavioral boundaries
+                  governing how the agent acts.
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="font-mono text-xs">
+                {form.systemPrompt.length} chars
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              <Field>
+                <Textarea
+                  id="systemPrompt"
+                  value={form.systemPrompt}
+                  onChange={(e) => update("systemPrompt", e.target.value)}
+                  required
+                  rows={10}
+                  className="font-mono text-sm leading-relaxed"
+                  placeholder="You are an expert AI assistant that helps users with..."
+                />
+                <FieldDescription>
+                  At least 10 characters. Include role, style, rules, constraints
+                  and response formats.
+                </FieldDescription>
+                {errors.systemPrompt && (
+                  <FieldError>{errors.systemPrompt}</FieldError>
+                )}
+              </Field>
+            </CardContent>
+          </Card>
+
+          {/* 3. Connected Tools & Resources */}
           <Card>
             <CardContent className="p-4 sm:p-6">
               <ProjectResourcePicker
@@ -948,15 +911,16 @@ export function AgentForm({
                 }
               />
               <p className="mt-3 text-[11px] leading-snug text-muted-foreground">
-                Secrets and REST Tool Sources aren&apos;t attachable directly to
-                Agents — they configure individual tools and MCP servers.
+                Note: Secrets and REST Tool Sources configure individual tools
+                and connectors rather than attaching directly to Agents.
               </p>
             </CardContent>
           </Card>
 
           {saveError && <FieldError>{saveError}</FieldError>}
 
-          <div className="flex items-center justify-between gap-3 pt-1">
+          {/* Action Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
             <Button
               type="button"
               variant="ghost"
@@ -964,12 +928,13 @@ export function AgentForm({
               render={<Link href={`${resourceBase}/agents`} />}
             >
               <ArrowLeftIcon data-icon="inline-start" />
-              Back
+              Back to Agents
             </Button>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={() => router.push(`${resourceBase}/agents`)}
                 disabled={saving}
               >
@@ -977,52 +942,237 @@ export function AgentForm({
               </Button>
               <Button
                 type="submit"
+                size="sm"
                 disabled={
                   saving || (isEdit ? false : noProviders) || !form.providerId
                 }
               >
+                <CheckIcon data-icon="inline-start" />
                 {saving ? "Saving…" : isEdit ? "Save agent" : "Create agent"}
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col gap-4">
+        {/* Sidebar / Auxiliary Section (col-span-4) */}
+        <div className="flex flex-col gap-6 lg:col-span-4">
+          {/* Status & Access Card */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
                 <ShieldCheckIcon className="size-4 text-muted-foreground" />
-                What an Agent loads
+                Status & Access
               </CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2 text-xs leading-relaxed text-muted-foreground">
+            <CardContent className="flex flex-col gap-4 text-xs">
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex flex-col gap-0.5">
+                  <Label htmlFor="isActive" className="text-xs font-medium">
+                    Active Status
+                  </Label>
+                  <span className="text-[11px] text-muted-foreground">
+                    Available for executions
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={form.isActive ? "default" : "outline"}>
+                    {form.isActive ? "Active" : "Disabled"}
+                  </Badge>
+                  <Switch
+                    id="isActive"
+                    checked={form.isActive}
+                    onCheckedChange={(c) => update("isActive", !!c)}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1.5 border-b border-border/60 pb-3">
+                <Label htmlFor="visibility" className="text-xs font-medium">
+                  Visibility
+                </Label>
+                <Select
+                  value={form.visibility}
+                  onValueChange={(value) =>
+                    update("visibility", (value ?? "private") as Visibility)
+                  }
+                >
+                  <SelectTrigger id="visibility" className="h-8 w-full text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {VISIBILITY.map((v) => (
+                      <SelectItem key={v.value} value={v.value}>
+                        {v.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground">
+                  {
+                    VISIBILITY.find((v) => v.value === form.visibility)
+                      ?.description
+                  }
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Attached Tools</span>
+                <Badge variant="secondary" className="font-mono text-xs">
+                  {totalAttachedCount} Total
+                </Badge>
+              </div>
+
+              {isEdit && agentId && (
+                <div className="pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-center gap-1.5"
+                    render={
+                      <Link
+                        href={`${resourceBase}/playground?agentId=${agentId}`}
+                      />
+                    }
+                  >
+                    <PlayIcon className="size-3.5 text-primary" weight="fill" />
+                    Open in Playground
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Runtime Capabilities Card */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <WrenchIcon className="size-4 text-muted-foreground" />
+                Runtime Capabilities
+              </CardTitle>
+              <CardDescription>
+                Enable built-in execution abilities for this agent.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 text-xs">
+              <div className="flex items-start justify-between gap-3 rounded-none border border-dashed border-border/80 bg-muted/10 p-2.5">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5 font-medium text-foreground">
+                    <GlobeIcon className="size-3.5 text-blue-500" />
+                    Web Search
+                  </div>
+                  <span className="text-[11px] leading-relaxed text-muted-foreground">
+                    Allows real-time web querying via Tavily search.
+                  </span>
+                </div>
+                <Switch
+                  id="webSearchEnabled"
+                  checked={form.webSearchEnabled}
+                  onCheckedChange={(c) => update("webSearchEnabled", !!c)}
+                />
+              </div>
+
+              <div className="flex items-start justify-between gap-3 rounded-none border border-dashed border-border/80 bg-muted/10 p-2.5">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5 font-medium text-foreground">
+                    <TerminalWindowIcon className="size-3.5 text-amber-500" />
+                    Code Sandbox
+                  </div>
+                  <span className="text-[11px] leading-relaxed text-muted-foreground">
+                    Runs shell commands safely inside an isolated CodeSandbox VM
+                    (requires Project CSB Secret).
+                  </span>
+                </div>
+                <Switch
+                  id="sandboxEnabled"
+                  checked={form.sandboxEnabled}
+                  onCheckedChange={(c) => update("sandboxEnabled", !!c)}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Details / Metadata (in Edit mode) */}
+          {isEdit && agentId && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                  <FingerprintIcon className="size-4 text-muted-foreground" />
+                  Agent Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col divide-y divide-border/60 text-xs">
+                <div className="flex items-center justify-between gap-2 py-2">
+                  <span className="text-muted-foreground">Agent ID</span>
+                  <div className="flex items-center gap-1">
+                    <span className="max-w-[130px] truncate font-mono text-[11px] sm:max-w-[160px]">
+                      {agentId}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-xs"
+                      aria-label="Copy ID"
+                      onClick={async () => {
+                        await navigator.clipboard.writeText(agentId);
+                        setCopiedId(true);
+                        setTimeout(() => setCopiedId(false), 1500);
+                      }}
+                    >
+                      <CopyIcon
+                        data-icon="inline-start"
+                        className={copiedId ? "text-primary" : undefined}
+                      />
+                    </Button>
+                  </div>
+                </div>
+
+                {agentMeta?.createdAt && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <ClockIcon className="size-3.5" />
+                      Created
+                    </span>
+                    <span className="font-mono text-[11px]">
+                      {new Date(agentMeta.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                )}
+
+                {selectedProvider && (
+                  <div className="flex items-center justify-between py-2">
+                    <span className="text-muted-foreground">Provider</span>
+                    <span className="font-medium text-foreground">
+                      {selectedProvider.label || selectedProvider.id}
+                    </span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Guidance Info */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium">
+                <InfoIcon className="size-4 text-muted-foreground" />
+                Agent Execution Model
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2.5 text-xs leading-relaxed text-muted-foreground">
               <p>
-                At run time the agent loads its system prompt, the
-                provider&apos;s model, and every attached resource: skills
-                (instructions), knowledge bases (retrieval), MCP + REST + RCP
-                sources (tools), and stores (mounted filesystems).
+                At runtime, your agent executes with its instructions, model,
+                and every attached resource: skills (guidelines), knowledge bases
+                (RAG retrieval), MCP + REST + RCP sources (tool calling), and
+                mounted storage filesystems.
+              </p>
+              <Separator />
+              <p className="text-[11px]">
+                Tip: Start with a clear system prompt and 1–2 focused tools, then
+                verify reasoning steps interactively in the Playground.
               </p>
             </CardContent>
           </Card>
-          <Alert>
-            <InfoIcon />
-            <AlertTitle>Tip</AlertTitle>
-            <AlertDescription>
-              Start with a provider and one skill or knowledge base — then test
-              the agent in the{" "}
-              <Link
-                className="underline underline-offset-4"
-                href={
-                  isEdit && agentId
-                    ? `${resourceBase}/playground?agentId=${agentId}`
-                    : `${resourceBase}/playground`
-                }
-              >
-                Playground
-              </Link>
-              .
-            </AlertDescription>
-          </Alert>
         </div>
       </form>
     </div>
