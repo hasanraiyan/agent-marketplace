@@ -7,6 +7,7 @@ import {
   ArrowLeftIcon,
   CheckIcon,
   ClockIcon,
+  CodeIcon,
   CopyIcon,
   FingerprintIcon,
   GlobeIcon,
@@ -19,6 +20,7 @@ import {
   WarningCircleIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
+import { AgentCodeDialog } from "@/components/agents/agent-code-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -239,6 +241,7 @@ export function AgentForm({
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
   const [errors, setErrors] = React.useState<FieldErrors>({});
+  const [codeDialogOpen, setCodeDialogOpen] = React.useState(false);
 
   // Selected provider
   const selectedProvider = React.useMemo(
@@ -634,20 +637,32 @@ export function AgentForm({
 
           <div className="flex flex-wrap items-center gap-2">
             {isEdit && agentId && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                render={
-                  <Link
-                    href={`${resourceBase}/playground?agentId=${agentId}`}
-                  />
-                }
-                className="gap-1.5 hover:border-primary/40 hover:bg-primary/5"
-              >
-                <PlayIcon className="size-3.5 text-primary" weight="fill" />
-                Test in Playground
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCodeDialogOpen(true)}
+                  className="gap-1.5"
+                >
+                  <CodeIcon className="size-3.5 text-primary" />
+                  View Code
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  render={
+                    <Link
+                      href={`${resourceBase}/playground?agentId=${agentId}`}
+                    />
+                  }
+                  className="gap-1.5 hover:border-primary/40 hover:bg-primary/5"
+                >
+                  <PlayIcon className="size-3.5 text-primary" weight="fill" />
+                  Test in Playground
+                </Button>
+              </>
             )}
             <Button
               type="button"
@@ -1023,20 +1038,30 @@ export function AgentForm({
               </div>
 
               {isEdit && agentId && (
-                <div className="pt-1">
+                <div className="flex gap-2 pt-1">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="w-full justify-center gap-1.5"
+                    className="flex-1 justify-center gap-1.5 text-xs"
                     render={
                       <Link
                         href={`${resourceBase}/playground?agentId=${agentId}`}
                       />
                     }
                   >
-                    <PlayIcon className="size-3.5 text-primary" weight="fill" />
-                    Open in Playground
+                    <PlayIcon className="size-3 text-primary" weight="fill" />
+                    Playground
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 justify-center gap-1.5 text-xs"
+                    onClick={() => setCodeDialogOpen(true)}
+                  >
+                    <CodeIcon className="size-3.5 text-primary" />
+                    View Code
                   </Button>
                 </div>
               )}
@@ -1175,6 +1200,16 @@ export function AgentForm({
           </Card>
         </div>
       </form>
+
+      {isEdit && agentId && (
+        <AgentCodeDialog
+          open={codeDialogOpen}
+          onOpenChange={setCodeDialogOpen}
+          agentId={agentId}
+          agentName={form.name}
+          projectId={pid}
+        />
+      )}
     </div>
   );
 }

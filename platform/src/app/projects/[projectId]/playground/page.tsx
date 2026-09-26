@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { SparkleIcon, FolderOpenIcon, TerminalIcon, ListIcon } from "@phosphor-icons/react";
+import { SparkleIcon, FolderOpenIcon, TerminalIcon, ListIcon, CodeIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { HeaderSlot } from "@/components/layout/project-header";
+import { AgentCodeDialog } from "@/components/agents/agent-code-dialog";
 import {
   Select,
   SelectTrigger,
@@ -199,6 +200,7 @@ function PlaygroundContent() {
   const [tab, setTab] = React.useState<TabId>("chat");
   const [memoryOpen, setMemoryOpen] = React.useState(false);
   const [terminalOpen, setTerminalOpen] = React.useState(false);
+  const [codeOpen, setCodeOpen] = React.useState(false);
   const [toolCalls, setToolCalls] = React.useState<ChatToolCall[]>([]);
   const [openFilePath, setOpenFilePath] = React.useState<string | null>(null);
   const [liveWorkspaceFiles, setLiveWorkspaceFiles] = React.useState<
@@ -378,9 +380,21 @@ function PlaygroundContent() {
                 ))}
               </SelectContent>
             </Select>
-          </HeaderSlot>
-
+          </HeaderSlot> 
           <HeaderSlot side="right">
+
+            {selectedAgent && selectValue !== ARCHITECT && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCodeOpen(true)}
+                className="h-8 gap-1.5 px-2 text-xs font-medium md:px-3"
+              >
+                <CodeIcon className="size-3.5 text-primary" />
+                <span className="hidden md:inline">View Code</span>
+              </Button>
+            )}
+
             <Button
               variant="outline"
               size="sm"
@@ -561,6 +575,16 @@ function PlaygroundContent() {
         onOpenChange={setTerminalOpen}
         toolCalls={toolCalls}
       />
+
+      {selectedAgent && (
+        <AgentCodeDialog
+          open={codeOpen}
+          onOpenChange={setCodeOpen}
+          agentId={selectedAgent.id}
+          agentName={selectedAgent.name}
+          projectId={projectId}
+        />
+      )}
     </div>
   );
 }
