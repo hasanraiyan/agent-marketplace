@@ -13,6 +13,7 @@ import developerOpenapiSpec from '../src/docs/swagger.developer.config.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outputPath = path.resolve(__dirname, '../../developer-docs/openapi.json');
 
+fs.mkdirSync(path.dirname(outputPath), { recursive: true });
 fs.writeFileSync(outputPath, JSON.stringify(developerOpenapiSpec, null, 2) + '\n');
 
 console.log(`Wrote Developer Platform OpenAPI spec to ${outputPath}`);
