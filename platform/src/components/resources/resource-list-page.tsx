@@ -6,9 +6,23 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PlusIcon } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription, EmptyContent } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from "@/components/ui/empty";
 import type { Icon } from "@phosphor-icons/react";
 import { getCached, setCached, dedupedFetch } from "@/lib/cache";
 
@@ -23,11 +37,14 @@ interface ResourceColumn<T> {
  * Secrets, Knowledge, Stores, Skills) is a flat "fetch, list, click a row"
  * page — same shape, different fetcher/columns. One component for all of
  * them keeps that shape consistent instead of eight near-identical
- * hand-rolled pages, and is the concrete fix for the old UX (these lived
- * as tabs buried inside a project overview page with no shared pattern).
+ * hand-rolled pages.
  */
 function getItemId(item: { _id?: string; id?: string }) {
-  return (item as { _id?: string; id?: string }).id ?? (item as { _id?: string; id?: string })._id ?? "";
+  return (
+    (item as { _id?: string; id?: string }).id ??
+    (item as { _id?: string; id?: string })._id ??
+    ""
+  );
 }
 
 function ResourceListPage<T extends { _id?: string; id?: string }>({
@@ -86,7 +103,6 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
       })
       .catch(() => {
         if (cancelled) return;
-        // Keep cached data if we have it, just surface the error subtly.
         if (!hasCached) {
           setError("Failed to load.");
           setItems([]);
@@ -98,29 +114,35 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
     return () => {
       cancelled = true;
     };
-    // fetchItems is a fresh function reference on every render (the caller
-    // builds it inline), so only re-run when the underlying route changes.
+    // fetchItems is a fresh function reference on every render, so only re-run on cacheKey change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cacheKey]);
 
   return (
-    <div className="flex w-full flex-col gap-4 overflow-y-auto p-4 sm:p-6">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 overflow-y-auto p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 flex-col gap-1">
-          <h1 className="truncate text-base font-semibold sm:text-lg">{title}</h1>
+          <h1 className="truncate text-base font-semibold sm:text-lg">
+            {title}
+          </h1>
           {description && (
-            <p className="line-clamp-3 max-w-xl text-[11px] leading-snug text-muted-foreground sm:line-clamp-none sm:text-xs">
+            <p className="line-clamp-2 max-w-xl text-xs leading-relaxed text-muted-foreground sm:line-clamp-none">
               {description}
             </p>
           )}
         </div>
         {newHref && (
-          <Button size="sm" className="w-fit shrink-0" render={<Link href={newHref} />}>
+          <Button
+            size="sm"
+            className="w-fit shrink-0"
+            render={<Link href={newHref} />}
+          >
             <PlusIcon data-icon="inline-start" />
             New
           </Button>
         )}
       </div>
+
       {isRevalidating && items && (
         <div className="h-0.5 w-full overflow-hidden rounded bg-muted">
           <div className="h-full w-1/3 animate-[shimmer_1s_ease-in-out_infinite] bg-primary/40" />
@@ -142,12 +164,14 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
               <Icon />
             </EmptyMedia>
             <EmptyTitle>No {title.toLowerCase()} yet</EmptyTitle>
-            {emptyDescription && <EmptyDescription>{emptyDescription}</EmptyDescription>}
+            {emptyDescription && (
+              <EmptyDescription>{emptyDescription}</EmptyDescription>
+            )}
           </EmptyHeader>
           {newHref && (
             <EmptyContent>
-              <Button size="sm" render={<a href={newHref} />}>
-                <PlusIcon />
+              <Button size="sm" render={<Link href={newHref} />}>
+                <PlusIcon data-icon="inline-start" />
                 New
               </Button>
             </EmptyContent>
@@ -155,9 +179,9 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
         </Empty>
       ) : (
         <>
-          {/* Desktop table */}
-          <div className="hidden sm:block overflow-x-auto">
-            <Table>
+          {/* Desktop table: table-fixed ensures reliable ellipsis truncation */}
+          <div className="hidden sm:block overflow-x-auto rounded-none border border-border">
+            <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow>
                   {columns.map((col) => (
@@ -170,19 +194,29 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
               <TableBody>
                 {items.map((item) => {
                   const href = getRowHref?.(item);
-                  const itemId = getItemId(item as { _id?: string; id?: string });
+                  const itemId = getItemId(
+                    item as { _id?: string; id?: string },
+                  );
                   return (
                     <TableRow
                       key={itemId || JSON.stringify(item)}
-                      className={href ? "cursor-pointer hover:bg-muted/50" : undefined}
+                      className={
+                        href ? "cursor-pointer hover:bg-muted/50" : undefined
+                      }
                       onClick={href ? () => router.push(href) : undefined}
                     >
                       {columns.map((col, idx) => (
-                        <TableCell key={col.header || idx} className={col.className}>
-                          {col.className?.includes("text-right") || col.className?.includes("shrink-0") ? (
+                        <TableCell
+                          key={col.header || idx}
+                          className={col.className}
+                        >
+                          {col.className?.includes("text-right") ||
+                          col.className?.includes("shrink-0") ? (
                             col.cell(item)
                           ) : (
-                            <div className="truncate">{col.cell(item)}</div>
+                            <div className="min-w-0 truncate">
+                              {col.cell(item)}
+                            </div>
                           )}
                         </TableCell>
                       ))}
@@ -192,30 +226,38 @@ function ResourceListPage<T extends { _id?: string; id?: string }>({
               </TableBody>
             </Table>
           </div>
-          {/* Mobile: stacked cards */}
-          <div className="flex flex-col gap-2 sm:hidden">
+
+          {/* Mobile: vertically stacked cards for name & description with action button */}
+          <div className="flex flex-col gap-2.5 sm:hidden">
             {items.map((item) => {
               const href = getRowHref?.(item);
               const itemId = getItemId(item as { _id?: string; id?: string });
               const primary = columns[0] ? columns[0].cell(item) : null;
               const secondary = columns[1] ? columns[1].cell(item) : null;
-              const action = columns.length > 2 ? columns[columns.length - 1].cell(item) : null;
+              const action =
+                columns.length > 2
+                  ? columns[columns.length - 1].cell(item)
+                  : null;
               return (
                 <div
                   key={itemId || JSON.stringify(item)}
-                  className="flex w-full items-center justify-between gap-3 rounded-none border border-border bg-card px-3 py-2.5"
+                  className="flex w-full items-center justify-between gap-3 rounded-none border border-border bg-card p-3 shadow-xs"
                 >
                   <button
                     type="button"
                     onClick={href ? () => router.push(href) : undefined}
-                    className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left active:bg-muted/50"
+                    className="flex min-w-0 flex-1 flex-col items-start justify-center gap-1 text-left active:opacity-70"
                   >
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{primary}</span>
+                    <div className="w-full min-w-0 truncate text-sm font-medium text-foreground">
+                      {primary}
+                    </div>
                     {secondary && (
-                      <span className="shrink-0 truncate text-xs text-muted-foreground">{secondary}</span>
+                      <div className="w-full min-w-0 truncate text-xs text-muted-foreground">
+                        {secondary}
+                      </div>
                     )}
                   </button>
-                  {action && <div className="shrink-0">{action}</div>}
+                  {action && <div className="shrink-0 pl-1">{action}</div>}
                 </div>
               );
             })}
