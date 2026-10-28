@@ -3,6 +3,14 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.14.1
+
+- **Fixed a broken 0.14.0 publish.** 0.14.0 was published before `dist/` was built, and `files`
+  only ships `dist/` — the tarball on npm contained just `README.md` and `package.json` (2 files),
+  so `import { PersonaClient } from '@personaai/sdk'` failed for anyone who installed it. 0.14.1
+  is the same API (including `MessagesResource`) with the build actually present. A
+  `prepublishOnly: "pnpm build"` script now prevents a dist-less publish from recurring.
+
 ## 0.14.0
 
 - **New: `MessagesResource` (`client.messages`) — outbound SMS and WhatsApp.** `send()` delivers a plain

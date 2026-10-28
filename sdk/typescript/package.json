@@ -1,6 +1,6 @@
 {
   "name": "@personaai/sdk",
-  "version": "0.14.0",
+  "version": "0.14.1",
   "description": "Node.js/TypeScript SDK for the persona.hasanraiyan.me Developer Platform API. Server-side only — never bundle into a browser app.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -27,6 +27,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "prepublishOnly": "pnpm build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
