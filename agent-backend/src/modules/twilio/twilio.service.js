@@ -422,7 +422,11 @@ class TwilioService {
       payloadBase.from = from;
     }
 
-    const mediaUrls = Array.isArray(mediaUrl) ? mediaUrl.filter(Boolean) : mediaUrl ? [mediaUrl] : [];
+    const mediaUrls = Array.isArray(mediaUrl)
+      ? mediaUrl.filter(Boolean)
+      : mediaUrl
+        ? [mediaUrl]
+        : [];
     const messages = [];
 
     logger.info('[TwilioService] Sending message from project secrets', {
