@@ -1,0 +1,26 @@
+---
+title: "Voice"
+description: "Gemini Live — start, transcript, partial, mute, and chat injection"
+---
+
+# Voice
+
+```tsx
+import { useVoice } from '@personaai/react';
+
+function Call() {
+  const voice = useVoice({ agentId, threadId, contextOverride, context });
+  const { state, transcript, partial, toolCalls, start, stop, mute, isMuted, updateContext } = voice;
+  return (
+    <>
+      <button onClick={start} disabled={state !== 'idle'}>Start</button>
+      <button onClick={() => mute(!isMuted)}>{isMuted ? 'Unmute' : 'Mute'}</button>
+      <button onClick={stop}>Stop</button>
+      {transcript.map(l => <div key={l.id}>{l.speaker}: {l.text}</div>)}
+      {partial && <div style={{ opacity: 0.6 }}>{partial.text}</div>}
+    </>
+  );
+}
+```
+
+`updateContext({ tier: 'pro' })` live-refreshes RCP context over the open socket without reconnect. Share `threadId` with `useChat({ threadId, voice })` to merge turns automatically.

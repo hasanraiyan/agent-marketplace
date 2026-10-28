@@ -1,0 +1,19 @@
+---
+title: "Streaming & resume"
+description: "SSE framing, heartbeats, reconnect with seq"
+---
+
+# Streaming & resume
+
+`POST /chat` streams AG-UI SSE; `GET /chat/:runId/resume?since=<seq>` replays.
+
+```ts
+const res = await fetch('/api/persona/chat', { method: 'POST', body: JSON.stringify({ agentId, messages, threadId }) });
+const runId = res.headers.get('x-persona-run-id')!;
+// ... drop after N frames, lastSeq = N
+const resumed = await fetch(`/api/persona/chat/${runId}/resume?since=${lastSeq}`);
+```
+
+Heartbeat comment `: heartbeat` every `heartbeatIntervalMs` (default `15000`) during gaps so proxies don't kill idle streams. See [Concepts: AG-UI](/concepts/agui).
+
+Single-process/in-memory only — sticky sessions needed behind a load balancer. See `sdk/runtime/README.md:298` for multi-instance `RunBroker` plan (issue #229).

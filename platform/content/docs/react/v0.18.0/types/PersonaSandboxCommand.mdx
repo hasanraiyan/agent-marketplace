@@ -1,0 +1,23 @@
+---
+title: "PersonaSandboxCommand — @personaai/react"
+description: "Generated field table for PersonaSandboxCommand — do not edit"
+---
+
+> **Generated from `sdk/react/dist/typedoc.json` — do not edit.**
+
+# `PersonaSandboxCommand`
+
+One ``execute`` tool call against an Agent's sandbox (real shell execution in an isolated CodeSandbox VM — requires the Agent's ``sandboxEnabled`` and a ``CSB_API_KEY`` Project Secret; see the Agent's ``sandboxEnabled`` field). Derived from ``PersonaToolCall``s named ``execute`` across every message in the conversation, in stream order — not a separate live/history-tracked state, so it's always consistent with ``messages``.
+
+_Source: `types.ts:123`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `toolCallId` | `string` |  — _ `types.ts:124`_ |
+| `command` | `string` | The shell command, parsed from the tool call's ``args``. Falls back to the raw args string while still streaming/incomplete. — _ `types.ts:126`_ |
+| `output?` | `string` | stdout/stderr, once the call finishes. — _ `types.ts:128`_ |
+| `exitCode?` | `number \| null` | ``null`` when the result parsed but didn't carry an exit code; ``undefined`` while still running. — _ `types.ts:130`_ |
+| `status` | `"running" \| "done" \| "error"` |  — _ `types.ts:131`_ |
+| `seq?` | `number` |  — _ `types.ts:132`_ |

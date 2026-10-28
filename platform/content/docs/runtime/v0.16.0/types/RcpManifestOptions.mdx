@@ -1,0 +1,19 @@
+---
+title: "RcpManifestOptions — @personaai/runtime"
+description: "Generated field table for RcpManifestOptions — do not edit"
+---
+
+> **Generated from `sdk/runtime/dist/typedoc.json` — do not edit.**
+
+# `RcpManifestOptions`
+
+Serves a list of code-defined RCP (REST Connector Protocol, npm ``rcp-sdk``) tools as a conformant ``{ rcpVersion, auth, tools }`` manifest at ``GET {mountPath}/rcp/manifest`` — register that URL as an RCP source and any RCP client (Persona included) discovers/calls these tools live. Independent of RestToolsManifestOptions — unrelated protocols, both servable from the same runtime instance if you want both.
+
+_Source: `types/options.ts:87`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `tools` | `object[]` | RCP tool definitions to serve — build each with ``defineTool`` from ``rcp-sdk/server``. — _ `types/options.ts:89`_ |
+| `authToken?` | `string` | Required ``Authorization: Bearer <token>`` value the manifest route checks incoming requests against. Omitting this leaves the route open (``auth: { type: 'none' }`` in the served manifest) — only acceptable for local/dev testing. — _ `types/options.ts:96`_ |

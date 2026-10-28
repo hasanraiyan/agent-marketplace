@@ -1,0 +1,26 @@
+---
+title: "REST tools"
+description: "Define tools in code via zod, serve a manifest, register as a Source"
+---
+
+# REST tools
+
+Define a tool from a zod schema and serve it as a manifest that Persona discovers live:
+
+```ts
+import { defineRestTool } from '@personaai/sdk/rest-tools';
+import { z } from 'zod';
+
+const getProfile = defineRestTool({
+  name: 'Get learner profile',
+  method: 'GET',
+  args: z.object({ userId: z.string().describe('Coursify user id') }),
+  url: (t) => `https://api.coursify.dev/users/${t.arg('userId')}`,
+  headers: { 'X-Persona-User': (t) => t.externalUserId },
+  responseMappings: { name: '@data.name' },
+});
+```
+
+Mount via `createRuntime({ restToolsManifest: { tools: [getProfile], authToken: process.env.PERSONA_TOOLS_SECRET! } })` — served at `GET {mountPath}/rest-tools/manifest`. Register that URL in Developer Studio as a **REST Tool Source** (URL + API Key = `PERSONA_TOOLS_SECRET`) — attach the source to an agent, tools are fetched live each turn.
+
+`zod` is optional peer (`^3.23 || ^4.0`). See also `rcp-sdk` for RCP manifests at `GET {mountPath}/rcp/manifest`.

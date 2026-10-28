@@ -1,0 +1,22 @@
+---
+title: "PersonaMcpConnection — @personaai/react"
+description: "Generated field table for PersonaMcpConnection — do not edit"
+---
+
+> **Generated from `sdk/react/dist/typedoc.json` — do not edit.**
+
+# `PersonaMcpConnection`
+
+One ``authType: 'oauth', authMode: 'user'`` MCP an Agent has attached, and whether the current end user has connected it yet. ``authorizeUrl`` is only present when ``connected`` is ``false`` — navigate the browser there (a same-tab redirect is fine; it's a real OAuth authorization URL) to start the consent flow.
+
+_Source: `hooks/useMcpConnections.ts:13`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `mcpId` | `string` |  — _ `hooks/useMcpConnections.ts:14`_ |
+| `name` | `string` |  — _ `hooks/useMcpConnections.ts:15`_ |
+| `description` | `string` |  — _ `hooks/useMcpConnections.ts:16`_ |
+| `connected` | `boolean` |  — _ `hooks/useMcpConnections.ts:17`_ |
+| `authorizeUrl` | `string \| null` |  — _ `hooks/useMcpConnections.ts:18`_ |

@@ -1,0 +1,22 @@
+---
+title: "RunContext — @personaai/runtime"
+description: "Generated field table for RunContext — do not edit"
+---
+
+> **Generated from `sdk/runtime/dist/typedoc.json` — do not edit.**
+
+# `RunContext`
+
+_Source: `types/hooks.ts:3`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `userId` | `string` |  — _ `types/hooks.ts:4`_ |
+| `kind` | `"chat" \| "architect" \| "workflow"` | Which endpoint started this run. — _ `types/hooks.ts:6`_ |
+| `agentId?` | `string` | Absent for ``kind: 'architect'`` or ``kind: 'workflow'`` without an agent step. — _ `types/hooks.ts:8`_ |
+| `workflowId?` | `string` | Set when ``kind: 'workflow'``. — _ `types/hooks.ts:10`_ |
+| `threadId?` | `string` |  — _ `types/hooks.ts:11`_ |
+| `messages?` | `ChatMessageInput[]` |  — _ `types/hooks.ts:12`_ |
+| `input?` | `unknown` | Input parameters provided to the workflow run. — _ `types/hooks.ts:14`_ |

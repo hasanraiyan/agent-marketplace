@@ -1,0 +1,38 @@
+---
+title: "Auth — credentials & external users"
+description: "When to use bare credential vs externalUserId"
+---
+
+# Auth
+
+## Credential
+
+`PERSONA_CREDENTIAL` is `"<keyId>.<secret>"` minted in Developer Studio → Project → Credentials. It is a **server secret** — sent as `Authorization: Bearer <keyId>.<secret>`.
+
+```ts
+new PersonaClient({ baseUrl, credential: process.env.PERSONA_CREDENTIAL! })
+```
+
+Never bundle it. See [Concepts: Credentials](/concepts/credentials).
+
+## Dual-mode rule
+
+| Call | Set `externalUserId`? | Why |
+|---|---|---|
+| `agents.create`, `providers.create`, `auditLogs.list` | **No** — control-plane (Project-owned) | Uses machine principal |
+| `threads.*`, `files.*`, `chat.stream`, `memory.*` (when scope externalUser) | **Yes** — per-request `new PersonaClient({…, externalUserId: yourUserId })` | Thread/file/chat belongs to that end user |
+
+```ts
+const admin = new PersonaClient({ baseUrl, credential }); // control-plane
+const user  = new PersonaClient({ baseUrl, credential, externalUserId: req.user.id }); // runtime-plane
+```
+
+See [Concepts: External Users](/concepts/external-users).
+
+## `whoami()`
+
+```ts
+await persona.whoami(); // { principalType: 'Project', domain: '...' }
+```
+
+Side-effect-free auth check.

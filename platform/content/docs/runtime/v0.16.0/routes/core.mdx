@@ -1,0 +1,19 @@
+---
+title: "Core routes (always on)"
+description: "End-user-scoped routes — no capability flag needed"
+---
+
+# Core routes (always on)
+
+| Method | Path | Proxies to |
+|---|---|---|
+| `POST` | `/chat` | `client.chat.stream(agentId, {messages, threadId, resume, contextOverride, context})` → SSE `x-persona-run-id` |
+| `GET` | `/chat/:runId/resume` | Reattach with `?since=<seq>` |
+| `GET` | `/threads` | `client.threads.list` |
+| `POST` | `/threads` | `client.threads.create` |
+| `GET` | `/threads/:id/messages` | `client.threads.getMessages` |
+| `POST` | `/voice/sessions` | `client.voice.createSession` → `{ticket, wsUrl}` |
+
+See full table in `@personaai/runtime` README (`sdk/runtime/README.md:72`).
+
+> Generated tables in this section will be produced from `src/runtime.ts:141` route table via `typedoc-to-mdx` — hand prose stays in `guides/`, generated tables in `routes/`.

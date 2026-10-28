@@ -1,0 +1,67 @@
+---
+title: "audit-logs — @personaai/sdk"
+description: "Generated field tables for audit-logs — do not edit"
+---
+
+> **Generated from `sdk/typescript/dist/typedoc.json` — do not edit.** Regenerate with `node platform/scripts/typedoc-resources.mjs`.
+
+# audit-logs
+
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). For per-user calls add `x-persona-external-user-id`. See [Credentials](/concepts/credentials).
+
+Audit logs are read-only, control-plane only — lifecycle events (credentials minted/revoked, membership, suspend/restore).
+
+## Example
+
+**TypeScript**
+
+```ts
+const { items } = await persona.auditLogs.list({ page: 1, limit: 20 });
+```
+
+**cURL**
+
+```bash
+curl https://api.persona.hasanraiyan.me/api/v1/developer/audit-logs -H "Authorization: Bearer $PERSONA_CREDENTIAL"
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": { "items": [{ "eventType": "credential.minted" }], "pagination": { "total": 1 } }
+}
+```
+
+---
+
+## `AuditLogEntry`
+
+Mirrors ``agent-backend/src/modules/audit/auditLog.model.js``. Covers Project-lifecycle events only (credential minted/revoked, membership changes, suspend/restore) — NOT resource CRUD (Agent/Skill/Knowledge/ Provider/MCP create/update/delete aren't logged here yet).
+
+_Source: `types/auditLog.ts:7`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `eventType` | `string` |  — _ `types/auditLog.ts:8`_ |
+| `timestamp` | `string` |  — _ `types/auditLog.ts:9`_ |
+| `actorContextType` | `string` |  — _ `types/auditLog.ts:10`_ |
+| `actorIdentity` | `string \| null` |  — _ `types/auditLog.ts:11`_ |
+| `targetDomain` | `string` |  — _ `types/auditLog.ts:12`_ |
+| `targetResourceId` | `string \| null` |  — _ `types/auditLog.ts:13`_ |
+| `metadata` | `Record<string, unknown>` |  — _ `types/auditLog.ts:14`_ |
+
+## `ListAuditLogsParams`
+
+_Source: `types/auditLog.ts:17`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` |  — _ `types/auditLog.ts:18`_ |
+| `limit?` | `number` |  — _ `types/auditLog.ts:19`_ |
+| `eventType?` | `string` | Optional exact-match filter, e.g. ``"credential.created"``. — _ `types/auditLog.ts:21`_ |

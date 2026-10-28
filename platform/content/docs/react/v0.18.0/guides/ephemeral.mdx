@@ -1,0 +1,16 @@
+---
+title: "Ephemeral new chat"
+description: "Start a chat without minting an empty thread"
+---
+
+# Ephemeral new chat
+
+```tsx
+const [threadId, setThreadId] = useState<string|undefined>();
+const chat = useChat({ agentId, threadId, onThreadCreated: setThreadId });
+const handleNewChat = () => { chat.startNewChat(); setThreadId(undefined); };
+// isEphemeral true until first send mints a real thread via POST /threads
+await chat.sendMessage('Hello'); // auto-mints if threadId is undefined
+```
+
+`sendMessage`/`reload` return `Promise<boolean>` (`true` sent, `false` dropped while streaming).

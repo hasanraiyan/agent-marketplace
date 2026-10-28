@@ -1,0 +1,19 @@
+---
+title: "RunResult — @personaai/runtime"
+description: "Generated field table for RunResult — do not edit"
+---
+
+> **Generated from `sdk/runtime/dist/typedoc.json` — do not edit.**
+
+# `RunResult`
+
+_Source: `types/hooks.ts:17`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `text` | `string` | Assembled assistant text (concatenated TEXT_MESSAGE_CHUNK deltas), same as ``ChatResult.text``. — _ `types/hooks.ts:19`_ |
+| `eventCount` | `number` |  — _ `types/hooks.ts:20`_ |
+| `interrupted` | `boolean` | True when the run paused on a HITL/clarification interrupt instead of finishing normally. — _ `types/hooks.ts:22`_ |
+| `erroredInBand` | `boolean` | True when a RUN_ERROR event was seen — the run still completed (as far as the stream is concerned); see README on the ``onError`` vs ``erroredInBand`` distinction. — _ `types/hooks.ts:24`_ |

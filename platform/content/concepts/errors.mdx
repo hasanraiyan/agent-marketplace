@@ -48,4 +48,4 @@ Pass `idempotencyKey` as last arg to any `create()` (or `files.upload`) → sent
 
 When a run ends in `RUN_ERROR` (auth, rate-limit, tool timeout, context length), `chat.sendMessage` returns `result.error: PersonaRunErrorEvent { code, message, retryable, providerName }` and `result.events` contains the `RUN_ERROR` frame. This is a normal completed-run shape, not a thrown exception — `afterRun` still fires, `onError` does not.
 
-See also [Concepts: Credentials](/concepts/credentials) and [SDK Guide: Chat](/docs/sdk/v0.9.0/guides/chat).
+See also [Concepts: Credentials](/concepts/credentials) and [SDK Guide: Chat](/docs/sdk/v0.14.1/guides/chat).

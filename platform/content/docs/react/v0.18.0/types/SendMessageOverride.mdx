@@ -1,0 +1,20 @@
+---
+title: "SendMessageOverride — @personaai/react"
+description: "Generated field table for SendMessageOverride — do not edit"
+---
+
+> **Generated from `sdk/react/dist/typedoc.json` — do not edit.**
+
+# `SendMessageOverride`
+
+_Source: `types.ts:376`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId?` | `string` |  — _ `types.ts:377`_ |
+| `threadId?` | `string \| Promise<string \| undefined>` | A plain id, or a promise/thunk for one still in flight (e.g. a thread being lazily created for the first message of a new conversation). ``sendMessage`` only awaits this right before building the request body — its own optimistic UI update (adding the user's message + a streaming placeholder) already ran synchronously before that point, so callers don't have to choose between "wait for the thread to exist" and "show the message instantly": passing an in-flight promise here gets both. — _ `types.ts:388`_ |
+| `resume?` | `PersonaResumeValue` | Answers/approves a paused interrupt from a previous turn instead of starting a fresh one. — _ `types.ts:390`_ |
+| `contextOverride?` | `string` | Caller-supplied context (e.g. a live end-user profile snapshot) appended to this turn's system prompt only — never persisted, never visible to later turns. Capped at 4000 characters server-side (rejected with a 400, not truncated). Mirrors ``@personaai/sdk``'s ``SendMessageOptions.contextOverride``. — _ `types.ts:397`_ |
+| `context?` | `Record<string, unknown>` | One-off override for this send only — shallow-merged on top of ``useChat``'s hook-level ``context`` option (this wins on key collisions). Same shape/cap/contract as the hook-level option; see UseChatOptions.context. — _ `types.ts:404`_ |

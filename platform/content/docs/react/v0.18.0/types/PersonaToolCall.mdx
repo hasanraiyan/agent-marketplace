@@ -1,0 +1,23 @@
+---
+title: "PersonaToolCall — @personaai/react"
+description: "Generated field table for PersonaToolCall — do not edit"
+---
+
+> **Generated from `sdk/react/dist/typedoc.json` — do not edit.**
+
+# `PersonaToolCall`
+
+_Source: `types.ts:22`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `toolCallId` | `string` |  — _ `types.ts:23`_ |
+| `toolName` | `string` |  — _ `types.ts:24`_ |
+| `args?` | `string` |  — _ `types.ts:25`_ |
+| `result?` | `string` |  — _ `types.ts:26`_ |
+| `isError?` | `boolean` |  — _ `types.ts:27`_ |
+| `seq?` | `number` | Monotonic stream-order index, assigned when the call's first chunk arrives. Reasoning phases and tool calls share the same counter, so a client can interleave them chronologically (thought → tool → thought → tool → answer). Absent on calls loaded from history. — _ `types.ts:34`_ |
+| `subagentActivity?` | `PersonaSubagentActivityEntry[]` | Nested activity timeline — only present on ``task`` (subagent) tool calls. — _ `types.ts:36`_ |
+| `mcpApp?` | `{ resourceUri: string; mcpId: string }` | Present when this tool is backed by an interactive MCP Ext App. — _ `types.ts:38`_ |

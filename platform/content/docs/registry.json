@@ -4,29 +4,41 @@
       "id": "sdk",
       "title": "@personaai/sdk",
       "description": "TypeScript SDK — raw Developer Platform API client (server-side)",
-      "latest": "0.9.0",
-      "versions": ["0.9.0"]
+      "latest": "0.14.1",
+      "versions": [
+        "0.14.1",
+        "0.9.0"
+      ]
     },
     {
       "id": "runtime",
       "title": "@personaai/runtime",
       "description": "Framework-agnostic runtime engine — the brain every adapter wraps",
-      "latest": "0.11.0",
-      "versions": ["0.11.0"]
+      "latest": "0.16.0",
+      "versions": [
+        "0.16.0",
+        "0.11.0"
+      ]
     },
     {
       "id": "adapters",
       "title": "@personaai/adapters",
       "description": "Unified adapters — Express, Next.js, NestJS via subpaths",
-      "latest": "0.3.0",
-      "versions": ["0.3.0"]
+      "latest": "0.8.0",
+      "versions": [
+        "0.8.0",
+        "0.3.0"
+      ]
     },
     {
       "id": "react",
       "title": "@personaai/react",
       "description": "React hooks + Provider for building chat UIs",
-      "latest": "0.10.0",
-      "versions": ["0.10.0"]
+      "latest": "0.18.0",
+      "versions": [
+        "0.18.0",
+        "0.10.0"
+      ]
     }
   ]
 }

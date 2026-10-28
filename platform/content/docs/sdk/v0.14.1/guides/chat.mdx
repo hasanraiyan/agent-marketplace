@@ -1,0 +1,61 @@
+---
+title: "Chat streaming"
+description: "Stream AG-UI events and handle interrupts"
+---
+
+# Chat streaming
+
+`userClient.chat.stream(agentId, options)` yields raw AG-UI events; `sendMessage` drains them to `{ text, interrupt, error, events }`.
+
+## Stream
+
+```ts
+for await (const e of userClient.chat.stream(agent._id, {
+  messages: [{ role: 'user', content: 'What internships are open?' }],
+  threadId: thread._id,
+  // contextOverride: 'Live page context appended to system prompt for this turn only (≤4000 chars)',
+  // context: { userTier: 'pro' }, // never shown to model, only RCP resolver reads it (≤2000 bytes)
+})) {
+  if (e.type === 'TEXT_MESSAGE_CHUNK' && e.delta) process.stdout.write(e.delta);
+  if (e.type === 'CUSTOM' && e.name === 'hitl_request') {
+    // show approval UI
+  }
+  if (e.type === 'RUN_ERROR') {
+    console.error(e.code, e.message);
+  }
+}
+```
+
+## Drain helper
+
+```ts
+const result = await userClient.chat.sendMessage(agent._id, {
+  messages: [{ role: 'user', content: 'Hi' }],
+  threadId: thread._id,
+});
+console.log(result.text);
+if (result.interrupt?.kind === 'hitl') {
+  await userClient.chat.sendMessage(agent._id, {
+    messages: [],
+    resume: { decisions: [{ action: 'delete_agent', decision: 'approve' }] },
+    threadId: thread._id,
+  });
+}
+```
+
+## Events
+
+| Type | Notes |
+|---|---|
+| `TEXT_MESSAGE_CHUNK` | `delta` incremental text |
+| `TOOL_CALL_CHUNK` | `toolCallId` + `toolCallName` + accumulating `delta` args |
+| `TOOL_CALL_RESULT` | `toolCallId` + `content` (+ `structuredContent`) |
+| `REASONING_MESSAGE_*` | `REASONING_MESSAGE_START/CONTENT` + `REASONING_END` |
+| `CUSTOM` `hitl_request` | `value: { actionRequests, reviewConfigs }` → `interrupt.kind==='hitl'` |
+| `CUSTOM` `clarification_request` | `value: { questions }` → `interrupt.kind==='clarification'` |
+| `CUSTOM` `subagent_activity` | `value: { toolCallId, kind, … }` |
+| `CUSTOM` `workflow_node_*` | `workflow_node_started/completed/failed` (when running workflows) |
+| `STATE_SNAPSHOT` | `snapshot: { files, todos }` |
+| `RUN_ERROR` | `{ code, message, retryable, providerName }` |
+
+See [Concepts: AG-UI](/concepts/agui) and [Concepts: context vs contextOverride](/concepts/context-vs-override).

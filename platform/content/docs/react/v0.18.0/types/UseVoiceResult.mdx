@@ -1,0 +1,27 @@
+---
+title: "UseVoiceResult — @personaai/react"
+description: "Generated field table for UseVoiceResult — do not edit"
+---
+
+> **Generated from `sdk/react/dist/typedoc.json` — do not edit.**
+
+# `UseVoiceResult`
+
+_Source: `types.ts:481`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `state` | `PersonaVoiceState` |  — _ `types.ts:482`_ |
+| `isMuted` | `boolean` |  — _ `types.ts:483`_ |
+| `transcript` | `PersonaVoiceTranscriptLine[]` | Committed lines, oldest first. — _ `types.ts:485`_ |
+| `partial` | `PersonaVoiceTranscriptLine \| null` | The current speaker's in-progress (not yet final) line, or ``null``. — _ `types.ts:487`_ |
+| `toolCalls` | `PersonaVoiceToolCall[]` |  — _ `types.ts:488`_ |
+| `error` | `Error \| null` |  — _ `types.ts:489`_ |
+| `endReason` | `PersonaVoiceEndReason \| null` | Set once the session ends — see PersonaVoiceEndReason. — _ `types.ts:491`_ |
+| `start` | `object` | Mints a ticket via the host backend, then opens the call. Resets all state above. — _ `types.ts:493`_ |
+| `stop` | `object` | Ends the call and tears down the mic/speaker audio graph. Safe to call at any time. — _ `types.ts:495`_ |
+| `mute` | `object` |  — _ `types.ts:496`_ |
+| `sendText` | `object` | Sends a typed message mid-call instead of speaking — the agent may reply in either voice or text. — _ `types.ts:498`_ |
+| `updateContext` | `object` | Live-refreshes context for the rest of this already-open call — merged into, not replacing, whatever context is already set (from ``start()``'s ``context`` option or a previous ``updateContext()`` call). Sent directly over the open WebSocket (``{ type: 'voice.context', context }``); a no-op if the call isn't currently active. No reconnect, no dropped audio — the next tool call in this session reads the new value. — _ `types.ts:507`_ |

@@ -1,0 +1,30 @@
+---
+title: "CreateRuntimeOptions — @personaai/runtime"
+description: "Generated field table for CreateRuntimeOptions — do not edit"
+---
+
+> **Generated from `sdk/runtime/dist/typedoc.json` — do not edit.**
+
+# `CreateRuntimeOptions`
+
+_Source: `types/options.ts:99`_
+
+_Interface_
+
+| Field | Type | Description |
+|---|---|---|
+| `baseUrl` | `string` | Base URL of the Persona Developer Platform API, e.g. "https://api.persona.hasanraiyan.me". — _ `types/options.ts:101`_ |
+| `credential` | `string` | Project credential, shaped "<keyId>.<secret>" — never expose this to a browser. — _ `types/options.ts:103`_ |
+| `resolveUser` | `ResolveUser` |  — _ `types/options.ts:104`_ |
+| `hooks?` | `RuntimeHooks` |  — _ `types/options.ts:105`_ |
+| `mountPath?` | `string` | Prefix to strip from ``request.path`` before routing, e.g. '/api/persona'. — _ `types/options.ts:107`_ |
+| `mode?` | `"development" \| "production"` | 'development' includes error detail (message/stack/upstream response) in error responses; 'production' hides it behind a generic message. — _ `types/options.ts:113`_ |
+| `fetch?` | `object` | Override fetch (proxying, tracing, or test injection). Forwarded to every per-request PersonaClient. — _ `types/options.ts:115`_ |
+| `heartbeatIntervalMs?` | `number` | How often to send an SSE comment-line heartbeat (``: heartbeat\n\n``) during a gap in the ``/chat`` stream — e.g. a long-running tool call with no token output — so intermediary proxies/load balancers with an idle timeout don't kill the connection. Comment lines are invisible to any ``data:``-only SSE parser (including ``@personaai/sdk``'s own), so this never changes the AG-UI event sequence a consumer sees. — _ `types/options.ts:125`_ |
+| `runGraceMs?` | `number` | How long a finished ``/chat`` run stays resumable via ``GET /chat/:runId/resume`` before an internal eviction sweep removes it. — _ `types/options.ts:131`_ |
+| `maxTrackedRuns?` | `number` | Safety valve on the in-memory resumable-run registry — once over this many tracked runs, the oldest-finished ones are evicted first (still in-flight runs are never evicted by this cap). — _ `types/options.ts:138`_ |
+| `capabilities?` | `RuntimeCapabilities` | Opt-in switches for Project-level admin surface. See RuntimeCapabilities — everything defaults to off. — _ `types/options.ts:140`_ |
+| `restToolsManifest?` | `RestToolsManifestOptions` | Serves a code-defined REST tool list for a Persona REST Tool Source to discover. See RestToolsManifestOptions. Unset by default — the route only exists when this is provided. — _ `types/options.ts:142`_ |
+| `rcpManifest?` | `RcpManifestOptions` | Serves a conformant RCP manifest for any RCP client to discover. See RcpManifestOptions. Unset by default — the route only exists when this is provided. — _ `types/options.ts:144`_ |
+| `logLevel?` | `LogLevel` | Log level for the runtime — off by default. Overrides the global level set via ``setLogLevel()`` from ``@personaai/sdk``. — _ `types/options.ts:146`_ |
+| `logger?` | `Logger` | Custom logger instance — when provided, ``logLevel`` is ignored. — _ `types/options.ts:148`_ |

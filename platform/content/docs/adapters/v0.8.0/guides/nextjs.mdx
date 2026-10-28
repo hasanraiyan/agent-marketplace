@@ -1,0 +1,28 @@
+---
+title: "Next.js"
+description: "App Router handler + PersonaProvider"
+---
+
+# Next.js
+
+```ts
+// app/api/persona/[...persona]/route.ts
+import { createPersonaHandler } from '@personaai/adapters/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
+export const { GET, POST, PUT, PATCH, DELETE } = createPersonaHandler({
+  baseUrl: process.env.PERSONA_BASE_URL!,
+  credential: process.env.PERSONA_CREDENTIAL!,
+  resolveUserFrom: async () => (await auth()).userId,
+});
+export const dynamic = 'force-dynamic';
+```
+
+```tsx
+// app/layout.tsx
+import { PersonaProvider } from '@personaai/adapters/nextjs';
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return <PersonaProvider baseUrl="/api/persona">{children}</PersonaProvider>;
+}
+```
+
+Uses Web `Request`/`Response` + `ReadableStream` — no `multer` needed; multipart via `Request.formData()`.
