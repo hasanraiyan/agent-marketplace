@@ -132,6 +132,14 @@ export type { AuditLogEntry, ListAuditLogsParams } from './types/auditLog.js';
 export { VoiceResource } from './resources/voice.js';
 export type { CreateVoiceSessionOptions } from './resources/voice.js';
 export type { VoiceSessionInfo, VoiceSessionTicket } from './types/voice.js';
+export { MessagesResource } from './resources/messages.js';
+export type {
+  MessageChannel,
+  SendMessageInput,
+  MessageDelivery,
+  SendAgentMessageInput,
+  AgentMessageDelivery,
+} from './types/message.js';
 export { ChatClient } from './chat/chat-client.js';
 export { ArchitectClient, type ArchitectMessageOptions } from './chat/architect-client.js';
 export { EventType } from './types/chat.js';

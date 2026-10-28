@@ -1,7 +1,8 @@
 # @personaai/sdk
 
 Node.js/TypeScript SDK for the [persona.hasanraiyan.me](https://persona.hasanraiyan.me) Developer Platform API — Agents,
-Skills, Knowledge bases, MCP connectors, named Stores, memory, and streaming chat, from your own backend.
+Skills, Knowledge bases, MCP connectors, named Stores, memory, streaming chat, voice, and SMS/WhatsApp messaging,
+from your own backend.
 
 > **Server-side only.** Every method on this SDK sends your Project's credential — a server-side
 > secret, not something a browser is ever allowed to see. **Never** construct `PersonaClient` in a
@@ -100,6 +101,31 @@ if (result.interrupt) {
 | `.files` | `/api/v1/developer/files` |
 | `.chat` | `/api/v1/developer/agui` (streaming) |
 | `.architect` | `/api/v1/developer/architect/agui` (streaming, Agent Architect) |
+| `.messages` | `/api/v1/developer/messages` (outbound SMS / WhatsApp — see [SMS and WhatsApp](#sms-and-whatsapp)) |
+
+### SMS and WhatsApp
+
+Both methods take the recipient's E.164 number; the channel is inferred from a `whatsapp:` prefix unless
+`channel` is set. No external user needs to be asserted — the phone number is the conversation identity,
+shared across SMS, WhatsApp, and voice for the same Project + Agent + number.
+
+```ts
+// Plain message from your Project's Twilio sender.
+const delivery = await persona.messages.send({ to: '+919876543210', body: 'Your order shipped!' });
+console.log(delivery.channel, delivery.messageSids, delivery.parts);
+
+// Or let an Agent compose the reply on the shared conversation thread.
+await persona.messages.sendFromAgent({
+  agentId: agent._id,
+  to: '+919876543210',
+  prompt: 'Remind the customer their appointment is tomorrow at 10.',
+});
+```
+
+Long bodies are split and delivered as multiple parts. Business-initiated WhatsApp conversations outside the
+24-hour customer-service window need an approved template — pass `contentSid` + `contentVariables` instead of
+`body`. Agents with guarded (`interruptOn`) tools are rejected on text channels, same as voice: there is no
+confirmation flow yet. Inbound messages are handled by Persona's Twilio webhook end-to-end; this SDK only sends.
 
 ### Workflows, streamed
 

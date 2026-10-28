@@ -13,6 +13,7 @@ import { RcpSourcesResource } from './resources/rcpSources.js';
 import { FilesResource } from './resources/files.js';
 import { AuditLogsResource } from './resources/auditLogs.js';
 import { VoiceResource } from './resources/voice.js';
+import { MessagesResource } from './resources/messages.js';
 import { WorkflowsResource } from './resources/workflows.js';
 import { ChatClient } from './chat/chat-client.js';
 import { ArchitectClient } from './chat/architect-client.js';
@@ -43,6 +44,7 @@ export class PersonaClient {
   readonly files: FilesResource;
   readonly auditLogs: AuditLogsResource;
   readonly voice: VoiceResource;
+  readonly messages: MessagesResource;
   readonly workflows: WorkflowsResource;
   readonly chat: ChatClient;
   readonly architect: ArchitectClient;
@@ -105,11 +107,11 @@ export class PersonaClient {
     this.files = new FilesResource(this.http);
     this.auditLogs = new AuditLogsResource(this.http);
     this.voice = new VoiceResource(this.http);
+    this.messages = new MessagesResource(this.http);
     this.workflows = new WorkflowsResource(this.http, workflowsLogger);
     this.chat = new ChatClient(this.http, chatLogger);
     this.architect = new ArchitectClient(this.http, architectLogger);
   }
-
 
   /**
    * Resolves the principal context for the credential this client was

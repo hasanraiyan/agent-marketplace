@@ -199,12 +199,62 @@ class TwilioController {
   }
 
   /**
+   * Machine-credential sibling of {@link sendMessage} — the Project comes
+   * from the verified credential (`req.projectContext.domain`), not the URL.
+   */
+  async sendDeveloperMessage(req, res, next) {
+    try {
+      const projectId = req.projectContext.domain;
+      const { to, channel, body, mediaUrl, contentSid, contentVariables } = req.body || {};
+
+      const result = await twilioService.sendMessage({
+        projectId,
+        to,
+        channel,
+        body,
+        mediaUrl,
+        contentSid,
+        contentVariables,
+      });
+
+      return res.json(successFormatter.formatSuccess(result, 'Message sent'));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
    * Runs an Agent on the shared conversation thread for a phone number and
    * delivers its reply over SMS/WhatsApp.
    */
   async sendAgentMessage(req, res, next) {
     try {
       const projectId = req.params.projectId;
+      const { agentId, to, channel, prompt, displayName } = req.body || {};
+
+      const result = await twilioMessagingService.sendAgentMessage({
+        projectId,
+        agentId,
+        to,
+        channel,
+        prompt,
+        displayName,
+      });
+
+      return res.json(successFormatter.formatSuccess(result, 'Agent message sent'));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Machine-credential sibling of {@link sendAgentMessage}. The recipient
+   * phone number is the conversation subject, so this works with a bare
+   * Project credential — no `x-persona-external-user-id` needed.
+   */
+  async sendDeveloperAgentMessage(req, res, next) {
+    try {
+      const projectId = req.projectContext.domain;
       const { agentId, to, channel, prompt, displayName } = req.body || {};
 
       const result = await twilioMessagingService.sendAgentMessage({

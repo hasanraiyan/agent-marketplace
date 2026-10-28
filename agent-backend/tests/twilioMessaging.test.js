@@ -37,6 +37,17 @@ jest.unstable_mockModule('../src/modules/projects/projectMembership.repository.j
   default: { findByProjectAndUser: jest.fn() },
 }));
 
+jest.unstable_mockModule('../src/modules/auth/developerMachineAuth.middleware.js', () => ({
+  default: (req, res, next) => {
+    req.projectContext = {
+      principalType: 'ProjectMachine',
+      domain: 'proj-1',
+      credentialId: 'cred-1',
+    };
+    next();
+  },
+}));
+
 const { runAgentAsAguiEvents } = await import('../src/modules/agui/agui.service.js');
 const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
 const externalUserService = (await import('../src/modules/externalUsers/externalUser.service.js'))
@@ -54,6 +65,9 @@ const twilioMessagingService = (await import('../src/modules/twilio/twilioMessag
 const { default: twilioWebhookRouter } = await import('../src/modules/twilio/twilio.routes.js');
 const twilioMessagingRouter = (await import('../src/modules/twilio/twilioMessaging.routes.js'))
   .default;
+const developerMessagingRouter = (
+  await import('../src/modules/twilio/developerMessaging.routes.js')
+).default;
 const errorHandler = (await import('../src/middlewares/errorHandler.js')).default;
 
 function fakeClient() {
@@ -641,6 +655,86 @@ describe('Project Twilio messaging routes', () => {
       .send({ agentId: 'agent-1', to: '+919876543210', prompt: 'Follow up' });
 
     expect(res.status).toBe(200);
+    expect(twilioMessagingService.sendAgentMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: 'proj-1',
+        agentId: 'agent-1',
+        to: '+919876543210',
+        prompt: 'Follow up',
+      })
+    );
+  });
+});
+
+describe('Developer Twilio messaging routes', () => {
+  const app = express();
+  app.use(express.json());
+  app.use('/api/v1/developer/messages', developerMessagingRouter);
+  app.use(errorHandler);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(twilioService, 'sendMessage').mockResolvedValue({
+      channel: 'sms',
+      to: '+919876543210',
+      from: '+15550001111',
+      messageSids: ['SM_OUT_1'],
+      status: 'queued',
+      parts: 1,
+    });
+    jest.spyOn(twilioMessagingService, 'sendAgentMessage').mockResolvedValue({
+      agentId: 'agent-1',
+      channel: 'sms',
+      messageSids: ['SM_OUT_2'],
+    });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('sends a plain message using the credential Project context', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/messages')
+      .send({ to: '+919876543210', body: 'hello' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ channel: 'sms' });
+    expect(twilioService.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: 'proj-1',
+        to: '+919876543210',
+        body: 'hello',
+      })
+    );
+  });
+
+  test('ignores a projectId in the body — the credential decides the Project', async () => {
+    await request(app)
+      .post('/api/v1/developer/messages')
+      .send({ projectId: 'other-proj', to: '+919876543210', body: 'hello' });
+
+    expect(twilioService.sendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: 'proj-1' })
+    );
+  });
+
+  test('returns 400 when the recipient is missing', async () => {
+    twilioService.sendMessage.mockRestore();
+
+    const res = await request(app).post('/api/v1/developer/messages').send({ body: 'hello' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('PHONE_NUMBER_REQUIRED');
+  });
+
+  test('composes a message through an Agent', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/messages/agent')
+      .send({ agentId: 'agent-1', to: '+919876543210', prompt: 'Follow up' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({ agentId: 'agent-1' });
     expect(twilioMessagingService.sendAgentMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: 'proj-1',

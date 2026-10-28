@@ -3,6 +3,18 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.14.0
+
+- **New: `MessagesResource` (`client.messages`) — outbound SMS and WhatsApp.** `send()` delivers a plain
+  message from the Project's own Twilio sender; `sendFromAgent()` runs an Agent and delivers its reply on
+  the conversation thread shared by all channels for that phone number (same identity inbound webhooks and
+  voice calls already use). The channel is inferred from a `whatsapp:` prefix on `to` unless `channel` is
+  given; long bodies are split into multiple parts; approved WhatsApp templates are supported via
+  `contentSid` + `contentVariables`. No asserted external user is required — the phone number is the
+  conversation subject. New types: `MessageChannel`, `SendMessageInput`, `MessageDelivery`,
+  `SendAgentMessageInput`, `AgentMessageDelivery`. Backed by new Project-credential endpoints
+  `POST /api/v1/developer/messages` and `POST /api/v1/developer/messages/agent`.
+
 ## 0.13.1
 
 - **Docs only.** README now documents `memory.*`'s `scope: "workspace"` and `Thread.agentId`'s

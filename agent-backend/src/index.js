@@ -40,6 +40,7 @@ import {
 import {
   twilioWebhookRouter,
   twilioMessagingRouter,
+  developerMessagingRouter,
   outboundCallRouter,
   outboundCallAuth,
   attachTwilioGateway,
@@ -178,6 +179,9 @@ app.use('/api/v1/developer/agents', developerAgentRouter);
 // WS upgrade handler at the same base path: Express never sees 'upgrade'
 // requests at all, only ordinary GET/POST ones.
 app.use('/api/v1/developer/voice', developerVoiceRouter);
+// SMS / WhatsApp sending for machine credentials (developerMachineAuthMiddleware),
+// the Project-credential sibling of /api/v1/projects/:projectId/twilio above.
+app.use('/api/v1/developer/messages', developerMessagingRouter);
 app.use('/api/v1/developer/skills', developerSkillRouter);
 app.use('/api/v1/developer/knowledge', developerKnowledgeRouter);
 app.use('/api/v1/developer/mcps', developerMcpRouter);

@@ -21,6 +21,7 @@ src/modules/twilio/
 ├── twilio.routes.js            # /api/v1/webhooks/twilio routes + /api/v1/twilio/call
 ├── twilioMessaging.service.js  # Inbound SMS/WhatsApp pipeline + agent-composed outbound
 ├── twilioMessaging.routes.js   # /api/v1/projects/{projectId}/twilio routes
+├── developerMessaging.routes.js # /api/v1/developer/messages routes (Project credential)
 ├── audioConverter.js           # Bidirectional μ-law 8kHz <-> Linear PCM 16/24kHz transcoding
 ├── TwilioVoiceTransport.js     # EventEmitter adapter bridging Twilio WS to VoiceSession
 └── twilioGateway.js            # HTTP Upgrade handler on /api/v1/twilio/media-stream
@@ -71,16 +72,18 @@ sequenceDiagram
 
 ## Public API & Endpoints
 
-| Method     | Path                                                 | Auth                      | Purpose                                                                   |
-| ---------- | ---------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------- |
-| `POST`     | `/api/v1/webhooks/twilio/voice`                      | Public (Twilio Signature) | Inbound call webhook; returns TwiML with `<Stream>` configuration         |
-| `POST`     | `/api/v1/webhooks/twilio/status`                     | Public (Twilio Signature) | Call progress/status tracking webhook (ringing, answered, completed)      |
-| `POST`     | `/api/v1/webhooks/twilio/message`                    | Public (Twilio Signature) | Inbound SMS / WhatsApp message; runs the agent and replies asynchronously |
-| `POST`     | `/api/v1/webhooks/twilio/message-status`             | Public                    | SMS / WhatsApp delivery status callback                                   |
-| `POST`     | `/api/v1/twilio/call`                                | ProjectAdmin / Clerk      | Triggers outbound phone call from project agent to target number          |
-| `GET (WS)` | `/api/v1/twilio/media-stream`                        | Stream Handshake          | Bidirectional audio streaming WebSocket gateway                           |
-| `POST`     | `/api/v1/projects/{projectId}/twilio/messages`       | ProjectAdmin / Clerk      | Send a plain SMS / WhatsApp body from the Project's sender                |
-| `POST`     | `/api/v1/projects/{projectId}/twilio/messages/agent` | ProjectAdmin / Clerk      | Run the agent on the phone-shared thread and deliver its reply            |
+| Method     | Path                                                 | Auth                      | Purpose                                                                    |
+| ---------- | ---------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------- |
+| `POST`     | `/api/v1/webhooks/twilio/voice`                      | Public (Twilio Signature) | Inbound call webhook; returns TwiML with `<Stream>` configuration          |
+| `POST`     | `/api/v1/webhooks/twilio/status`                     | Public (Twilio Signature) | Call progress/status tracking webhook (ringing, answered, completed)       |
+| `POST`     | `/api/v1/webhooks/twilio/message`                    | Public (Twilio Signature) | Inbound SMS / WhatsApp message; runs the agent and replies asynchronously  |
+| `POST`     | `/api/v1/webhooks/twilio/message-status`             | Public                    | SMS / WhatsApp delivery status callback                                    |
+| `POST`     | `/api/v1/twilio/call`                                | ProjectAdmin / Clerk      | Triggers outbound phone call from project agent to target number           |
+| `GET (WS)` | `/api/v1/twilio/media-stream`                        | Stream Handshake          | Bidirectional audio streaming WebSocket gateway                            |
+| `POST`     | `/api/v1/projects/{projectId}/twilio/messages`       | ProjectAdmin / Clerk      | Send a plain SMS / WhatsApp body from the Project's sender                 |
+| `POST`     | `/api/v1/projects/{projectId}/twilio/messages/agent` | ProjectAdmin / Clerk      | Run the agent on the phone-shared thread and deliver its reply             |
+| `POST`     | `/api/v1/developer/messages`                         | Project credential        | Send a plain SMS / WhatsApp body from the Project's sender (SDK entry)     |
+| `POST`     | `/api/v1/developer/messages/agent`                   | Project credential        | Run the agent on the phone-shared thread and deliver its reply (SDK entry) |
 
 The Twilio number's **inbound message webhook** must be configured as:
 
