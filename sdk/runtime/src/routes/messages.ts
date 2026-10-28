@@ -24,10 +24,7 @@ function optionalChannel(body: Record<string, unknown>): 'sms' | 'whatsapp' | un
   return value as 'sms' | 'whatsapp';
 }
 
-function optionalStringField(
-  body: Record<string, unknown>,
-  field: string
-): string | undefined {
+function optionalStringField(body: Record<string, unknown>, field: string): string | undefined {
   const value = body[field];
   if (value === undefined) return undefined;
   if (typeof value !== 'string' || value.length === 0) {
@@ -40,7 +37,10 @@ function optionalMediaUrl(body: Record<string, unknown>): string | string[] | un
   const value = body.mediaUrl;
   if (value === undefined) return undefined;
   if (typeof value === 'string' && value.length > 0) return value;
-  if (Array.isArray(value) && value.every((entry) => typeof entry === 'string' && entry.length > 0)) {
+  if (
+    Array.isArray(value) &&
+    value.every((entry) => typeof entry === 'string' && entry.length > 0)
+  ) {
     return value as string[];
   }
   throw new RuntimeHttpError(
