@@ -14,4 +14,4 @@ export {
 export type { Logger, LogLevel } from '@personaai/logger';
 export { createLogger, createNoopLogger } from '@personaai/logger';
 
-export const VERSION = '0.7.1';
+export const VERSION = '0.8.0';

@@ -5,6 +5,20 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-10-28
+
+### Changed
+
+- Bumped `@personaai/sdk` to `^0.14.1`, `@personaai/runtime` to `^0.16.0`, and
+  `@personaai/react` to `^0.18.0` — the current release of each. No adapter code changed; this
+  package doesn't touch the shapes any of them added (SMS/WhatsApp `client.messages`,
+  `capabilities.messages` + `POST /messages`/`POST /messages/agent`, `useMessages`), but each is a
+  new surface a consumer reaches *through* these adapters: the runtime routes via
+  `createRuntime`/`createPersonaHandler`, and `useMessages` via `@personaai/adapters/nextjs`'s
+  `export * from '@personaai/react'` — which is also why the react range must track the latest
+  release (see 0.7.0's dedupe note).
+- `VERSION` in `express`, `nestjs`, `nextjs/client`, and `nextjs/server` is now `'0.8.0'`.
+
 ## [0.7.1] - 2026-09-16
 
 ### Fixed

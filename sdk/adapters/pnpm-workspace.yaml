@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: true
+minimumReleaseAgeExclude:
+  - '@personaai/react@0.18.0'
+  - '@personaai/runtime@0.16.0'
+  - '@personaai/sdk@0.14.1'
