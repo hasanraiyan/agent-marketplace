@@ -106,7 +106,6 @@ class TwilioMessagingService {
     projectId,
     agentId,
     from,
-    to,
     body,
     messageSid,
     profileName,

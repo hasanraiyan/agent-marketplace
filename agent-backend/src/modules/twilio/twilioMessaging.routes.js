@@ -43,7 +43,7 @@ const messageLimiter = rateLimiter('PROJECT_TWILIO_MESSAGE', RATE_LIMITS.MUTATE)
  *             properties:
  *               to:
  *                 type: string
- *                 description: E.164 recipient, optionally prefixed with whatsapp:
+ *                 description: "E.164 recipient, optionally prefixed with whatsapp:"
  *               channel:
  *                 type: string
  *                 enum: [sms, whatsapp]
@@ -93,7 +93,7 @@ router.post('/messages', messageLimiter, twilioController.sendMessage);
  *               agentId: { type: string }
  *               to:
  *                 type: string
- *                 description: E.164 recipient, optionally prefixed with whatsapp:
+ *                 description: "E.164 recipient, optionally prefixed with whatsapp:"
  *               channel:
  *                 type: string
  *                 enum: [sms, whatsapp]

@@ -116,7 +116,7 @@ class TwilioController {
       return res.status(403).send('Forbidden: Invalid Twilio signature');
     }
 
-    const { From, To, Body, MessageSid, SmsMessageSid, ProfileName, NumMedia } = req.body || {};
+    const { From, Body, MessageSid, SmsMessageSid, ProfileName, NumMedia } = req.body || {};
     const messageSid = MessageSid || SmsMessageSid;
 
     // Twilio retries reuse the same MessageSid; never run the same user
@@ -141,7 +141,6 @@ class TwilioController {
         projectId,
         agentId,
         from: From,
-        to: To,
         body: Body,
         messageSid,
         profileName: ProfileName,

@@ -164,7 +164,8 @@ describe('Developer AG-UI Controller — runAgent', () => {
       'agent-1',
       'sabik',
       expect.anything(),
-      runtimeContext
+      runtimeContext,
+      { allowPrivateExecution: false }
     );
     expect(mockRes.write).toHaveBeenCalledWith(
       expect.stringContaining('"threadId":"agui-project-1-agent-1-sabik"')

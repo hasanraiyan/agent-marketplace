@@ -75,7 +75,8 @@ describe('runAgentAsAguiEvents — executionContext forwarding', () => {
       'agent-1',
       'user-1',
       expect.anything(),
-      personaExecutionContext('user-1')
+      personaExecutionContext('user-1'),
+      { allowPrivateExecution: false }
     );
   });
 
@@ -100,7 +101,8 @@ describe('runAgentAsAguiEvents — executionContext forwarding', () => {
       'agent-1',
       'sabik',
       expect.anything(),
-      projectRuntimeContext
+      projectRuntimeContext,
+      { allowPrivateExecution: false }
     );
   });
 });
