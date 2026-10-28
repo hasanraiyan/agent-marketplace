@@ -67,6 +67,7 @@ describe('GET /health', () => {
         auditLogs: false,
         architect: false,
         workflowsWrite: false,
+        messages: false,
       });
     }
   });

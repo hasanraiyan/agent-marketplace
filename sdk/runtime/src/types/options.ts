@@ -24,14 +24,16 @@ export type ResolveUser = (request: RuntimeRequest) => string | null | Promise<s
 /**
  * Every one of these is `false` unless explicitly enabled — always-off by
  * default so upgrading this package never silently exposes new surface to
- * whoever `resolveUser` accepts. These resources are Project-level
- * configuration (LLM provider credentials, skill/knowledge-base/vector-store
- * management, security audit logs, an agent-building co-pilot) rather than
- * things an end user does in a chat session — most hosts should manage them
- * via `@personaai/sdk` directly from their own admin surface and never turn
- * these on. Turn one on only if you specifically want it reachable through
- * whatever `resolveUser` gates (which may not be "any logged-in end user" —
- * that's your call).
+ * whoever `resolveUser` accepts. Most are Project-level configuration (LLM
+ * provider credentials, skill/knowledge-base/vector-store management,
+ * security audit logs, an agent-building co-pilot) rather than things an end
+ * user does in a chat session — most hosts should manage them via
+ * `@personaai/sdk` directly from their own admin surface and never turn
+ * these on. `messages` is a per-request action rather than configuration,
+ * but it's off for the same reason: a send reaches whatever recipient the
+ * caller names. Turn one on only if you specifically want it reachable
+ * through whatever `resolveUser` gates (which may not be "any logged-in end
+ * user" — that's your call).
  */
 export interface RuntimeCapabilities {
   /** Full Agent CRUD (create/get/update/delete/bulk-delete) beyond the always-on read-only `GET /agents` list. @default false */
@@ -54,6 +56,13 @@ export interface RuntimeCapabilities {
   architect?: boolean;
   /** Full Workflow CRUD, draft authoring, versions, and Mermaid export beyond the always-on execution routes. @default false */
   workflowsWrite?: boolean;
+  /**
+   * Outbound SMS/WhatsApp (`POST /messages`, `POST /messages/agent`). Off by
+   * default because `to` is any E.164 number and every send spends this
+   * Project's Twilio balance — unlike `chat`/`voice` these routes aren't
+   * end-user-scoped. @default false
+   */
+  messages?: boolean;
 }
 
 /**

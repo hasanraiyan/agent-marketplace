@@ -4,6 +4,21 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.16.0
+
+- **New: `capabilities.messages`** (off by default) — outbound SMS/WhatsApp:
+  `POST /messages` → `client.messages.send()`, and `POST /messages/agent` →
+  `client.messages.sendFromAgent()` (the Agent composes and the reply is delivered on the
+  conversation shared across SMS/WhatsApp/voice for that phone number). Unlike `/voice/sessions`,
+  these are not end-user-scoped — `to` is any E.164 number and each send spends the Project's
+  Twilio balance — so they're opt-in even though the caller must still authenticate.
+  Requires `@personaai/sdk ^0.14.1`.
+- Bumped `@personaai/sdk` dependency from a pinned `0.14.0` to `^0.14.1` — 0.14.0 published to npm
+  without a build (only README + package.json in the tarball), so it could never resolve
+  `MessagesResource`. 0.14.1 is the first installable copy.
+- `RUNTIME_VERSION` (and the package version) are now `0.16.0`; `GET /health`'s `capabilities`
+  object gains `messages: false` alongside the other gated flags.
+
 ## 0.15.1
 
 - **Fixed: `RUNTIME_VERSION` (returned by `GET /health`'s `version` field) was hardcoded to

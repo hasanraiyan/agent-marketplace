@@ -5,12 +5,13 @@ shared engine every framework adapter (`@personaai/adapters/express`, `@personaa
 to be a thin translation layer over — see
 [the SDK Ecosystem plan](https://github.com/hasanraiyan/agent-marketplace/blob/feat/ai/product-research/11-sdk-new/package-ecosystem.md).
 
-**v0.15.0.** `/memory` and `/memory/file` now accept/return `scope: "workspace"` — an Agent's own
-`/workspace/` files (the same persistent store its `write_file`/`read_file` tool calls use), scoped
-by Agent + Subject rather than by Thread. Also includes full Workflows engine support
+**v0.16.0.** New opt-in outbound messaging: `POST /messages` (plain SMS/WhatsApp send) and
+`POST /messages/agent` (the Agent composes the reply), both behind `capabilities.messages` — off by
+default because a send targets any E.164 number the caller names and spends this Project's Twilio
+balance. Also includes `/memory` and `/memory/file`'s `scope: "workspace"` for an Agent's own
+`/workspace/` files, full Workflows engine support
 (`POST /workflows/:id/stream`, `GET /workflows`, `POST /workflows/runs/:runId/cancel`,
-`GET /workflows/runs/:runId/resume`), `workflowsWrite` gated authoring capability, and
-`beforeWorkflowNode`/`afterWorkflowNode` lifecycle hooks. Unified adapter [`@personaai/adapters`](https://persona.hasanraiyan.me/guides/express/quickstart) provides `express`/`nextjs`/`nestjs` bindings. For non-covered hosts, see
+`GET /workflows/runs/:runId/resume`), and `beforeWorkflowNode`/`afterWorkflowNode` lifecycle hooks. Unified adapter [`@personaai/adapters`](https://persona.hasanraiyan.me/guides/express/quickstart) provides `express`/`nextjs`/`nestjs` bindings. For non-covered hosts, see
 [Quickstart](#quickstart) for how to run it directly against raw Node `http`, and
 [Not yet implemented](#not-yet-implemented) for what's missing before it's a complete Level 2
 runtime.
@@ -176,6 +177,8 @@ how to enable them safely.
 | `GET` | `/workflows/:id/mermaid` | `workflowsWrite` | `client.workflows.getMermaid(id)` → `{mermaid}` |
 | `GET` | `/workflows/:id/runs` | `workflowsWrite` | `client.workflows.listRuns(id, params)` |
 | `GET` | `/workflows/runs/:runId` | `workflowsWrite` | `client.workflows.getRun(runId)` |
+| `POST` | `/messages` | `messages` | `client.messages.send({to, body?, channel?, mediaUrl?, contentSid?, contentVariables?})` → `{channel, to, from, messageSids, status, parts}`. `to` is any E.164 number; the channel is inferred from a `whatsapp:` prefix unless given. A body is required unless `contentSid` supplies an approved WhatsApp template. |
+| `POST` | `/messages/agent` | `messages` | `client.messages.sendFromAgent({agentId, to, prompt, channel?, displayName?})` — runs the Agent on the conversation shared by all channels for that number, then delivers its reply. `422` for guarded (`interruptOn`) Agents, same as voice. |
 
 A disabled capability's routes are simply absent from the route table — a request to one 404s
 (or, where an always-on route shares the same path with a different method, e.g. `POST /agents`
@@ -192,8 +195,14 @@ oversight:
   user `resolveUser` returns.
 - **Opt-in via `capabilities`**: Project-level configuration — LLM provider credentials, skill
   authoring, knowledge base and vector store management, security audit logs, an agent-building
-  co-pilot, workflow canvas builder/publishing, and full Agent/MCP-server CRUD. **Every one of these defaults to `false`.** Upgrading
+  co-pilot, workflow canvas builder/publishing, full Agent/MCP-server CRUD, and outbound
+  SMS/WhatsApp. **Every one of these defaults to `false`.** Upgrading
   this package never silently exposes new surface to whoever `resolveUser` accepts.
+
+`messages` is the one opt-in flag that isn't configuration: it's a per-request action, like
+`voice/sessions`. It's still off by default because a send reaches any number the caller names
+and spends this Project's Twilio balance — whoever `resolveUser` accepts would be able to text
+arbitrary people, which is a materially larger blast radius than an end-user-scoped chat run.
 
 ```ts
 createRuntime({
@@ -208,6 +217,7 @@ createRuntime({
     auditLogs: false,        // default
     architect: false,        // default
     workflowsWrite: false,   // default — authoring and version snapshots
+    messages: false,         // default — sends spend the Project's Twilio balance
   },
 });
 ```
@@ -420,7 +430,7 @@ modes (`mode: 'development' | 'production'`, default `'production'` unless
 
 ## Not yet implemented
 
-This is v0.15.0. Every SDK resource now has a route (see [Routes](#routes)); what's left is either a
+This is v0.16.0. Every SDK resource now has a route (see [Routes](#routes)); what's left is either a
 genuine unclosed gap or an intentional package boundary, not an oversight:
 
 - **Multi-instance reconnect/resume** — see

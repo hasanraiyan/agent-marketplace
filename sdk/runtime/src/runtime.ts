@@ -24,6 +24,7 @@ import {
   resetThread,
 } from './routes/threads.js';
 import { createVoiceSession } from './routes/voice.js';
+import { sendMessage, sendAgentMessage } from './routes/messages.js';
 import {
   listAgents,
   createAgent,
@@ -146,6 +147,7 @@ function resolveCapabilities(
     auditLogs: capabilities?.auditLogs ?? false,
     architect: capabilities?.architect ?? false,
     workflowsWrite: capabilities?.workflowsWrite ?? false,
+    messages: capabilities?.messages ?? false,
   };
 }
 
@@ -245,6 +247,16 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
       handler: cancelWorkflowRun,
     },
   ];
+
+  // Messaging — opt-in, unlike voice: a send reaches any number the caller
+  // names and spends this Project's Twilio balance, so it isn't
+  // end-user-scoped even though the caller must still authenticate.
+  if (capabilities.messages) {
+    routes.push(
+      { method: 'POST', pattern: ['messages'], handler: sendMessage },
+      { method: 'POST', pattern: ['messages', 'agent'], handler: sendAgentMessage }
+    );
+  }
 
   if (capabilities.agentsWrite) {
     routes.push(
