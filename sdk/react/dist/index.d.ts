@@ -1208,6 +1208,51 @@ interface UseMcpAdminOptions {
     /** Free-text match against name/description. */
     search?: string;
 }
+/** `sms`, or `whatsapp` (also inferred from a `whatsapp:` prefix on `to`). */
+type PersonaMessageChannel = "sms" | "whatsapp";
+interface SendPersonaMessageInput {
+    /** Recipient's E.164 number, e.g. `"+919876543210"`. */
+    to: string;
+    channel?: PersonaMessageChannel;
+    /** Required unless {@link contentSid} supplies an approved WhatsApp template. */
+    body?: string;
+    mediaUrl?: string | string[];
+    /** Approved WhatsApp template SID — required outside the 24-hour session window. */
+    contentSid?: string;
+    contentVariables?: Record<string, string> | string;
+}
+interface SendPersonaAgentMessageInput {
+    agentId: string;
+    /** Recipient's E.164 number — the same conversation is shared with SMS/WhatsApp/voice. */
+    to: string;
+    /** What the Agent should say (or act on) in its reply. */
+    prompt: string;
+    channel?: PersonaMessageChannel;
+    /** Sender display name for channels that support one. */
+    displayName?: string;
+}
+interface PersonaMessageDelivery {
+    channel: PersonaMessageChannel;
+    to: string;
+    from: string | null;
+    /** One Twilio SID per delivered part (long bodies are split). */
+    messageSids: string[];
+    status: string | null;
+    parts: number;
+}
+interface PersonaAgentMessageDelivery extends PersonaMessageDelivery {
+    agentId: string;
+}
+interface UseMessagesResult {
+    /** True while either send is in flight. */
+    isSending: boolean;
+    /** The last failure, if any — the same error is also thrown from the call that failed. */
+    error: Error | null;
+    /** The most recent successful send, whichever method produced it. */
+    lastDelivery: PersonaMessageDelivery | PersonaAgentMessageDelivery | null;
+    send: (input: SendPersonaMessageInput) => Promise<PersonaMessageDelivery>;
+    sendFromAgent: (input: SendPersonaAgentMessageInput) => Promise<PersonaAgentMessageDelivery>;
+}
 
 interface PersonaContextValue {
     baseUrl: string;
@@ -1395,6 +1440,26 @@ declare function useWorkspaceFiles(agentId: string | undefined, autoFetch?: bool
  * own — it's embedded and loaded via a Blob URL (see `voiceWorklets.ts`).
  */
 declare function useVoice(options?: UseVoiceOptions): UseVoiceResult;
+
+/**
+ * Outbound SMS/WhatsApp — `POST /messages` and `POST /messages/agent` on your
+ * own backend (`createRuntime` or a framework adapter on top of it). Both
+ * sends go through `fetchWithAuth`, exactly like every other hook here; the
+ * Project credential never reaches the browser.
+ *
+ * Requires the host runtime to opt in with `capabilities: { messages: true }`
+ * — unlike `chat`/`voice`, messaging isn't end-user-scoped server-side (`to`
+ * is any E.164 number and each send spends the Project's Twilio balance), so
+ * it's off by default and both routes 404 until enabled. Enabling it also
+ * means every caller your `resolveUser` accepts on that mount can text
+ * arbitrary numbers through it — gate it accordingly.
+ *
+ * Conversations are keyed by phone number, so an SMS, a WhatsApp message, and
+ * a voice call with the same (Project, Agent, number) share one thread:
+ * `sendFromAgent()` continues whatever conversation is already in progress
+ * there rather than starting fresh.
+ */
+declare function useMessages(): UseMessagesResult;
 
 declare function useFiles(autoFetch?: boolean): {
     files: PersonaFileItem[];
@@ -1770,6 +1835,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.17.0";
+declare const VERSION = "0.18.0";
 
-export { ARCHITECT_AGENT_ID, type CreatePersonaAgentInput, type CreatePersonaKnowledgeBaseInput, type CreatePersonaMcpInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreatePersonaWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentSnapshot, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaBulkDeleteResult, type PersonaClarificationQuestion, type PersonaDeleteDocumentResult, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaKnowledgeBase, type PersonaKnowledgeBaseUsage, type PersonaKnowledgeDocument, type PersonaKnowledgeSearchResult, type PersonaMcp, type PersonaMcpAuthMode, type PersonaMcpAuthType, type PersonaMcpConnection, type PersonaMcpOAuthConfig, type PersonaMcpOAuthInput, type PersonaMcpResourceSummary, type PersonaMcpResourceTemplate, type PersonaMcpTestConnectionResult, type PersonaMcpTool, type PersonaMcpTransport, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaNodeOnErrorAction, type PersonaNodeRetryPolicy, type PersonaNodeRun, type PersonaNodeRunState, type PersonaNodeRunStatus, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaUploadDocumentsResult, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeData, type PersonaWorkflowNodeType, type PersonaWorkflowOwnerType, type PersonaWorkflowRun, type PersonaWorkflowRunStatus, type PersonaWorkflowTrigger, type PersonaWorkflowTriggerType, type PersonaWorkflowUsage, type PersonaWorkflowVersion, type PersonaWorkflowVisibility, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type UpdatePersonaAgentInput, type UpdatePersonaKnowledgeBaseInput, type UpdatePersonaMcpInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdatePersonaWorkflowInput, type UploadKnowledgeDocumentInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseChatOptions, type UseKnowledgeBasesOptions, type UseMcpAdminOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseRcpSourcesOptions, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, openSSEStream, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useConnection, useFiles, useKnowledgeBases, useMcp, useMcpAdmin, useMcpConnections, useMemory, usePersonaContext, useRcpSources, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows, useWorkspaceFiles };
+export { ARCHITECT_AGENT_ID, type CreatePersonaAgentInput, type CreatePersonaKnowledgeBaseInput, type CreatePersonaMcpInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreatePersonaWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentMessageDelivery, type PersonaAgentSnapshot, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaBulkDeleteResult, type PersonaClarificationQuestion, type PersonaDeleteDocumentResult, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaInterrupt, type PersonaKnowledgeBase, type PersonaKnowledgeBaseUsage, type PersonaKnowledgeDocument, type PersonaKnowledgeSearchResult, type PersonaMcp, type PersonaMcpAuthMode, type PersonaMcpAuthType, type PersonaMcpConnection, type PersonaMcpOAuthConfig, type PersonaMcpOAuthInput, type PersonaMcpResourceSummary, type PersonaMcpResourceTemplate, type PersonaMcpTestConnectionResult, type PersonaMcpTool, type PersonaMcpTransport, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaMessageChannel, type PersonaMessageDelivery, type PersonaNodeOnErrorAction, type PersonaNodeRetryPolicy, type PersonaNodeRun, type PersonaNodeRunState, type PersonaNodeRunStatus, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaUploadDocumentsResult, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeData, type PersonaWorkflowNodeType, type PersonaWorkflowOwnerType, type PersonaWorkflowRun, type PersonaWorkflowRunStatus, type PersonaWorkflowTrigger, type PersonaWorkflowTriggerType, type PersonaWorkflowUsage, type PersonaWorkflowVersion, type PersonaWorkflowVisibility, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type SendPersonaAgentMessageInput, type SendPersonaMessageInput, type UpdatePersonaAgentInput, type UpdatePersonaKnowledgeBaseInput, type UpdatePersonaMcpInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdatePersonaWorkflowInput, type UploadKnowledgeDocumentInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseChatOptions, type UseKnowledgeBasesOptions, type UseMcpAdminOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseMessagesResult, type UseRcpSourcesOptions, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, openSSEStream, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useConnection, useFiles, useKnowledgeBases, useMcp, useMcpAdmin, useMcpConnections, useMemory, useMessages, usePersonaContext, useRcpSources, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows, useWorkspaceFiles };

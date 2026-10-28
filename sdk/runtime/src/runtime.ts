@@ -386,7 +386,11 @@ function buildRoutes(capabilities: Required<RuntimeCapabilities>): Route[] {
       { method: 'PUT', pattern: ['workflows', ':id', 'draft'], handler: saveWorkflowDraft },
       { method: 'POST', pattern: ['workflows', ':id', 'publish'], handler: publishWorkflow },
       { method: 'GET', pattern: ['workflows', ':id', 'versions'], handler: listWorkflowVersions },
-      { method: 'GET', pattern: ['workflows', ':id', 'versions', ':version'], handler: getWorkflowVersion },
+      {
+        method: 'GET',
+        pattern: ['workflows', ':id', 'versions', ':version'],
+        handler: getWorkflowVersion,
+      },
       { method: 'GET', pattern: ['workflows', ':id', 'mermaid'], handler: getWorkflowMermaid },
       { method: 'GET', pattern: ['workflows', ':id', 'runs'], handler: listWorkflowRuns },
       { method: 'GET', pattern: ['workflows', 'runs', ':runId'], handler: getWorkflowRun }

@@ -1,6 +1,6 @@
 {
   "name": "@personaai/react",
-  "version": "0.17.1",
+  "version": "0.18.0",
   "description": "React hooks and state management library for the Persona AI agent runtime. Client-side only.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -73,10 +73,5 @@
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0",
     "vitest": "^3.0.4"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
   }
 }

@@ -55,6 +55,7 @@ function Chat() {
 | `useWorkflow`        | Single workflow authoring — drafts, publishing, versions, and Mermaid diagrams                 |
 | `useWorkflowRuns`    | Workflow run history — list historical runs, get run details, and cancel in-flight runs        |
 | `useVoice`           | Real-time voice calls (Gemini Live) — start/stop/mute, live transcript, tool calls             |
+| `useMessages`        | Outbound SMS/WhatsApp — plain send or Agent-composed reply (`capabilities.messages`)            |
 | `useThreads`         | Thread CRUD — list, create, delete, rename, reset, archive                                     |
 | `useFiles`           | Upload management — list, upload, delete                                                        |
 | `useMemory`          | Persistent memory CRUD — `scope: "user" \| "agent" \| "workspace"` (an Agent's own `/workspace/` files) |
@@ -170,6 +171,60 @@ in-progress agent line updated in place while it's still being spoken (`isStream
 as a text response). Injected messages get a `voice-`-prefixed id. You still call `voice.start()`
 / `voice.stop()` yourself — `useChat` only owns the transcript-to-feed sync, not the call
 lifecycle.
+
+## SMS and WhatsApp
+
+`useMessages()` sends outbound text messages through your own backend's `POST /messages` /
+`POST /messages/agent` routes (requires `@personaai/runtime@^0.16.0` or an adapter built on it).
+Both routes are opt-in there — mount a runtime with `capabilities: { messages: true }`, or they
+404. That's deliberate: `to` is any E.164 number and every send spends the Project's Twilio
+balance, so it isn't end-user-scoped the way `chat`/`voice` are. Anything your `resolveUser`
+accepts on that mount can text arbitrary numbers through it, so enable it only where that's
+acceptable.
+
+```tsx
+import { useMessages } from "@personaai/react";
+
+function FollowUp({ agentId }: { agentId: string }) {
+  const { send, sendFromAgent, isSending, error, lastDelivery } = useMessages();
+
+  return (
+    <div>
+      {/* Plain send — no Agent involved. */}
+      <button
+        onClick={() => send({ to: "+919876543210", body: "Your order shipped!" })}
+        disabled={isSending}
+      >
+        Text customer
+      </button>
+
+      {/* The Agent runs on the shared conversation and its reply is delivered. */}
+      <button
+        onClick={() =>
+          sendFromAgent({
+            agentId,
+            to: "+919876543210",
+            prompt: "Remind them their appointment is tomorrow at 10.",
+          })
+        }
+        disabled={isSending}
+      >
+        Have the agent follow up
+      </button>
+
+      {lastDelivery && <p>Sent in {lastDelivery.parts} part(s)</p>}
+      {error && <p role="alert">{error.message}</p>}
+    </div>
+  );
+}
+```
+
+The channel is inferred from a `whatsapp:` prefix on `to` (or pass `channel: "whatsapp"`). A body
+is required unless you pass an approved WhatsApp template (`contentSid` + `contentVariables`) —
+business-initiated WhatsApp messages outside the 24-hour session window need one. Conversations
+are keyed by phone number, so SMS, WhatsApp, and voice with the same Agent share one thread;
+`sendFromAgent()` continues it rather than starting fresh. Agents with guarded (`interruptOn`)
+tools are rejected with a 422, same as voice — there's no confirmation flow on a text channel.
 
 ## Ephemeral new chat (0.8.0+)
 

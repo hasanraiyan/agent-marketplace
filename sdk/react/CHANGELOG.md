@@ -3,6 +3,17 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.18.0
+
+- **New: `useMessages()`** — outbound SMS/WhatsApp from the browser via your own backend's new
+  `POST /messages` (plain send) and `POST /messages/agent` (the Agent composes the reply) routes.
+  Returns `send()`, `sendFromAgent()`, `isSending`, `error`, and `lastDelivery`, plus types
+  `SendPersonaMessageInput` / `SendPersonaAgentMessageInput` / `PersonaMessageDelivery` /
+  `PersonaAgentMessageDelivery` / `PersonaMessageChannel`. Requires `@personaai/runtime ^0.16.0`
+  with `capabilities: { messages: true }` — off by default there because a send targets any E.164
+  number and spends the Project's Twilio balance, so both routes 404 until the host opts in.
+- `VERSION` is now `"0.18.0"` (was hardcoded to `"0.17.0"`).
+
 ## 0.17.1
 
 - **Fixed: the exported `VERSION` constant was hardcoded to `"0.10.0"`** and never updated across

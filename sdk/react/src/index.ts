@@ -6,6 +6,7 @@ export * from "./hooks/useMemory.js";
 export * from "./hooks/useThreads.js";
 export * from "./hooks/useWorkspaceFiles.js";
 export * from "./hooks/useVoice.js";
+export * from "./hooks/useMessages.js";
 export * from "./hooks/useFiles.js";
 export * from "./hooks/useAgents.js";
 export * from "./hooks/useConnection.js";
@@ -34,4 +35,4 @@ export type {
   CreateLoggerOptions,
 } from "@personaai/logger";
 
-export const VERSION = "0.17.0";
+export const VERSION = "0.18.0";

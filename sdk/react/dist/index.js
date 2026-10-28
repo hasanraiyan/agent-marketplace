@@ -2463,15 +2463,78 @@ function useVoice(options = {}) {
   };
 }
 
+// src/hooks/useMessages.ts
+import { useCallback as useCallback7, useMemo as useMemo5, useRef as useRef4, useState as useState7 } from "react";
+async function readErrorMessage(res, fallback) {
+  try {
+    const body = await res.json();
+    const message = body?.error?.message ?? body?.message;
+    if (typeof message === "string" && message) return message;
+  } catch {
+  }
+  return `${fallback}: ${res.statusText}`;
+}
+function useMessages() {
+  const { fetchWithAuth, logger } = usePersonaContext();
+  const messagesLogger = useMemo5(() => logger.child("messages"), [logger]);
+  const [isSending, setIsSending] = useState7(false);
+  const [error, setError] = useState7(null);
+  const [lastDelivery, setLastDelivery] = useState7(null);
+  const inFlightRef = useRef4(0);
+  const post = useCallback7(
+    async (path, input) => {
+      inFlightRef.current += 1;
+      setIsSending(true);
+      setError(null);
+      try {
+        const res = await fetchWithAuth(path, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input)
+        });
+        if (!res.ok) {
+          throw new Error(await readErrorMessage(res, "Failed to send message"));
+        }
+        const payload = await res.json();
+        const delivery = payload?.data ?? payload;
+        setLastDelivery(delivery);
+        messagesLogger.info("message sent", { path });
+        return delivery;
+      } catch (err) {
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        messagesLogger.warn("message send failed", {
+          path,
+          error: errorObj.message
+        });
+        setError(errorObj);
+        throw errorObj;
+      } finally {
+        inFlightRef.current -= 1;
+        if (inFlightRef.current === 0) setIsSending(false);
+      }
+    },
+    [fetchWithAuth, messagesLogger]
+  );
+  const send = useCallback7(
+    (input) => post("/messages", input),
+    [post]
+  );
+  const sendFromAgent = useCallback7(
+    (input) => post("/messages/agent", input),
+    [post]
+  );
+  return { isSending, error, lastDelivery, send, sendFromAgent };
+}
+
 // src/hooks/useFiles.ts
-import { useCallback as useCallback7, useEffect as useEffect7, useState as useState7 } from "react";
+import { useCallback as useCallback8, useEffect as useEffect7, useState as useState8 } from "react";
 function useFiles(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [files, setFiles] = useState7([]);
-  const [isLoading, setIsLoading] = useState7(false);
-  const [isUploading, setIsUploading] = useState7(false);
-  const [error, setError] = useState7(null);
-  const fetchFiles = useCallback7(async () => {
+  const [files, setFiles] = useState8([]);
+  const [isLoading, setIsLoading] = useState8(false);
+  const [isUploading, setIsUploading] = useState8(false);
+  const [error, setError] = useState8(null);
+  const fetchFiles = useCallback8(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -2489,7 +2552,7 @@ function useFiles(autoFetch = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth]);
-  const uploadFile = useCallback7(
+  const uploadFile = useCallback8(
     async (fileOrFormData) => {
       setIsUploading(true);
       setError(null);
@@ -2522,7 +2585,7 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth, fetchFiles]
   );
-  const deleteFile = useCallback7(
+  const deleteFile = useCallback8(
     async (fileId) => {
       const res = await fetchWithAuth(`/files/${fileId}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`Failed to delete file: ${res.statusText}`);
@@ -2530,7 +2593,7 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteFiles = useCallback7(
+  const bulkDeleteFiles = useCallback8(
     async (fileIds) => {
       const res = await fetchWithAuth("/files/bulk-delete", {
         method: "POST",
@@ -2545,7 +2608,7 @@ function useFiles(autoFetch = true) {
     },
     [fetchWithAuth]
   );
-  const getDownloadUrl = useCallback7((fileId) => {
+  const getDownloadUrl = useCallback8((fileId) => {
     return `/files/${fileId}`;
   }, []);
   useEffect7(() => {
@@ -2567,21 +2630,21 @@ function useFiles(autoFetch = true) {
 }
 
 // src/hooks/useAgents.ts
-import { useCallback as useCallback8, useEffect as useEffect8, useState as useState8 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect8, useState as useState9 } from "react";
 function useAgents(options = true) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options;
   const { autoFetch = true, page, limit, search, category, scope } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [agents, setAgents] = useState8([]);
-  const [pagination, setPagination] = useState8({
+  const [agents, setAgents] = useState9([]);
+  const [pagination, setPagination] = useState9({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState8(false);
-  const [error, setError] = useState8(null);
-  const fetchAgents = useCallback8(async () => {
+  const [isLoading, setIsLoading] = useState9(false);
+  const [error, setError] = useState9(null);
+  const fetchAgents = useCallback9(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -2609,7 +2672,7 @@ function useAgents(options = true) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, page, limit, search, category, scope]);
-  const getAgent = useCallback8(
+  const getAgent = useCallback9(
     async (agentId) => {
       const res = await fetchWithAuth(`/agents/${agentId}`);
       if (!res.ok) throw new Error(`Failed to fetch agent: ${res.statusText}`);
@@ -2617,7 +2680,7 @@ function useAgents(options = true) {
     },
     [fetchWithAuth]
   );
-  const createAgent = useCallback8(
+  const createAgent = useCallback9(
     async (input) => {
       setError(null);
       try {
@@ -2641,7 +2704,7 @@ function useAgents(options = true) {
     },
     [fetchWithAuth]
   );
-  const updateAgent = useCallback8(
+  const updateAgent = useCallback9(
     async (agentId, input) => {
       setError(null);
       try {
@@ -2665,7 +2728,7 @@ function useAgents(options = true) {
     },
     [fetchWithAuth]
   );
-  const deleteAgent = useCallback8(
+  const deleteAgent = useCallback9(
     async (agentId) => {
       setError(null);
       try {
@@ -2683,7 +2746,7 @@ function useAgents(options = true) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteAgents = useCallback8(
+  const bulkDeleteAgents = useCallback9(
     async (ids) => {
       setError(null);
       try {
@@ -2726,13 +2789,13 @@ function useAgents(options = true) {
 }
 
 // src/hooks/useConnection.ts
-import { useCallback as useCallback9, useEffect as useEffect9, useState as useState9 } from "react";
+import { useCallback as useCallback10, useEffect as useEffect9, useState as useState10 } from "react";
 function useConnection(autoCheck = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [health, setHealth] = useState9(null);
-  const [isConnected, setIsConnected] = useState9(false);
-  const [isLoading, setIsLoading] = useState9(false);
-  const checkHealth = useCallback9(async () => {
+  const [health, setHealth] = useState10(null);
+  const [isConnected, setIsConnected] = useState10(false);
+  const [isLoading, setIsLoading] = useState10(false);
+  const checkHealth = useCallback10(async () => {
     setIsLoading(true);
     try {
       const res = await fetchWithAuth("/health");
@@ -2765,15 +2828,15 @@ function useConnection(autoCheck = true) {
 }
 
 // src/hooks/useMcpConnections.ts
-import { useCallback as useCallback10, useEffect as useEffect10, useState as useState10 } from "react";
+import { useCallback as useCallback11, useEffect as useEffect10, useState as useState11 } from "react";
 function useMcpConnections(options = {}) {
   const { defaultAgentId, fetchWithAuth } = usePersonaContext();
   const agentId = options.agentId ?? defaultAgentId;
   const autoFetch = options.autoFetch ?? true;
-  const [connections, setConnections] = useState10([]);
-  const [isLoading, setIsLoading] = useState10(false);
-  const [error, setError] = useState10(null);
-  const fetchConnections = useCallback10(async () => {
+  const [connections, setConnections] = useState11([]);
+  const [isLoading, setIsLoading] = useState11(false);
+  const [error, setError] = useState11(null);
+  const fetchConnections = useCallback11(async () => {
     if (!agentId) return [];
     setIsLoading(true);
     setError(null);
@@ -2797,8 +2860,8 @@ function useMcpConnections(options = {}) {
       setIsLoading(false);
     }
   }, [agentId, fetchWithAuth, options.returnTo]);
-  const [isDisconnecting, setIsDisconnecting] = useState10(false);
-  const disconnect = useCallback10(
+  const [isDisconnecting, setIsDisconnecting] = useState11(false);
+  const disconnect = useCallback11(
     async (mcpId) => {
       setIsDisconnecting(true);
       setError(null);
@@ -2840,11 +2903,11 @@ function useMcpConnections(options = {}) {
 }
 
 // src/hooks/useMcp.ts
-import { useCallback as useCallback11 } from "react";
+import { useCallback as useCallback12 } from "react";
 function useMcp(options = {}) {
   const { fetchWithAuth } = usePersonaContext();
   const defaultMcpId = options.mcpId;
-  const readResource = useCallback11(
+  const readResource = useCallback12(
     async (uri, mcpId) => {
       const id = mcpId ?? defaultMcpId;
       if (!id) throw new Error("MCP server ID is required to read resource");
@@ -2858,7 +2921,7 @@ function useMcp(options = {}) {
     },
     [fetchWithAuth, defaultMcpId]
   );
-  const callTool = useCallback11(
+  const callTool = useCallback12(
     async (name, args, mcpId) => {
       const id = mcpId ?? defaultMcpId;
       if (!id) throw new Error("MCP server ID is required to call tool");
@@ -2881,20 +2944,20 @@ function useMcp(options = {}) {
 }
 
 // src/hooks/useSkills.ts
-import { useCallback as useCallback12, useEffect as useEffect11, useState as useState11 } from "react";
+import { useCallback as useCallback13, useEffect as useEffect11, useState as useState12 } from "react";
 function useSkills(options = {}) {
   const { autoFetch = true, page, limit, search, scope } = options;
   const { fetchWithAuth } = usePersonaContext();
-  const [skills, setSkills] = useState11([]);
-  const [pagination, setPagination] = useState11({
+  const [skills, setSkills] = useState12([]);
+  const [pagination, setPagination] = useState12({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState11(false);
-  const [error, setError] = useState11(null);
-  const fetchSkills = useCallback12(async () => {
+  const [isLoading, setIsLoading] = useState12(false);
+  const [error, setError] = useState12(null);
+  const fetchSkills = useCallback13(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -2921,7 +2984,7 @@ function useSkills(options = {}) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, page, limit, search, scope]);
-  const getSkill = useCallback12(
+  const getSkill = useCallback13(
     async (skillId) => {
       const res = await fetchWithAuth(`/skills/${skillId}`);
       if (!res.ok) throw new Error(`Failed to fetch skill: ${res.statusText}`);
@@ -2929,7 +2992,7 @@ function useSkills(options = {}) {
     },
     [fetchWithAuth]
   );
-  const createSkill = useCallback12(
+  const createSkill = useCallback13(
     async (input) => {
       setError(null);
       try {
@@ -2953,7 +3016,7 @@ function useSkills(options = {}) {
     },
     [fetchWithAuth]
   );
-  const updateSkill = useCallback12(
+  const updateSkill = useCallback13(
     async (skillId, input) => {
       setError(null);
       try {
@@ -2977,7 +3040,7 @@ function useSkills(options = {}) {
     },
     [fetchWithAuth]
   );
-  const deleteSkill = useCallback12(
+  const deleteSkill = useCallback13(
     async (skillId) => {
       setError(null);
       try {
@@ -2995,7 +3058,7 @@ function useSkills(options = {}) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteSkills = useCallback12(
+  const bulkDeleteSkills = useCallback13(
     async (ids) => {
       setError(null);
       try {
@@ -3020,7 +3083,7 @@ function useSkills(options = {}) {
     },
     [fetchWithAuth]
   );
-  const getSkillUsage = useCallback12(
+  const getSkillUsage = useCallback13(
     async (skillId) => {
       const res = await fetchWithAuth(`/skills/${skillId}/usage`);
       if (!res.ok) throw new Error(`Failed to fetch skill usage: ${res.statusText}`);
@@ -3047,20 +3110,20 @@ function useSkills(options = {}) {
 }
 
 // src/hooks/useRcpSources.ts
-import { useCallback as useCallback13, useEffect as useEffect12, useState as useState12 } from "react";
+import { useCallback as useCallback14, useEffect as useEffect12, useState as useState13 } from "react";
 function useRcpSources(options = {}) {
   const { autoFetch = true, page, limit, search } = options;
   const { fetchWithAuth } = usePersonaContext();
-  const [rcpSources, setRcpSources] = useState12([]);
-  const [pagination, setPagination] = useState12({
+  const [rcpSources, setRcpSources] = useState13([]);
+  const [pagination, setPagination] = useState13({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState12(false);
-  const [error, setError] = useState12(null);
-  const fetchRcpSources = useCallback13(async () => {
+  const [isLoading, setIsLoading] = useState13(false);
+  const [error, setError] = useState13(null);
+  const fetchRcpSources = useCallback14(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -3086,7 +3149,7 @@ function useRcpSources(options = {}) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, page, limit, search]);
-  const getRcpSource = useCallback13(
+  const getRcpSource = useCallback14(
     async (sourceId) => {
       const res = await fetchWithAuth(`/rcp-sources/${sourceId}`);
       if (!res.ok) throw new Error(`Failed to fetch RCP source: ${res.statusText}`);
@@ -3094,7 +3157,7 @@ function useRcpSources(options = {}) {
     },
     [fetchWithAuth]
   );
-  const createRcpSource = useCallback13(
+  const createRcpSource = useCallback14(
     async (input) => {
       setError(null);
       try {
@@ -3118,7 +3181,7 @@ function useRcpSources(options = {}) {
     },
     [fetchWithAuth]
   );
-  const updateRcpSource = useCallback13(
+  const updateRcpSource = useCallback14(
     async (sourceId, input) => {
       setError(null);
       try {
@@ -3142,7 +3205,7 @@ function useRcpSources(options = {}) {
     },
     [fetchWithAuth]
   );
-  const deleteRcpSource = useCallback13(
+  const deleteRcpSource = useCallback14(
     async (sourceId) => {
       setError(null);
       try {
@@ -3160,7 +3223,7 @@ function useRcpSources(options = {}) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteRcpSources = useCallback13(
+  const bulkDeleteRcpSources = useCallback14(
     async (ids) => {
       setError(null);
       try {
@@ -3185,7 +3248,7 @@ function useRcpSources(options = {}) {
     },
     [fetchWithAuth]
   );
-  const getRcpSourceUsage = useCallback13(
+  const getRcpSourceUsage = useCallback14(
     async (sourceId) => {
       const res = await fetchWithAuth(`/rcp-sources/${sourceId}/usage`);
       if (!res.ok) throw new Error(`Failed to fetch RCP source usage: ${res.statusText}`);
@@ -3193,7 +3256,7 @@ function useRcpSources(options = {}) {
     },
     [fetchWithAuth]
   );
-  const testRcpSourceConnection = useCallback13(
+  const testRcpSourceConnection = useCallback14(
     async (sourceId) => {
       setError(null);
       try {
@@ -3237,21 +3300,21 @@ function useRcpSources(options = {}) {
 }
 
 // src/hooks/useKnowledgeBases.ts
-import { useCallback as useCallback14, useEffect as useEffect13, useState as useState13 } from "react";
+import { useCallback as useCallback15, useEffect as useEffect13, useState as useState14 } from "react";
 function useKnowledgeBases(options = {}) {
   const { autoFetch = true, page, limit, search, scope } = options;
   const { fetchWithAuth } = usePersonaContext();
-  const [knowledgeBases, setKnowledgeBases] = useState13([]);
-  const [pagination, setPagination] = useState13({
+  const [knowledgeBases, setKnowledgeBases] = useState14([]);
+  const [pagination, setPagination] = useState14({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState13(false);
-  const [isUploading, setIsUploading] = useState13(false);
-  const [error, setError] = useState13(null);
-  const fetchKnowledgeBases = useCallback14(async () => {
+  const [isLoading, setIsLoading] = useState14(false);
+  const [isUploading, setIsUploading] = useState14(false);
+  const [error, setError] = useState14(null);
+  const fetchKnowledgeBases = useCallback15(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -3278,7 +3341,7 @@ function useKnowledgeBases(options = {}) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, page, limit, search, scope]);
-  const getKnowledgeBase = useCallback14(
+  const getKnowledgeBase = useCallback15(
     async (kbId) => {
       const res = await fetchWithAuth(`/knowledge/${kbId}`);
       if (!res.ok) throw new Error(`Failed to fetch knowledge base: ${res.statusText}`);
@@ -3286,7 +3349,7 @@ function useKnowledgeBases(options = {}) {
     },
     [fetchWithAuth]
   );
-  const createKnowledgeBase = useCallback14(
+  const createKnowledgeBase = useCallback15(
     async (input) => {
       setError(null);
       try {
@@ -3310,7 +3373,7 @@ function useKnowledgeBases(options = {}) {
     },
     [fetchWithAuth]
   );
-  const updateKnowledgeBase = useCallback14(
+  const updateKnowledgeBase = useCallback15(
     async (kbId, input) => {
       setError(null);
       try {
@@ -3334,7 +3397,7 @@ function useKnowledgeBases(options = {}) {
     },
     [fetchWithAuth]
   );
-  const deleteKnowledgeBase = useCallback14(
+  const deleteKnowledgeBase = useCallback15(
     async (kbId) => {
       setError(null);
       try {
@@ -3352,7 +3415,7 @@ function useKnowledgeBases(options = {}) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteKnowledgeBases = useCallback14(
+  const bulkDeleteKnowledgeBases = useCallback15(
     async (ids) => {
       setError(null);
       try {
@@ -3377,7 +3440,7 @@ function useKnowledgeBases(options = {}) {
     },
     [fetchWithAuth]
   );
-  const getKnowledgeBaseUsage = useCallback14(
+  const getKnowledgeBaseUsage = useCallback15(
     async (kbId) => {
       const res = await fetchWithAuth(`/knowledge/${kbId}/usage`);
       if (!res.ok) throw new Error(`Failed to fetch knowledge base usage: ${res.statusText}`);
@@ -3385,7 +3448,7 @@ function useKnowledgeBases(options = {}) {
     },
     [fetchWithAuth]
   );
-  const uploadDocuments = useCallback14(
+  const uploadDocuments = useCallback15(
     async (kbId, files) => {
       setIsUploading(true);
       setError(null);
@@ -3427,7 +3490,7 @@ function useKnowledgeBases(options = {}) {
     },
     [fetchWithAuth]
   );
-  const listDocuments = useCallback14(
+  const listDocuments = useCallback15(
     async (kbId) => {
       const res = await fetchWithAuth(`/knowledge/${kbId}/documents`);
       if (!res.ok) throw new Error(`Failed to list documents: ${res.statusText}`);
@@ -3435,7 +3498,7 @@ function useKnowledgeBases(options = {}) {
     },
     [fetchWithAuth]
   );
-  const deleteDocument = useCallback14(
+  const deleteDocument = useCallback15(
     async (kbId, sourceName) => {
       setError(null);
       try {
@@ -3462,7 +3525,7 @@ function useKnowledgeBases(options = {}) {
     },
     [fetchWithAuth]
   );
-  const searchKnowledgeBase = useCallback14(
+  const searchKnowledgeBase = useCallback15(
     async (kbId, query, opts) => {
       const res = await fetchWithAuth(`/knowledge/${kbId}/search`, {
         method: "POST",
@@ -3501,20 +3564,20 @@ function useKnowledgeBases(options = {}) {
 }
 
 // src/hooks/useMcpAdmin.ts
-import { useCallback as useCallback15, useEffect as useEffect14, useState as useState14 } from "react";
+import { useCallback as useCallback16, useEffect as useEffect14, useState as useState15 } from "react";
 function useMcpAdmin(options = {}) {
   const { autoFetch = true, page, limit, search } = options;
   const { fetchWithAuth } = usePersonaContext();
-  const [mcps, setMcps] = useState14([]);
-  const [pagination, setPagination] = useState14({
+  const [mcps, setMcps] = useState15([]);
+  const [pagination, setPagination] = useState15({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState14(false);
-  const [error, setError] = useState14(null);
-  const fetchMcps = useCallback15(async () => {
+  const [isLoading, setIsLoading] = useState15(false);
+  const [error, setError] = useState15(null);
+  const fetchMcps = useCallback16(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -3540,7 +3603,7 @@ function useMcpAdmin(options = {}) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, page, limit, search]);
-  const getMcp = useCallback15(
+  const getMcp = useCallback16(
     async (mcpId) => {
       const res = await fetchWithAuth(`/mcps/${mcpId}`);
       if (!res.ok) throw new Error(`Failed to fetch MCP: ${res.statusText}`);
@@ -3548,7 +3611,7 @@ function useMcpAdmin(options = {}) {
     },
     [fetchWithAuth]
   );
-  const createMcp = useCallback15(
+  const createMcp = useCallback16(
     async (input) => {
       setError(null);
       try {
@@ -3572,7 +3635,7 @@ function useMcpAdmin(options = {}) {
     },
     [fetchWithAuth]
   );
-  const updateMcp = useCallback15(
+  const updateMcp = useCallback16(
     async (mcpId, input) => {
       setError(null);
       try {
@@ -3596,7 +3659,7 @@ function useMcpAdmin(options = {}) {
     },
     [fetchWithAuth]
   );
-  const deleteMcp = useCallback15(
+  const deleteMcp = useCallback16(
     async (mcpId) => {
       setError(null);
       try {
@@ -3614,7 +3677,7 @@ function useMcpAdmin(options = {}) {
     },
     [fetchWithAuth]
   );
-  const bulkDeleteMcps = useCallback15(
+  const bulkDeleteMcps = useCallback16(
     async (ids) => {
       setError(null);
       try {
@@ -3639,7 +3702,7 @@ function useMcpAdmin(options = {}) {
     },
     [fetchWithAuth]
   );
-  const testConnection = useCallback15(
+  const testConnection = useCallback16(
     async (mcpId) => {
       setError(null);
       try {
@@ -3682,21 +3745,21 @@ function useMcpAdmin(options = {}) {
 }
 
 // src/hooks/useWorkflows.ts
-import { useCallback as useCallback16, useEffect as useEffect15, useState as useState15 } from "react";
+import { useCallback as useCallback17, useEffect as useEffect15, useState as useState16 } from "react";
 function useWorkflows(options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true, search, scope, visibility, isEnabled, page, limit } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [workflows, setWorkflows] = useState15([]);
-  const [pagination, setPagination] = useState15({
+  const [workflows, setWorkflows] = useState16([]);
+  const [pagination, setPagination] = useState16({
     page: page ?? 1,
     limit: limit ?? 20,
     total: 0,
     totalPages: 0
   });
-  const [isLoading, setIsLoading] = useState15(false);
-  const [error, setError] = useState15(null);
-  const fetchWorkflows = useCallback16(async () => {
+  const [isLoading, setIsLoading] = useState16(false);
+  const [error, setError] = useState16(null);
+  const fetchWorkflows = useCallback17(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -3742,7 +3805,7 @@ function useWorkflows(options) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, search, scope, visibility, isEnabled, page, limit]);
-  const createWorkflow = useCallback16(
+  const createWorkflow = useCallback17(
     async (input) => {
       setError(null);
       try {
@@ -3782,17 +3845,17 @@ function useWorkflows(options) {
 }
 
 // src/hooks/useWorkflow.ts
-import { useCallback as useCallback17, useEffect as useEffect16, useState as useState16 } from "react";
+import { useCallback as useCallback18, useEffect as useEffect16, useState as useState17 } from "react";
 function useWorkflow(workflowId, options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [workflow, setWorkflow] = useState16(null);
-  const [versions, setVersions] = useState16([]);
-  const [mermaid, setMermaid] = useState16(null);
-  const [isLoading, setIsLoading] = useState16(false);
-  const [error, setError] = useState16(null);
-  const fetchWorkflow = useCallback17(async () => {
+  const [workflow, setWorkflow] = useState17(null);
+  const [versions, setVersions] = useState17([]);
+  const [mermaid, setMermaid] = useState17(null);
+  const [isLoading, setIsLoading] = useState17(false);
+  const [error, setError] = useState17(null);
+  const fetchWorkflow = useCallback18(async () => {
     if (!workflowId) return null;
     setIsLoading(true);
     setError(null);
@@ -3812,7 +3875,7 @@ function useWorkflow(workflowId, options) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, workflowId]);
-  const fetchVersions = useCallback17(async () => {
+  const fetchVersions = useCallback18(async () => {
     if (!workflowId) return [];
     try {
       const res = await fetchWithAuth(`/workflows/${workflowId}/versions`);
@@ -3825,7 +3888,7 @@ function useWorkflow(workflowId, options) {
       return [];
     }
   }, [fetchWithAuth, workflowId]);
-  const getVersion = useCallback17(
+  const getVersion = useCallback18(
     async (version) => {
       if (!workflowId) throw new Error("Workflow ID is required");
       const res = await fetchWithAuth(`/workflows/${workflowId}/versions/${version}`);
@@ -3836,7 +3899,7 @@ function useWorkflow(workflowId, options) {
     },
     [fetchWithAuth, workflowId]
   );
-  const fetchMermaid = useCallback17(async () => {
+  const fetchMermaid = useCallback18(async () => {
     if (!workflowId) return "";
     try {
       const res = await fetchWithAuth(`/workflows/${workflowId}/mermaid`);
@@ -3849,7 +3912,7 @@ function useWorkflow(workflowId, options) {
       return "";
     }
   }, [fetchWithAuth, workflowId]);
-  const updateWorkflow = useCallback17(
+  const updateWorkflow = useCallback18(
     async (input) => {
       if (!workflowId) throw new Error("Workflow ID is required");
       setError(null);
@@ -3868,7 +3931,7 @@ function useWorkflow(workflowId, options) {
     },
     [fetchWithAuth, workflowId]
   );
-  const saveDraft = useCallback17(
+  const saveDraft = useCallback18(
     async (draft) => {
       if (!workflowId) throw new Error("Workflow ID is required");
       setError(null);
@@ -3887,7 +3950,7 @@ function useWorkflow(workflowId, options) {
     },
     [fetchWithAuth, workflowId]
   );
-  const publish = useCallback17(async () => {
+  const publish = useCallback18(async () => {
     if (!workflowId) throw new Error("Workflow ID is required");
     setError(null);
     const res = await fetchWithAuth(`/workflows/${workflowId}/publish`, {
@@ -3902,7 +3965,7 @@ function useWorkflow(workflowId, options) {
     void fetchVersions();
     return versionResult;
   }, [fetchWithAuth, workflowId, fetchWorkflow, fetchVersions]);
-  const deleteWorkflow = useCallback17(async () => {
+  const deleteWorkflow = useCallback18(async () => {
     if (!workflowId) throw new Error("Workflow ID is required");
     setError(null);
     const res = await fetchWithAuth(`/workflows/${workflowId}`, {
@@ -3936,25 +3999,25 @@ function useWorkflow(workflowId, options) {
 }
 
 // src/hooks/useWorkflowStream.ts
-import { useCallback as useCallback18, useEffect as useEffect17, useRef as useRef4, useState as useState17 } from "react";
+import { useCallback as useCallback19, useEffect as useEffect17, useRef as useRef5, useState as useState18 } from "react";
 function useWorkflowStream(workflowId, options) {
   const { baseUrl, getAuthToken, fetchWithAuth, logger } = usePersonaContext();
-  const [status, setStatus] = useState17("idle");
-  const [runId, setRunId] = useState17(null);
-  const [activeNodeId, setActiveNodeId] = useState17(null);
-  const [nodeRuns, setNodeRuns] = useState17(
+  const [status, setStatus] = useState18("idle");
+  const [runId, setRunId] = useState18(null);
+  const [activeNodeId, setActiveNodeId] = useState18(null);
+  const [nodeRuns, setNodeRuns] = useState18(
     {}
   );
-  const [text, setText] = useState17("");
-  const [output, setOutput] = useState17(null);
-  const [error, setError] = useState17(null);
-  const [events, setEvents] = useState17([]);
-  const abortControllerRef = useRef4(null);
-  const currentRunIdRef = useRef4(null);
+  const [text, setText] = useState18("");
+  const [output, setOutput] = useState18(null);
+  const [error, setError] = useState18(null);
+  const [events, setEvents] = useState18([]);
+  const abortControllerRef = useRef5(null);
+  const currentRunIdRef = useRef5(null);
   currentRunIdRef.current = runId;
-  const optionsRef = useRef4(options);
+  const optionsRef = useRef5(options);
   optionsRef.current = options;
-  const cancel = useCallback18(async () => {
+  const cancel = useCallback19(async () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -3975,7 +4038,7 @@ function useWorkflowStream(workflowId, options) {
     setStatus("cancelled");
     setActiveNodeId(null);
   }, [fetchWithAuth, logger]);
-  const reset = useCallback18(() => {
+  const reset = useCallback19(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -3989,7 +4052,7 @@ function useWorkflowStream(workflowId, options) {
     setError(null);
     setEvents([]);
   }, []);
-  const processStream = useCallback18(
+  const processStream = useCallback19(
     async (url, method, body, targetRunId) => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
@@ -4154,7 +4217,7 @@ function useWorkflowStream(workflowId, options) {
     },
     [getAuthToken]
   );
-  const start = useCallback18(
+  const start = useCallback19(
     async (input, opts) => {
       const targetWfId = opts?.workflowId || workflowId;
       if (!targetWfId) {
@@ -4175,7 +4238,7 @@ function useWorkflowStream(workflowId, options) {
     },
     [workflowId, baseUrl, processStream]
   );
-  const resume = useCallback18(
+  const resume = useCallback19(
     async (targetRunId, sinceSeq) => {
       if (!targetRunId) {
         throw new Error("Run ID is required to resume stream");
@@ -4213,21 +4276,21 @@ function useWorkflowStream(workflowId, options) {
 }
 
 // src/hooks/useWorkflowRuns.ts
-import { useCallback as useCallback19, useEffect as useEffect18, useState as useState18 } from "react";
+import { useCallback as useCallback20, useEffect as useEffect18, useState as useState19 } from "react";
 function useWorkflowRuns(workflowId, options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true, page = 1, limit = 20 } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [runs, setRuns] = useState18([]);
-  const [pagination, setPagination] = useState18({
+  const [runs, setRuns] = useState19([]);
+  const [pagination, setPagination] = useState19({
     page,
     limit,
     total: 0,
     totalPages: 0
   });
-  const [isLoading, setIsLoading] = useState18(false);
-  const [error, setError] = useState18(null);
-  const fetchRuns = useCallback19(async () => {
+  const [isLoading, setIsLoading] = useState19(false);
+  const [error, setError] = useState19(null);
+  const fetchRuns = useCallback20(async () => {
     if (!workflowId) return [];
     setIsLoading(true);
     setError(null);
@@ -4259,7 +4322,7 @@ function useWorkflowRuns(workflowId, options) {
       setIsLoading(false);
     }
   }, [fetchWithAuth, workflowId, page, limit]);
-  const getRun = useCallback19(
+  const getRun = useCallback20(
     async (runId) => {
       if (!runId) throw new Error("Run ID is required");
       const res = await fetchWithAuth(`/workflows/runs/${runId}`);
@@ -4270,7 +4333,7 @@ function useWorkflowRuns(workflowId, options) {
     },
     [fetchWithAuth]
   );
-  const cancelRun = useCallback19(
+  const cancelRun = useCallback20(
     async (runId) => {
       if (!runId) throw new Error("Run ID is required");
       const res = await fetchWithAuth(`/workflows/runs/${runId}/cancel`, {
@@ -4309,7 +4372,7 @@ import {
   getLogLevel,
   isLevelEnabled
 } from "@personaai/logger";
-var VERSION = "0.17.0";
+var VERSION = "0.18.0";
 export {
   ARCHITECT_AGENT_ID,
   PersonaProvider,
@@ -4331,6 +4394,7 @@ export {
   useMcpAdmin,
   useMcpConnections,
   useMemory,
+  useMessages,
   usePersonaContext,
   useRcpSources,
   useSkills,

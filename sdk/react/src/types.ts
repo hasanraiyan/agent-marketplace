@@ -1307,3 +1307,58 @@ export interface UseMcpAdminOptions {
   search?: string;
 }
 
+// ---- Messaging (useMessages) ---------------------------------------------
+
+/** `sms`, or `whatsapp` (also inferred from a `whatsapp:` prefix on `to`). */
+export type PersonaMessageChannel = "sms" | "whatsapp";
+
+export interface SendPersonaMessageInput {
+  /** Recipient's E.164 number, e.g. `"+919876543210"`. */
+  to: string;
+  channel?: PersonaMessageChannel;
+  /** Required unless {@link contentSid} supplies an approved WhatsApp template. */
+  body?: string;
+  mediaUrl?: string | string[];
+  /** Approved WhatsApp template SID — required outside the 24-hour session window. */
+  contentSid?: string;
+  contentVariables?: Record<string, string> | string;
+}
+
+export interface SendPersonaAgentMessageInput {
+  agentId: string;
+  /** Recipient's E.164 number — the same conversation is shared with SMS/WhatsApp/voice. */
+  to: string;
+  /** What the Agent should say (or act on) in its reply. */
+  prompt: string;
+  channel?: PersonaMessageChannel;
+  /** Sender display name for channels that support one. */
+  displayName?: string;
+}
+
+export interface PersonaMessageDelivery {
+  channel: PersonaMessageChannel;
+  to: string;
+  from: string | null;
+  /** One Twilio SID per delivered part (long bodies are split). */
+  messageSids: string[];
+  status: string | null;
+  parts: number;
+}
+
+export interface PersonaAgentMessageDelivery extends PersonaMessageDelivery {
+  agentId: string;
+}
+
+export interface UseMessagesResult {
+  /** True while either send is in flight. */
+  isSending: boolean;
+  /** The last failure, if any — the same error is also thrown from the call that failed. */
+  error: Error | null;
+  /** The most recent successful send, whichever method produced it. */
+  lastDelivery: PersonaMessageDelivery | PersonaAgentMessageDelivery | null;
+  send: (input: SendPersonaMessageInput) => Promise<PersonaMessageDelivery>;
+  sendFromAgent: (
+    input: SendPersonaAgentMessageInput,
+  ) => Promise<PersonaAgentMessageDelivery>;
+}
+
