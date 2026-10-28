@@ -509,12 +509,21 @@ class AgentFactory {
    * correctly — `{ userId }` for a Persona caller, `{ domain,
    * externalUserId }` for a `ProjectRuntime` caller — rather than assuming
    * every caller is a Persona User ObjectId.
+   *
+   * `options.allowPrivateExecution` is for server-configured channels only
+   * (e.g. a Project's Twilio number bound to an Agent): the Project owner
+   * exposed that Agent deliberately, so the private/unlisted visibility
+   * guard would otherwise make every channel-bound Agent unusable (private
+   * is the default). Callers must still verify Project/Domain ownership —
+   * the Domain match below is re-checked here as defense-in-depth, and
+   * soft-deleted Agents stay unavailable either way.
    */
   async buildAgent(
     agentId,
     userId,
     checkpointer,
-    executionContext = personaExecutionContext(userId)
+    executionContext = personaExecutionContext(userId),
+    options = {}
   ) {
     if (!agentId) throw new Error('Agent ID is required to build an agent');
 
@@ -641,7 +650,12 @@ class AgentFactory {
     } else {
       // 1.5 Fetch Standard Configuration from DB
       agent = await agentRepository.findById(agentId);
-      if (!agent || !agentService.canUserExecuteAgent(agent, executionContext)) {
+      const executionAllowed = options.allowPrivateExecution
+        ? Boolean(agent) &&
+          !agent.deletedAt &&
+          (!executionContext?.domain || !agent.domain || agent.domain === executionContext.domain)
+        : agentService.canUserExecuteAgent(agent, executionContext);
+      if (!agent || !executionAllowed) {
         throw new Error('Agent deleted or unavailable');
       }
       if (typeof agent.populate === 'function') {

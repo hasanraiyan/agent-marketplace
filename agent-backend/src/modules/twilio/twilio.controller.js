@@ -1,4 +1,5 @@
 import twilioService from './twilio.service.js';
+import twilioMessagingService from './twilioMessaging.service.js';
 import { loggerService } from '../../utils/index.js';
 import { successFormatter } from '../../utils/formatters/index.js';
 import BaseError from '../../utils/errors/BaseError.js';
@@ -80,6 +81,146 @@ class TwilioController {
       To,
     });
     return res.status(204).end();
+  }
+
+  /**
+   * Handles inbound SMS / WhatsApp messages from Twilio.
+   *
+   * Acknowledges with an empty 200 before running the agent: Twilio retries
+   * any non-2xx webhook, and an agent turn can take far longer than the
+   * webhook timeout. The reply itself is delivered out-of-band through the
+   * REST API (see twilioMessaging.service.js).
+   */
+  async handleInboundMessage(req, res) {
+    const projectId = req.query.projectId || req.params.projectId;
+    const agentId = req.query.agentId || req.params.agentId;
+
+    if (!projectId || !agentId) {
+      // Misconfigured webhook URL — acknowledge so Twilio stops retrying.
+      logger.warn('[TwilioController] Inbound message without projectId/agentId', {
+        query: req.query,
+      });
+      return res.status(200).type('text/plain').send('ignored');
+    }
+
+    try {
+      const isValid = await twilioService.validateRequest(req, projectId);
+      if (!isValid) {
+        return res.status(403).send('Forbidden: Invalid Twilio signature');
+      }
+    } catch (err) {
+      logger.error('[TwilioController] Failed to validate inbound message signature', {
+        projectId,
+        err: err?.message,
+      });
+      return res.status(403).send('Forbidden: Invalid Twilio signature');
+    }
+
+    const { From, To, Body, MessageSid, SmsMessageSid, ProfileName, NumMedia } = req.body || {};
+    const messageSid = MessageSid || SmsMessageSid;
+
+    // Twilio retries reuse the same MessageSid; never run the same user
+    // message through the agent twice.
+    if (twilioMessagingService.registerInboundMessage(messageSid)) {
+      logger.info('[TwilioController] Ignoring duplicate inbound message', {
+        projectId,
+        messageSid,
+      });
+      return res.status(200).type('text/plain').send('duplicate');
+    }
+
+    const mediaUrls = [];
+    const mediaCount = Number.parseInt(NumMedia || '0', 10) || 0;
+    for (let i = 0; i < mediaCount; i += 1) {
+      const url = req.body?.[`MediaUrl${i}`];
+      if (url) mediaUrls.push(url);
+    }
+
+    twilioMessagingService
+      .handleInboundMessage({
+        projectId,
+        agentId,
+        from: From,
+        to: To,
+        body: Body,
+        messageSid,
+        profileName: ProfileName,
+        mediaUrls,
+      })
+      .catch((err) => {
+        logger.error('[TwilioController] Inbound message pipeline failed', {
+          projectId,
+          agentId,
+          messageSid,
+          err: err?.message,
+        });
+      });
+
+    return res.status(200).type('text/plain').send('ok');
+  }
+
+  /**
+   * Receives Twilio message delivery status callbacks.
+   */
+  handleMessageStatusCallback(req, res) {
+    const { MessageSid, MessageStatus, ErrorCode, ErrorMessage, From, To } = req.body || {};
+    logger.info('[TwilioController] Message status update', {
+      MessageSid,
+      MessageStatus,
+      ErrorCode,
+      ErrorMessage,
+      From,
+      To,
+    });
+    return res.status(204).end();
+  }
+
+  /**
+   * Sends a plain SMS/WhatsApp message from a Project's Twilio account.
+   */
+  async sendMessage(req, res, next) {
+    try {
+      const projectId = req.params.projectId;
+      const { to, channel, body, mediaUrl, contentSid, contentVariables } = req.body || {};
+
+      const result = await twilioService.sendMessage({
+        projectId,
+        to,
+        channel,
+        body,
+        mediaUrl,
+        contentSid,
+        contentVariables,
+      });
+
+      return res.json(successFormatter.formatSuccess(result, 'Message sent'));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Runs an Agent on the shared conversation thread for a phone number and
+   * delivers its reply over SMS/WhatsApp.
+   */
+  async sendAgentMessage(req, res, next) {
+    try {
+      const projectId = req.params.projectId;
+      const { agentId, to, channel, prompt, displayName } = req.body || {};
+
+      const result = await twilioMessagingService.sendAgentMessage({
+        projectId,
+        agentId,
+        to,
+        channel,
+        prompt,
+        displayName,
+      });
+
+      return res.json(successFormatter.formatSuccess(result, 'Agent message sent'));
+    } catch (err) {
+      next(err);
+    }
   }
 
   /**

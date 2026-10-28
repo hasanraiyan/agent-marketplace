@@ -1,6 +1,8 @@
 import express from 'express';
 import twilioController from './twilio.controller.js';
 import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
+import authMiddleware from '../auth/auth.middleware.js';
+import projectAdminAuthMiddleware from '../auth/projectAdminAuth.middleware.js';
 
 const router = express.Router();
 
@@ -69,11 +71,85 @@ router.post(
 
 /**
  * @openapi
+ * /api/v1/webhooks/twilio/message:
+ *   post:
+ *     tags: [Twilio]
+ *     summary: Twilio inbound SMS / WhatsApp webhook
+ *     description: >
+ *       Receives inbound SMS and WhatsApp messages and runs the Project's
+ *       Agent on a per-phone conversation thread shared with voice calls.
+ *       The request is acknowledged with an empty 200 immediately; the
+ *       Agent's reply is sent out-of-band through the Twilio REST API.
+ *       The Project's Twilio number must point here with `projectId` and
+ *       `agentId` query parameters.
+ *     parameters:
+ *       - name: projectId
+ *         in: query
+ *         required: true
+ *         schema: { type: string }
+ *       - name: agentId
+ *         in: query
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               From: { type: string }
+ *               To: { type: string }
+ *               Body: { type: string }
+ *               MessageSid: { type: string }
+ *               ProfileName: { type: string }
+ *               NumMedia: { type: string }
+ *     responses:
+ *       200:
+ *         description: Message accepted (reply is sent asynchronously)
+ *       403:
+ *         description: Invalid Twilio request signature
+ */
+router.post(
+  '/message',
+  express.urlencoded({ extended: false }),
+  twilioController.handleInboundMessage
+);
+
+/**
+ * @openapi
+ * /api/v1/webhooks/twilio/message-status:
+ *   post:
+ *     tags: [Twilio]
+ *     summary: Twilio message delivery status callback
+ *     description: Receives SMS / WhatsApp delivery status updates.
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       204:
+ *         description: Status acknowledged
+ */
+router.post(
+  '/message-status',
+  express.urlencoded({ extended: false }),
+  twilioController.handleMessageStatusCallback
+);
+
+/**
+ * @openapi
  * /api/v1/twilio/call:
  *   post:
  *     tags: [Twilio]
  *     summary: Trigger an outbound phone call to a user
- *     description: Instructs Twilio to call the specified phone number and connect the user to the agent upon answering.
+ *     description: >
+ *       Instructs Twilio to call the specified phone number and connect the
+ *       user to the agent upon answering. Requires a Clerk session and
+ *       Admin membership in the Project named by `projectId`.
+ *     security: [{ clerkAuth: [] }]
  *     requestBody:
  *       required: true
  *       content:
@@ -98,6 +174,21 @@ router.post(
  *         description: Twilio service not configured
  */
 export const outboundCallRouter = express.Router();
+
+/**
+ * `/call` names its Project in the JSON body, while
+ * `projectAdminAuthMiddleware` resolves it from `req.params`. This wrapper
+ * bridges the two — deliberately scoped to this route instead of teaching
+ * the shared middleware to trust body fields on every admin endpoint.
+ */
+export function outboundCallAuth(req, res, next) {
+  req.params = { ...req.params, projectId: req.body?.projectId || req.query?.projectId };
+  authMiddleware(req, res, (err) => {
+    if (err) return next(err);
+    projectAdminAuthMiddleware(req, res, next);
+  });
+}
+
 outboundCallRouter.post(
   '/call',
   express.json(),

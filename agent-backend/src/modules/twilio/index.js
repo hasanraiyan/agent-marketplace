@@ -1,5 +1,11 @@
-export { default as twilioWebhookRouter, outboundCallRouter } from './twilio.routes.js';
+export {
+  default as twilioWebhookRouter,
+  outboundCallRouter,
+  outboundCallAuth,
+} from './twilio.routes.js';
+export { default as twilioMessagingRouter } from './twilioMessaging.routes.js';
 export { default as twilioService } from './twilio.service.js';
+export { default as twilioMessagingService } from './twilioMessaging.service.js';
 export {
   default as twilioGateway,
   attachTwilioGateway,

@@ -39,7 +39,9 @@ import {
 } from './modules/voice/index.js';
 import {
   twilioWebhookRouter,
+  twilioMessagingRouter,
   outboundCallRouter,
+  outboundCallAuth,
   attachTwilioGateway,
 } from './modules/twilio/index.js';
 import { threadRouter } from './modules/threads/index.js';
@@ -130,7 +132,6 @@ app.use((req, res, next) => {
 app.use('/api/v1/webhooks', webhookRouter);
 // Twilio webhooks must bypass Clerk authentication and parse urlencoded
 app.use('/api/v1/webhooks/twilio', twilioWebhookRouter);
-app.use('/api/v1/twilio', outboundCallRouter);
 
 app.use(clerkMiddleware());
 
@@ -155,6 +156,13 @@ app.use('/api/v1/profile', profileRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/providers', providerRouter);
 app.use('/api/v1/projects', projectRouter);
+// Outbound telephony is Project-Admin gated. Mounted here (after Clerk and
+// express.json) rather than with the Twilio webhooks above: /call previously
+// sat in the unauthenticated block, so any caller who knew a Project id
+// could place calls on that Project's Twilio account.
+app.use('/api/v1/twilio', outboundCallAuth, outboundCallRouter);
+// Project-scoped SMS / WhatsApp sending (plain and Agent-composed).
+app.use('/api/v1/projects/:projectId/twilio', twilioMessagingRouter);
 // Voice Agents (voice-agent-plan.md Phase 1, Section 7 route (b)) - ticket
 // minting only, a normal JSON POST behind Clerk + projectAdminAuthMiddleware.
 // The actual conversation happens over the WS gateway (attachVoiceGateway),

@@ -2,7 +2,10 @@
 
 ## Purpose
 
-Bridges traditional telephone calls (PSTN / mobile telephony) to real-time AI voice agents. The Twilio module receives inbound phone calls via Twilio Voice webhooks, initiates outbound phone calls to users, and manages bidirectional audio streaming between Twilio Media Streams (8kHz μ-law) and Gemini Live (16kHz/24kHz linear PCM).
+Bridges traditional telephone calls (PSTN / mobile telephony) **and** SMS / WhatsApp messaging to AI agents running on the platform.
+
+- **Voice:** receives inbound phone calls via Twilio Voice webhooks, initiates outbound calls, and streams bidirectional audio between Twilio Media Streams (8kHz μ-law) and Gemini Live (16kHz/24kHz linear PCM).
+- **Messaging:** receives inbound SMS and WhatsApp messages, runs the text agent on a conversation thread shared with voice for the same phone number, and delivers the reply out-of-band through the Twilio REST API. Also exposes Project-Admin endpoints for plain and agent-composed outbound messages.
 
 ## Location
 
@@ -12,19 +15,20 @@ Bridges traditional telephone calls (PSTN / mobile telephony) to real-time AI vo
 
 ```
 src/modules/twilio/
-├── index.js                     # Barrel exports & route attachments
-├── twilio.constants.js          # Default greetings, status codes, timing constants
-├── twilio.service.js            # Outbound calls, TwiML generation, and secret resolution
-├── audioConverter.js            # Bidirectional μ-law 8kHz <-> Linear PCM 16/24kHz transcoding
-├── TwilioVoiceTransport.js      # Custom EventEmitter adapter bridging Twilio WS to VoiceSession
-├── twilioGateway.js             # HTTP Upgrade handler on /api/v1/twilio/media-stream
-├── twilioWebhook.controller.js  # Twilio Voice and Status callback HTTP handlers
-├── twilioWebhook.routes.js      # /api/v1/webhooks/twilio routes
-├── outboundCall.controller.js   # Outbound PSTN calling HTTP handlers
-└── outboundCall.routes.js       # /api/v1/twilio routes
+├── index.js                    # Barrel exports
+├── twilio.service.js           # TwiML, outbound calls, secret resolution, messaging helpers + sendMessage
+├── twilio.controller.js        # Voice, message, status, and outbound HTTP handlers
+├── twilio.routes.js            # /api/v1/webhooks/twilio routes + /api/v1/twilio/call
+├── twilioMessaging.service.js  # Inbound SMS/WhatsApp pipeline + agent-composed outbound
+├── twilioMessaging.routes.js   # /api/v1/projects/{projectId}/twilio routes
+├── audioConverter.js           # Bidirectional μ-law 8kHz <-> Linear PCM 16/24kHz transcoding
+├── TwilioVoiceTransport.js     # EventEmitter adapter bridging Twilio WS to VoiceSession
+└── twilioGateway.js            # HTTP Upgrade handler on /api/v1/twilio/media-stream
 ```
 
 ## Responsibilities
+
+### Voice
 
 - **Telephony Webhook Ingestion**: Receives Twilio Voice call events (`POST /api/v1/webhooks/twilio/voice`) and generates TwiML `<Connect><Stream>` instructions to establish Media Stream WebSockets.
 - **Outbound Voice Calling**: Triggers automated agent phone calls via the Twilio REST API using multi-tenant credentials resolved per-project.
@@ -33,60 +37,86 @@ src/modules/twilio/
 - **Telephony Barge-In Clearing**: Immediately clears Twilio's remote playback buffer upon receiving a `voice_interrupted` event by transmitting a Twilio `{ event: 'clear' }` packet.
 - **Thread & Context Continuity**: Tracks external users by phone number (`externalUserService.resolveOrCreate`), establishes persistent conversation threads (`agui-${domain}-${agentId}-${callerPhone}`), and injects caller phone and `callSid` into agent `turnContext`.
 
-## Request Flow
+### Messaging
+
+- **Inbound SMS / WhatsApp**: `POST /api/v1/webhooks/twilio/message` validates `X-Twilio-Signature`, deduplicates retried `MessageSid`s in an LRU, and acknowledges with an empty `200` **before** running the agent — Twilio retries non-2xx webhooks, and an agent turn is slower than the webhook timeout.
+- **Shared conversation identity**: each phone number maps to the same `agui-${projectId}-${agentId}-${phone}` LangGraph thread used by voice, and to a `ProjectRuntimeContext` whose `externalUserId` is the normalized E.164 number. Per-conversation turns are serialized through an in-memory promise queue so checkpoint writes cannot interleave.
+- **Channel-aware delivery**: replies go back over the channel the message arrived on (`whatsapp:` prefix → WhatsApp, otherwise SMS). Markdown is stripped, and long bodies are split under Twilio's limits (1500 chars for SMS, 4000 for WhatsApp).
+- **Guarded-tool refusal**: an Agent with any `interruptOn` tool enabled is refused on messaging channels (same parity as voice — there is no approval flow), and the sender gets a generic unavailable reply.
+- **Loop guard**: `sendMessage` refuses to address the Project's own sender number, preventing an agent reply loop from becoming an unbounded message ping-pong.
+- **Status callbacks**: `POST /api/v1/webhooks/twilio/message-status` logs delivery state (`queued`, `sent`, `delivered`, `failed`) and returns `204`.
+
+## Request Flow — Inbound Message
 
 ```mermaid
 sequenceDiagram
-    participant PSTN as Caller Phone (PSTN)
+    participant User as WhatsApp / SMS User
     participant Twilio as Twilio Cloud
-    participant Webhook as twilioWebhookRouter
-    participant Gateway as twilioGateway (/twilio/media-stream)
-    participant Transport as TwilioVoiceTransport
-    participant VS as VoiceSession
+    participant Hook as twilioWebhookRouter
+    participant Msg as twilioMessagingService
+    participant Agent as AG-UI runtime
 
-    PSTN->>Twilio: Inbound Phone Call
-    Twilio->>Webhook: POST /api/v1/webhooks/twilio/voice?projectId={p}&agentId={a}
-    Webhook-->>Twilio: 200 OK TwiML: <Connect><Stream url="/api/v1/twilio/media-stream"/>
-    Twilio->>Gateway: WebSocket Upgrade: /api/v1/twilio/media-stream
-    Gateway->>Transport: new TwilioVoiceTransport({ twilioWs })
-    Twilio->>Transport: { event: "start", start: { streamSid, callSid, customParameters } }
-    Gateway->>VS: new VoiceSession({ clientWs: transport, ... })
-    VS->>Transport: CUSTOM { name: "voice_session_ready" }
-    Transport->>VS: message: { type: "voice.text", text: "Hello! Greet caller..." }
-
-    loop Bidirectional Streaming
-        Twilio->>Transport: { event: "media", media: { payload: base64(8kHz mulaw) } }
-        Transport->>Transport: twilioMulawToGeminiPcm16()
-        Transport->>VS: emit('message', pcm16Buffer, true)
-        VS->>Transport: send(framedPcm24kBuffer)
-        Transport->>Transport: geminiPcm24kToTwilioMulaw() -> 20ms chunking
-        Transport->>Twilio: { event: "media", media: { payload: base64(mulaw) } }
-    end
-
-    opt Barge-in / Interruption
-        VS->>Transport: CUSTOM { name: "voice_interrupted" }
-        Transport->>Twilio: { event: "clear", streamSid }
-    end
-
-    Twilio->>Transport: { event: "stop" }
-    Transport->>VS: close()
+    User->>Twilio: Send message
+    Twilio->>Hook: POST /api/v1/webhooks/twilio/message?projectId&agentId
+    Hook->>Hook: validateRequest (project TWILIO_AUTH_TOKEN)
+    Hook->>Hook: dedupe MessageSid (LRU)
+    Hook-->>Twilio: 200 OK (empty body)
+    Hook->>Msg: handleInboundMessage (fire-and-forget)
+    Msg->>Msg: resolve Agent + ProjectRuntimeContext
+    Msg->>Agent: runAgentAsAguiEvents on shared phone thread
+    Agent-->>Msg: TEXT_MESSAGE_CHUNK deltas
+    Msg->>Twilio: client.messages.create(reply)
+    Twilio->>User: Deliver reply
 ```
 
 ## Public API & Endpoints
 
-| Method     | Path                             | Auth                      | Purpose                                                              |
-| ---------- | -------------------------------- | ------------------------- | -------------------------------------------------------------------- |
-| `POST`     | `/api/v1/webhooks/twilio/voice`  | Public (Twilio Signature) | Inbound call webhook; returns TwiML with `<Stream>` configuration    |
-| `POST`     | `/api/v1/webhooks/twilio/status` | Public (Twilio Signature) | Call progress/status tracking webhook (ringing, answered, completed) |
-| `POST`     | `/api/v1/twilio/call`            | ProjectAdmin / Clerk      | Triggers outbound phone call from project agent to target number     |
-| `GET (WS)` | `/api/v1/twilio/media-stream`    | Stream Handshake          | Bidirectional audio streaming WebSocket gateway                      |
+| Method     | Path                                                 | Auth                      | Purpose                                                                   |
+| ---------- | ---------------------------------------------------- | ------------------------- | ------------------------------------------------------------------------- |
+| `POST`     | `/api/v1/webhooks/twilio/voice`                      | Public (Twilio Signature) | Inbound call webhook; returns TwiML with `<Stream>` configuration         |
+| `POST`     | `/api/v1/webhooks/twilio/status`                     | Public (Twilio Signature) | Call progress/status tracking webhook (ringing, answered, completed)      |
+| `POST`     | `/api/v1/webhooks/twilio/message`                    | Public (Twilio Signature) | Inbound SMS / WhatsApp message; runs the agent and replies asynchronously |
+| `POST`     | `/api/v1/webhooks/twilio/message-status`             | Public                    | SMS / WhatsApp delivery status callback                                   |
+| `POST`     | `/api/v1/twilio/call`                                | ProjectAdmin / Clerk      | Triggers outbound phone call from project agent to target number          |
+| `GET (WS)` | `/api/v1/twilio/media-stream`                        | Stream Handshake          | Bidirectional audio streaming WebSocket gateway                           |
+| `POST`     | `/api/v1/projects/{projectId}/twilio/messages`       | ProjectAdmin / Clerk      | Send a plain SMS / WhatsApp body from the Project's sender                |
+| `POST`     | `/api/v1/projects/{projectId}/twilio/messages/agent` | ProjectAdmin / Clerk      | Run the agent on the phone-shared thread and deliver its reply            |
+
+The Twilio number's **inbound message webhook** must be configured as:
+
+```
+https://<backend-host>/api/v1/webhooks/twilio/message?projectId=<projectId>&agentId=<agentId>
+```
+
+## Project Secrets
+
+| Secret label                   | Required for   | Notes                                                             |
+| ------------------------------ | -------------- | ----------------------------------------------------------------- |
+| `TWILIO_ACCOUNT_SID`           | All            | Twilio account SID                                                |
+| `TWILIO_AUTH_TOKEN`            | All            | Also verifies inbound webhook signatures (required in production) |
+| `TWILIO_PHONE_NUMBER`          | Voice          | Caller ID; also the default SMS sender when no SMS number is set  |
+| `TWILIO_SMS_NUMBER`            | SMS (optional) | Overrides `TWILIO_PHONE_NUMBER` for SMS                           |
+| `TWILIO_MESSAGING_SERVICE_SID` | SMS (optional) | When set, SMS is sent through the Messaging Service (no `from`)   |
+| `TWILIO_WHATSAPP_NUMBER`       | WhatsApp       | WhatsApp-enabled sender, e.g. `+14155238886`                      |
+| `TWILIO_PUBLIC_URL`            | Optional       | Public base URL for status callbacks; falls back to `BACKEND_URL` |
+
+## Channel Notes
+
+- **WhatsApp 24-hour window**: business-initiated WhatsApp messages outside the user's 24-hour window must use an approved template. Use `contentSid` / `contentVariables` on the plain-send endpoint; passing them bypasses `body` entirely.
+- **SMS concatenation**: carriers concatenate up to ~1600 chars and bill per segment. The service chunks at 1500 chars, preferring paragraph, line, then sentence boundaries.
+- **Media**: inbound media-only messages receive a "text only" notice. Outbound `mediaUrl` (string or array) is attached to the first chunk only.
+- **No Thread documents**: like the voice bridge, inbound conversations persist only LangGraph checkpoints keyed by the shared thread id. No `Thread` row is created, so these conversations do not appear in Studio thread lists.
+- **Restart behavior**: message dedupe and per-conversation queues are in-memory. After a restart, a Twilio retry of an already-processed message may run once more.
 
 ## Dependencies
 
-| Dependency             | Type     | Purpose                                                              |
-| ---------------------- | -------- | -------------------------------------------------------------------- |
-| `voice` module         | Internal | Supplies `VoiceSession`, provider resolution, and live configuration |
-| `projects` module      | Internal | Resolves encrypted `TWILIO_*` project secrets                        |
-| `externalUsers` module | Internal | Maps caller phone numbers to external user identities                |
-| `threads` module       | Internal | Persists cross-call conversation history                             |
-| `twilio` SDK           | External | REST client for placing outbound calls                               |
+| Dependency             | Type     | Purpose                                                                     |
+| ---------------------- | -------- | --------------------------------------------------------------------------- |
+| `voice` module         | Internal | `VoiceSession`, provider resolution, live configuration, guarded-tool check |
+| `agui` module          | Internal | `runAgentAsAguiEvents` text runtime                                         |
+| `agents` module        | Internal | Agent lookup and Architect sentinels                                        |
+| `auth` module          | Internal | Clerk session + Project Admin authorization for outbound endpoints          |
+| `projects` module      | Internal | Encrypted `TWILIO_*` secrets and Project credentials                        |
+| `externalUsers` module | Internal | Maps phone numbers to external user identities                              |
+| `threads` module       | Internal | Persists conversation history through LangGraph checkpoints                 |
+| `twilio` SDK           | External | REST client for calls and messages                                          |

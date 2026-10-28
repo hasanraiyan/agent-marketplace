@@ -72,6 +72,7 @@ export async function* runAgentAsAguiEvents({
   turnContext,
   signal,
   executionContext = personaExecutionContext(userId),
+  allowPrivateExecution = false,
 }) {
   if (!agentId) {
     logger.warn('[AG-UI] run rejected: missing agentId');
@@ -108,7 +109,8 @@ export async function* runAgentAsAguiEvents({
       agentId,
       userId,
       checkpointService.checkpointer,
-      executionContext
+      executionContext,
+      { allowPrivateExecution }
     );
   } catch (err) {
     logger.error(`[AG-UI] agent build failed: ${err?.message}`, { agentId });
