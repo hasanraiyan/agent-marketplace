@@ -1,0 +1,51 @@
+---
+title: "Messaging (SMS & WhatsApp)"
+description: "Send outbound texts — plain, templated, or Agent-composed"
+---
+
+# Messaging (SMS & WhatsApp)
+
+`client.messages` sends outbound SMS and WhatsApp from this Project's own Twilio sender. Two shapes:
+
+```ts
+// 1. Plain send — no Agent involved.
+await client.messages.send({ to: '+919876543210', body: 'Your order shipped!' });
+
+// 2. Agent-composed — runs the Agent on the conversation, then delivers its reply.
+const delivery = await client.messages.sendFromAgent({
+  agentId: agent._id,
+  to: '+919876543210',
+  prompt: 'Remind the customer their appointment is tomorrow at 10.',
+});
+// → { agentId, channel, to, from, messageSids, status, parts }
+```
+
+## Channel and identity
+
+The channel is inferred from a `whatsapp:` prefix on `to`; pass `channel: 'sms' | 'whatsapp'` to be explicit. The phone number **is** the conversation identity: SMS, WhatsApp, and voice with the same (Project, Agent, number) share one thread, so `sendFromAgent()` continues whatever conversation is already in progress. No external user needs to be asserted, and the SDK only sends — inbound messages reach your Agent through Persona's Twilio webhook and the reply goes back out over the same channel.
+
+## WhatsApp templates
+
+Business-initiated WhatsApp outside the 24-hour session window needs an approved template:
+
+```ts
+await client.messages.send({
+  to: '+919876543210',
+  channel: 'whatsapp',
+  contentSid: 'HX...',
+  contentVariables: { '1': 'Raiyan', '2': 'ORD-42' },
+});
+```
+
+A body is required unless `contentSid` is supplied.
+
+## Errors to handle
+
+| Code | Status | Meaning |
+|---|---|---|
+| `TWILIO_PROJECT_SECRETS_REQUIRED`, `TWILIO_PHONE_NUMBER_REQUIRED`, `TWILIO_WHATSAPP_NUMBER_REQUIRED`, `TWILIO_SMS_NUMBER_REQUIRED` | 4xx | The Project's Twilio configuration is incomplete. |
+| `MESSAGE_LOOP_DETECTED` | 400 | `to` is the Project's own sender number. |
+| `AGENT_RUN_FAILED`, `AGENT_EMPTY_REPLY` | 502 | The Agent errored or produced no text. |
+| `VOICE_INTERRUPT_ON_UNSUPPORTED` | 422 | The Agent has guarded (`interruptOn`) tools — there's no confirmation flow on a text channel, same restriction as voice. |
+
+In React, `useMessages()` wraps both routes through your own backend. In the runtime, they exist only when `capabilities: { messages: true }` — see [Runtime: Capability routes](/docs/runtime/v0.16.0/routes/capabilities).

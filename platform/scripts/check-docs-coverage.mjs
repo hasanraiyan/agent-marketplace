@@ -18,11 +18,23 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..');
 
+const registryPath = join(repoRoot, 'platform/content/docs/registry.json');
+if (!existsSync(registryPath)) {
+  console.warn(`[docs-coverage] skip — ${registryPath} missing`);
+  process.exit(0);
+}
+const registry = JSON.parse(readFileSync(registryPath, 'utf8'));
+const latest = (id) => {
+  const entry = registry.sdks.find((s) => s.id === id);
+  if (!entry) throw new Error(`[docs-coverage] registry has no entry id=${id}`);
+  return entry.latest;
+};
+
 const SDKS = {
-  sdk:      { index: 'sdk/typescript/src/index.ts',            docs: 'platform/content/docs/sdk/v0.9.0/types.mdx' },
-  runtime:  { index: 'sdk/runtime/src/index.ts',                docs: 'platform/content/docs/runtime/v0.11.0/types.mdx' },
-  adapters: { index: 'sdk/adapters/src/express/index.ts',       docs: 'platform/content/docs/adapters/v0.3.0/types.mdx' },
-  react:    { index: 'sdk/react/src/index.ts',                  docs: 'platform/content/docs/react/v0.10.0/types.mdx' },
+  sdk:      { index: 'sdk/typescript/src/index.ts',            docs: `platform/content/docs/sdk/v${latest('sdk')}/types.mdx` },
+  runtime:  { index: 'sdk/runtime/src/index.ts',                docs: `platform/content/docs/runtime/v${latest('runtime')}/types.mdx` },
+  adapters: { index: 'sdk/adapters/src/express/index.ts',       docs: `platform/content/docs/adapters/v${latest('adapters')}/types.mdx` },
+  react:    { index: 'sdk/react/src/index.ts',                  docs: `platform/content/docs/react/v${latest('react')}/types.mdx` },
 };
 
 function exportedNames(source) {

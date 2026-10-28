@@ -1,0 +1,123 @@
+---
+title: "messages — @personaai/sdk"
+description: "Outbound SMS / WhatsApp from your Project's Twilio sender"
+---
+
+# messages
+
+`client.messages` sends outbound SMS and WhatsApp from this Project's own Twilio number.
+
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). An asserted external user is **not** required — the phone number is the conversation identity, not `externalUserId`.
+
+The recipient's E.164 number is the shared identity across channels: an SMS, a WhatsApp message, and a voice call with the same (Project, Agent, number) all continue the same conversation. Inbound messages are delivered by Twilio to Persona's configured webhook, which runs the Agent and replies over the same channel — this SDK only sends.
+
+## Example
+
+**TypeScript**
+
+```ts
+// Plain send — no Agent involved.
+await client.messages.send({ to: '+919876543210', body: 'Your order shipped!' });
+
+// WhatsApp: inferred from the prefix, or pass channel explicitly.
+await client.messages.send({ to: '+919876543210', channel: 'whatsapp', body: 'Hi!' });
+
+// Business-initiated WhatsApp outside the 24h window needs a template.
+await client.messages.send({
+  to: '+919876543210',
+  channel: 'whatsapp',
+  contentSid: 'HX...',
+  contentVariables: { '1': 'Raiyan', '2': 'ORD-42' },
+});
+
+// The Agent composes the reply on the shared conversation.
+const delivery = await client.messages.sendFromAgent({
+  agentId: agent._id,
+  to: '+919876543210',
+  prompt: 'Remind the customer their appointment is tomorrow at 10.',
+});
+```
+
+**cURL**
+
+```bash
+curl -X POST https://api.persona.hasanraiyan.me/api/v1/developer/messages \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" \
+  -H "Content-Type: application/json" \
+  -d '{"to":"+919876543210","body":"Your order shipped!"}'
+
+curl -X POST https://api.persona.hasanraiyan.me/api/v1/developer/messages/agent \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" \
+  -H "Content-Type: application/json" \
+  -d '{"agentId":"ag_123","to":"+919876543210","prompt":"Remind them about tomorrow."}'
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "channel": "sms",
+    "to": "+919876543210",
+    "from": "+15550002222",
+    "messageSids": ["SM1"],
+    "status": "queued",
+    "parts": 1
+  }
+}
+```
+
+---
+
+## `MessageChannel`
+
+| Value | Meaning |
+|---|---|
+| `sms` | Plain SMS. |
+| `whatsapp` | WhatsApp — also inferred from a `whatsapp:` prefix on `to`. |
+
+## `SendMessageInput`
+
+| Field | Type | Description |
+|---|---|---|
+| `to` | `string` | Recipient's E.164 number. Required. |
+| `channel?` | `MessageChannel` | Omit to infer from `to`. |
+| `body?` | `string` | Message text. Required unless `contentSid` is supplied. |
+| `mediaUrl?` | `string \| string[]` | Media to attach. |
+| `contentSid?` | `string` | Approved WhatsApp template SID. |
+| `contentVariables?` | `Record<string, string> \| string` | Template variables. |
+
+## `MessageDelivery`
+
+| Field | Type | Description |
+|---|---|---|
+| `channel` | `MessageChannel` | Channel actually used. |
+| `to` | `string` | Recipient. |
+| `from` | `string \| null` | Sender number. |
+| `messageSids` | `string[]` | One Twilio SID per delivered part. |
+| `status` | `string \| null` | Twilio status at send time. |
+| `parts` | `number` | How many parts a long body was split into. |
+
+## `SendAgentMessageInput`
+
+| Field | Type | Description |
+|---|---|---|
+| `agentId` | `string` | Agent to run. Required. |
+| `to` | `string` | Recipient's E.164 number. Required. |
+| `prompt` | `string` | The prompt the Agent responds to. Required. |
+| `channel?` | `MessageChannel` | Omit to infer from `to`. |
+| `displayName?` | `string` | Sender display name where the channel supports one. |
+
+## `AgentMessageDelivery`
+
+Extends `MessageDelivery` with `agentId: string`.
+
+## `MessagesResource`
+
+| Method | Calls | Notes |
+|---|---|---|
+| `send(input)` | `POST /api/v1/developer/messages` | No Agent; `body` or `contentSid` required. |
+| `sendFromAgent(input)` | `POST /api/v1/developer/messages/agent` | 404 if the Agent isn't owned by this Project; 422 for guarded (`interruptOn`) tools; 502 `AGENT_RUN_FAILED` / `AGENT_EMPTY_REPLY`. |
+
+Missing Twilio configuration surfaces as `TWILIO_PROJECT_SECRETS_REQUIRED` / `TWILIO_PHONE_NUMBER_REQUIRED` / `TWILIO_WHATSAPP_NUMBER_REQUIRED` / `TWILIO_SMS_NUMBER_REQUIRED`; sending to the Project's own sender number is rejected with `MESSAGE_LOOP_DETECTED`.
