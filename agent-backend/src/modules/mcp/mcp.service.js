@@ -7,6 +7,7 @@ import agentRepository from '../agents/agent.repository.js';
 import agentFactory from '../agents/agent.factory.js';
 import encryption from '../../utils/encryption.js';
 import mcpTokenService from './mcp-token.service.js';
+import { connectMcpAppsClient } from './mcp-apps.client.js';
 import { signOAuthState, verifyOAuthState } from './oauth-state.js';
 import {
   discoverOAuthEndpoints,
@@ -424,33 +425,7 @@ class McpService {
   }
 
   async _connectAppsClient(mcp, headers) {
-    const { Client: McpClient } = await import('@modelcontextprotocol/sdk/client/index.js');
-    const { StreamableHTTPClientTransport } =
-      await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
-    const { SSEClientTransport } = await import('@modelcontextprotocol/sdk/client/sse.js');
-
-    const parsedUrl = new URL(mcp.url);
-    const hasHeaders = Object.keys(headers).length > 0;
-
-    const transport =
-      mcp.transport === 'sse'
-        ? new SSEClientTransport(parsedUrl, { requestInit: hasHeaders ? { headers } : undefined })
-        : new StreamableHTTPClientTransport(parsedUrl, {
-            requestInit: hasHeaders ? { headers } : undefined,
-          });
-
-    const client = new McpClient({
-      name: 'agent-marketplace',
-      version: '1.0.0',
-      capabilities: {
-        roots: { listChanged: true },
-        sampling: {},
-        experimental: { mcp_apps: {} },
-      },
-    });
-
-    await client.connect(transport);
-    return { client, transport };
+    return connectMcpAppsClient(mcp, headers);
   }
 
   /**
@@ -529,6 +504,12 @@ class McpService {
 
       let appsClient;
       try {
+        logger.info(`[MCP] Test connection: connecting apps client for "${mcp.name}"`, {
+          transport: mcp.transport,
+          authType: mcp.authType,
+          authMode: mcp.authMode,
+          hasAuthHeader: Boolean(headers.Authorization),
+        });
         appsClient = await this._connectAppsClient(mcp, headers);
 
         let toolsResponse;
@@ -539,6 +520,10 @@ class McpService {
           });
           allMcpTools.push(...(toolsResponse.tools || []));
         } while (toolsResponse.nextCursor);
+
+        logger.info(`[MCP] Test connection: apps client listed ${allMcpTools.length} raw tools for "${mcp.name}"`, {
+          toolsWithUiMeta: allMcpTools.filter((t) => t._meta?.ui?.resourceUri).map((t) => t.name),
+        });
 
         for (const rawTool of allMcpTools) {
           if (rawTool._meta?.ui?.resourceUri) {
@@ -555,8 +540,9 @@ class McpService {
           }
         }
       } catch (mcErr) {
-        logger.debug(
-          `[MCP] Could not extract _meta.ui templates for "${mcp.name}": ${mcErr?.message}`
+        logger.warn(
+          `[MCP] Could not extract _meta.ui templates for "${mcp.name}": ${mcErr?.message}`,
+          { errorName: mcErr?.name }
         );
       } finally {
         try {
@@ -575,6 +561,15 @@ class McpService {
     logger.info(
       `[MCP] Test connection for "${mcp.name}": ${toolSummaries.length} tools, ${resourceSummaries.length} resources, ${templateSummaries.length} templates`
     );
+
+    logger.info(`[MCP] Test connection: persisting results for "${mcp.name}"`, {
+      mcpId: String(mcp._id),
+      templateCount: templateSummaries.length,
+      templates: templateSummaries.map((t) => ({
+        toolName: t.toolName,
+        uriTemplate: t.uriTemplate,
+      })),
+    });
 
     await mcpRepository.update(id, ownerFilterForContext(context), {
       tools: toolSummaries,

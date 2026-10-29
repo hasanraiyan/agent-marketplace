@@ -956,6 +956,8 @@ class AgentFactory {
           id: String(mcp._id || mcp.id),
           name: mcp.name,
         })),
+      mcpAppEntries: Object.keys(mcpAppMap || {}),
+      mcpAppMap,
     });
 
     const result = {

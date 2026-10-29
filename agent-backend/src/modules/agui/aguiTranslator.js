@@ -903,6 +903,12 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         // alongside this tool call's card.
         const mcpApp = mcpAppMap[toolName];
         if (mcpApp) {
+          logger?.info('[AG-UI] mcp_app emitted', {
+            toolName,
+            toolCallId: streamedId || event.run_id,
+            resourceUri: mcpApp.resourceUri,
+            mcpId: mcpApp.mcpId,
+          });
           yield {
             type: EventType.CUSTOM,
             name: 'mcp_app',
@@ -912,6 +918,12 @@ export async function* translateLangGraphStream(stream, opts = {}) {
               mcpId: mcpApp.mcpId,
             },
           };
+        } else if (String(toolName).includes('__')) {
+          logger?.info('[AG-UI] MCP tool call has no mcp_app mapping', {
+            toolName,
+            toolCallId: streamedId || event.run_id,
+            mcpAppMapKeys: Object.keys(mcpAppMap),
+          });
         }
       }
 

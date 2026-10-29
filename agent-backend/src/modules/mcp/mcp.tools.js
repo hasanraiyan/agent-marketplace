@@ -2,6 +2,8 @@ import { MultiServerMCPClient } from '@langchain/mcp-adapters';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import mcpTokenService from './mcp-token.service.js';
+import mcpRepository from './mcp.repository.js';
+import { listUiTemplates } from './mcp-apps.client.js';
 import { loggerService } from '../../utils/index.js';
 
 const logger = loggerService.getLogger();
@@ -163,7 +165,65 @@ export async function resolveMcpTools(
         ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
       };
 
-      for (const tmpl of mcp.resourceTemplates || []) {
+      let storedTemplates = mcp.resourceTemplates || [];
+
+      logger.info(`[MCP] "${mcp.name}" stored UI templates: ${storedTemplates.length}`, {
+        serverKey,
+        templates: storedTemplates.map((t) => ({
+          toolName: t.toolName,
+          uriTemplate: t.uriTemplate,
+        })),
+      });
+
+      // User-mode OAuth connectors have no server-side credential, so Test
+      // Connection (run as whoever is in the platform) can't discover widgets
+      // and `resourceTemplates` stays empty - tools still work at runtime, but
+      // no MCP App renders. This is the first point where an end user's token
+      // definitely exists, so capture and persist the templates here; the run's
+      // own mcpAppMap below picks them up immediately.
+      const needsUserModeDiscovery =
+        storedTemplates.length === 0 && mcp.authType === 'oauth' && mcp.authMode === 'user';
+      if (needsUserModeDiscovery) {
+        try {
+          const appHeaders = token ? { Authorization: `Bearer ${token}` } : {};
+          const discovered = await listUiTemplates(mcp, appHeaders);
+          logger.info(
+            `[MCP] "${mcp.name}" run-time UI template discovery: ${discovered.length} found`,
+            { tools: discovered.map((t) => t.toolName) }
+          );
+          if (discovered.length > 0) {
+            storedTemplates = discovered;
+            // The caller is usually NOT this connector's owner (an end user
+            // chats with someone else's agent), so the write is scoped by the
+            // MCP document's own ownership, never by the run's context.
+            const mcpOwnerFilter =
+              mcp.ownerType === 'Project'
+                ? { ownerType: 'Project', domain: mcp.domain ?? 'persona' }
+                : mcp.ownerType === 'ExternalUser'
+                  ? {
+                      ownerType: 'ExternalUser',
+                      externalOwnerId: mcp.externalOwnerId,
+                      domain: mcp.domain ?? 'persona',
+                    }
+                  : { ownerId: mcp.ownerId };
+            try {
+              await mcpRepository.update(mcp._id, mcpOwnerFilter, {
+                resourceTemplates: discovered,
+              });
+            } catch (persistErr) {
+              logger.warn(
+                `[MCP] failed to persist discovered UI templates for "${mcp.name}": ${persistErr?.message}`
+              );
+            }
+          }
+        } catch (discoveryErr) {
+          logger.warn(
+            `[MCP] run-time UI template discovery failed for "${mcp.name}": ${discoveryErr?.message}`
+          );
+        }
+      }
+
+      for (const tmpl of storedTemplates) {
         if (tmpl.toolName && tmpl.uriTemplate) {
           mcpAppMap[`${serverKey}__${tmpl.toolName}`] = {
             resourceUri: tmpl.uriTemplate,
@@ -196,6 +256,9 @@ export async function resolveMcpTools(
     logger.info(
       `[MCP] Successfully resolved ${tools.length} tools from ${Object.keys(mcpServers).length} active MCP servers: [${tools.map((t) => t.name).join(', ')}]`
     );
+    logger.info(`[MCP] mcpAppMap built: ${Object.keys(mcpAppMap).length} widget mappings`, {
+      mcpAppMap,
+    });
     return { tools, mcpAppMap, mcpAuthRequired };
   } catch (err) {
     logger.error(`[MCP] failed to load tools: ${err?.message}`);
