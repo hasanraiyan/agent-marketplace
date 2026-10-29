@@ -4,7 +4,7 @@ import type { RuntimeResponse } from './types/response.js';
 import { matchRoute, stripMountPath, type Route } from './routing.js';
 import { createClientForRequest } from './client-factory.js';
 import { errorToResponse, RuntimeHttpError } from './errors.js';
-import { createLogger, type Logger } from '@personaai/sdk';
+import { createLogger, PersonaApiError, type Logger } from '@personaai/sdk';
 import type { RunDriver } from './runDriver.js';
 import { evictStaleRuns, DEFAULT_RUN_GRACE_MS, DEFAULT_MAX_TRACKED_RUNS } from './runRegistry.js';
 import { healthRoute } from './routes/health.js';
@@ -653,17 +653,32 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
     } catch (err) {
       const durationMs = Date.now() - startMs;
       const isHttpError = err instanceof RuntimeHttpError;
+      // Upstream failures surface as PersonaApiError (from the SDK HTTP
+      // client), not RuntimeHttpError — they were previously misclassified
+      // as "unexpected" with code/status dropped, so the log said
+      // `code: undefined, status: undefined` even when the exact upstream
+      // status and code were known. Both shapes are recognized now.
+      const isApiError = !isHttpError && err instanceof PersonaApiError;
+      const failureStatus = isHttpError
+        ? (err as RuntimeHttpError).status
+        : isApiError
+          ? err.statusCode
+          : undefined;
       const meta = {
         method: request.method,
         path: request.path,
         durationMs,
         error: err instanceof Error ? err.message : String(err),
-        code: isHttpError ? (err as RuntimeHttpError).code : undefined,
-        status: isHttpError ? (err as RuntimeHttpError).status : undefined,
+        code: isHttpError
+          ? (err as RuntimeHttpError).code
+          : isApiError
+            ? err.code
+            : undefined,
+        status: failureStatus,
       };
-      if (isHttpError && (err as RuntimeHttpError).status >= 500) {
+      if (failureStatus !== undefined && failureStatus >= 500) {
         logger.error('handle failed — server error', meta);
-      } else if (isHttpError && (err as RuntimeHttpError).status >= 400) {
+      } else if (failureStatus !== undefined && failureStatus >= 400) {
         logger.warn('handle failed — client error', meta);
       } else {
         logger.error('handle failed — unexpected error', meta);

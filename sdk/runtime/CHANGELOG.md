@@ -4,6 +4,18 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.16.1
+
+- **Fixed: failing-handle logs now carry the upstream status and code.** The `catch` in
+  `runtime.handle` only checked `instanceof RuntimeHttpError`, so upstream failures surfacing
+  as `PersonaApiError` (from the SDK HTTP client) were misclassified as "unexpected error" with
+  `code: undefined, status: undefined` — even though the exact status and code were known.
+  Both shapes are recognized now: 4xx log as `handle failed — client error` (warn) and 5xx as
+  `handle failed — server error` (error), each with the upstream `status` and `code` in the
+  meta, so operator consoles are trackable. The error-to-response mapping was already correct
+  and is unchanged.
+- `RUNTIME_VERSION` is now `"0.16.1"`.
+
 ## 0.16.0
 
 - **New: `capabilities.messages`** (off by default) — outbound SMS/WhatsApp:
