@@ -5,6 +5,20 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2] - 2026-10-29
+
+### Changed
+
+- Bumped `@personaai/sdk` to `^0.15.0`, `@personaai/runtime` to `^0.16.2`, and
+  `@personaai/react` to `^0.19.0` — the current release of each. No adapter code changed:
+  `0.15.0` makes MCP connection state explain itself (`McpConnection.status`/`expiresAt`/
+  `lastError`) and `0.16.2` only widens the runtime's `@personaai/sdk` range to accept it, both
+  of which reach consumers as opaque JSON through `runtime.handle()`. `0.19.0` adds
+  `onMcpAuthRequired` to `useChat()` plus the matching `PersonaMcpConnection` status fields,
+  which surface through `@personaai/adapters/nextjs`'s `export * from '@personaai/react'` — also
+  why the react range must track the latest release (see 0.7.0's dedupe note).
+- `VERSION` in `express`, `nestjs`, `nextjs/client`, and `nextjs/server` is now `'0.8.2'`.
+
 ## [0.8.1] - 2026-10-29
 
 ### Changed
