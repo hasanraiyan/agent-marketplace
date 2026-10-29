@@ -1105,7 +1105,8 @@ export function AgentForm({
                   </div>
                   <span className="text-[11px] leading-relaxed text-muted-foreground">
                     Runs shell commands safely inside an isolated CodeSandbox VM
-                    (requires Project CSB Secret).
+                    (requires Project CSB Secret; in local dev mode a host
+                    shell is used instead).
                   </span>
                 </div>
                 <Switch

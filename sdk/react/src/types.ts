@@ -930,7 +930,7 @@ export interface PersonaAgent {
   /** Overrides the referenced Provider's `defaultModel` when set. */
   modelName?: string;
   webSearchEnabled: boolean;
-  /** Real shell execution in an isolated CodeSandbox VM — requires a `CSB_API_KEY` Project Secret to already exist. */
+  /** Real shell execution in an isolated CodeSandbox VM — requires a `CSB_API_KEY` Project Secret to already exist (in local dev/debug mode, a host shell is used instead when no secret is present). */
   sandboxEnabled: boolean;
   visibility: PersonaAgentVisibility;
   category: PersonaAgentCategory;

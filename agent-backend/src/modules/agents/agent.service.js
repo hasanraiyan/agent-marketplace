@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 import { scopedFilter } from '../../utils/domainQuery.js';
 import projectSecretService from '../projects/projectSecret.service.js';
+import { isLocalSandboxAllowed } from '../sandbox/sandbox.service.js';
 
 /**
  * Developer Platform (AD-06 §23, §12; blueprint Phase 9, PR-25): validates
@@ -62,9 +63,10 @@ async function assertSandboxSecretAvailable(context, sandboxEnabled) {
   }
 
   const apiKey = await projectSecretService.resolveSecretByLabel(context.domain, 'CSB_API_KEY');
-  if (!apiKey) {
+  if (!apiKey && !isLocalSandboxAllowed()) {
     throw new Error('Add a Project Secret named CSB_API_KEY before enabling the sandbox.');
   }
+  // In dev/debug mode a local (host) sandbox is used when no CSB_API_KEY exists.
 }
 
 /**

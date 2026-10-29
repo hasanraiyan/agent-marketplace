@@ -45,7 +45,7 @@ export interface Agent {
   /** Overrides the referenced Provider's `defaultModel` when set. */
   modelName?: string;
   webSearchEnabled: boolean;
-  /** Real shell execution in an isolated CodeSandbox VM. Requires a `CSB_API_KEY` Project Secret to exist first (there is no `secrets` SDK resource yet — create one via the platform UI or `POST /api/v1/developer/secrets`). */
+  /** Real shell execution in an isolated CodeSandbox VM. Requires a `CSB_API_KEY` Project Secret to exist first (there is no `secrets` SDK resource yet — create one via the platform UI or `POST /api/v1/developer/secrets`). In local dev/debug mode, when no secret is present, a host (local) shell is used instead. */
   sandboxEnabled: boolean;
   visibility: AgentVisibility;
   category: AgentCategory;

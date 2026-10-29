@@ -129,7 +129,9 @@ const agentSchema = new mongoose.Schema(
     // default virtual (MongoDB-backed) workspace filesystem. Requires a
     // `CSB_API_KEY` ProjectSecret on this agent's Project — enforced at
     // enable time in agent.service.js, re-checked at build time in
-    // sandbox.service.js.
+    // sandbox.service.js. In local dev/debug mode (NODE_ENV=development or
+    // DEBUG/ENABLE_LOCAL_SANDBOX), a host (local) shell is used instead when
+    // no CSB_API_KEY is present.
     sandboxEnabled: {
       type: Boolean,
       default: false,

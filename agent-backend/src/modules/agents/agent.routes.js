@@ -247,7 +247,7 @@ router.delete('/:id/memory/:key', agentController.deleteMemory);
  *               sandboxEnabled:
  *                 type: boolean
  *                 default: false
- *                 description: Real shell execution in an isolated CodeSandbox VM. Requires a CSB_API_KEY Project Secret.
+ *                 description: Real shell execution in an isolated CodeSandbox VM. Requires a CSB_API_KEY Project Secret (in local dev/debug mode a host shell is used instead).
  *               visibility:
  *                 type: string
  *                 enum: [private, unlisted, public]

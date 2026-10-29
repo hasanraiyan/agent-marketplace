@@ -1,2 +1,5 @@
 # Freebuff desktop app local state — never track (constantly written, blocks branch switches on Windows)
 .freebuff/
+# Local dev sandbox workspaces (LocalShellBackend) — never track
+.local-sandboxes/
+

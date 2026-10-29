@@ -25,6 +25,18 @@ src/modules/sandbox/
 - **Filesystem Synchronization**: Allows agents to write files to the sandbox, compile code, execute unit tests, and retrieve generated artifacts.
 - **Automatic Lifecycle Cleanup**: Shuts down idle sandboxes after a configured inactivity window to conserve cloud computing resources.
 
+## Local (dev/debug) sandbox
+
+When no `CSB_API_KEY` Project Secret is present **and** the backend is running
+in development/debug mode (`NODE_ENV=development`, or `DEBUG`/`ENABLE_LOCAL_SANDBOX`
+set), `getSandboxBackend()` falls back to a `LocalShellBackend` (from
+`deepagents`) that executes real shell commands on the host machine. This lets
+agents exercise real code execution locally without a paid CodeSandbox account.
+
+**Security:** this runs unsandboxed shell on the host. It is gated by
+`isLocalSandboxAllowed()` and must never be enabled in production. The
+`.local-sandboxes/` working directories are gitignored.
+
 ## Dependencies
 
 | Dependency         | Type     | Purpose                                               |
