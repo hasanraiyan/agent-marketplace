@@ -130,4 +130,19 @@ export interface McpReadResourceResult {
 
 export interface McpUserConnectionStatus {
   connected: boolean;
+  /** Finer-grained than `connected`; absent against backends predating this field. */
+  status?: McpConnectionStatus;
+  /** ISO timestamp of the stored access token's expiry, when the provider returned one. */
+  expiresAt?: string | null;
+  /** The provider's rejection reason when `status` is `needs_auth`. Never contains tokens. */
+  lastError?: string | null;
 }
+
+/**
+ * Why a user-mode MCP isn't usable:
+ * - `connected` — a usable token row exists.
+ * - `expired` — access token dead and no refresh token to renew it.
+ * - `needs_auth` — the provider rejected the stored grant; reconnect is the only fix.
+ * - `not_connected` — this user has never connected.
+ */
+export type McpConnectionStatus = 'connected' | 'expired' | 'needs_auth' | 'not_connected';

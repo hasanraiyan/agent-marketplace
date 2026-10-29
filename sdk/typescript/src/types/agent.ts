@@ -1,3 +1,5 @@
+import type { McpConnectionStatus } from './mcp.js';
+
 export interface AgentSocialLinks {
   website?: string;
   twitter?: string;
@@ -142,6 +144,17 @@ export interface McpConnection {
   name: string;
   description: string;
   connected: boolean;
+  /**
+   * Finer-grained than `connected` — tells "never connected" apart from
+   * "token expired" and "grant revoked", so the UI can say "Connect" vs.
+   * "Reconnect". Absent against backends predating this field; treat
+   * `undefined` as `connected ? "connected" : "not_connected"`.
+   */
+  status?: McpConnectionStatus;
+  /** ISO timestamp of the stored access token's expiry, when the provider returned one. */
+  expiresAt?: string | null;
+  /** The provider's rejection reason when `status` is `needs_auth`. Never contains tokens. */
+  lastError?: string | null;
   authorizeUrl: string | null;
 }
 

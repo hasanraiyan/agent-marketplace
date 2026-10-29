@@ -3,6 +3,20 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.15.0
+
+- **`McpConnection` and `McpUserConnectionStatus` now report why a user-mode MCP isn't usable**,
+  instead of only a `connected` boolean. Both gain optional `status`
+  (`"connected" | "expired" | "needs_auth" | "not_connected"`, a new exported
+  `McpConnectionStatus` type), `expiresAt` (ISO timestamp of the stored access token's expiry,
+  when the provider returned one), and `lastError` (the provider's rejection reason when
+  `status` is `"needs_auth"` — never contains tokens). `"needs_auth"` means the provider
+  rejected the stored grant (revoked/expired refresh token), so reconnecting is the only fix —
+  a UI can say "Reconnect" instead of "Connect". All fields are optional so older backends stay
+  compatible; treat a missing `status` as `connected ? "connected" : "not_connected"`. Backed by
+  the backend now persisting that state on `McpUserConnection` and returning it from
+  `GET .../agents/:agentId/mcp-connections`.
+
 ## 0.14.1
 
 - **Fixed a broken 0.14.0 publish.** 0.14.0 was published before `dist/` was built, and `files`
