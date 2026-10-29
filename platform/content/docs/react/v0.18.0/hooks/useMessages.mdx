@@ -1,0 +1,61 @@
+---
+title: "useMessages"
+description: "Outbound SMS / WhatsApp through your mounted runtime"
+---
+
+# useMessages
+
+`useMessages()` sends SMS and WhatsApp messages through your own backend — it `POST`s to `/messages` and `/messages/agent` on the runtime, so the credential never reaches the browser.
+
+> Requires the runtime to be mounted with `capabilities: { messages: true }` — both routes 404 otherwise. See [Runtime: Capability routes](/docs/runtime/v0.16.0/routes/capabilities).
+
+```tsx
+import { useMessages } from '@personaai/react';
+
+function Notify() {
+  const { send, sendFromAgent, isSending, error, lastDelivery } = useMessages();
+
+  return (
+    <div>
+      <button
+        disabled={isSending}
+        onClick={() => send({ to: '+919876543210', body: 'Your order shipped!' })}
+      >
+        Send SMS
+      </button>
+      <button
+        disabled={isSending}
+        onClick={() =>
+          sendFromAgent({
+            agentId: 'ag_123',
+            to: '+919876543210',
+            prompt: 'Remind the customer their appointment is tomorrow at 10.',
+          })
+        }
+      >
+        Let the Agent reply
+      </button>
+      {error && <p>{error.message}</p>}
+      {lastDelivery && <p>Sent via {lastDelivery.channel}</p>}
+    </div>
+  );
+}
+```
+
+## Return value
+
+| Field | Type | Description |
+|---|---|---|
+| `send(input)` | `(input: SendPersonaMessageInput) => Promise<PersonaMessageDelivery>` | Plain send — no Agent. Requires `body` or `contentSid`. |
+| `sendFromAgent(input)` | `(input: SendPersonaAgentMessageInput) => Promise<PersonaAgentMessageDelivery>` | Runs the Agent on the conversation, then delivers its reply. |
+| `isSending` | `boolean` | `true` while any send is in flight (overlapping calls keep it `true` until the last settles). |
+| `error` | `Error \| null` | Last failure — the server's `error.message` when present. Mutations also rethrow. |
+| `lastDelivery` | `PersonaMessageDelivery \| PersonaAgentMessageDelivery \| null` | Most recent successful delivery. |
+
+## Inputs
+
+`SendPersonaMessageInput`: `to` (E.164, required), `channel?` (`'sms' | 'whatsapp'`, inferred from a `whatsapp:` prefix), `body?`, `mediaUrl?`, `contentSid?`, `contentVariables?`.
+
+`SendPersonaAgentMessageInput`: `agentId`, `to`, `prompt` (all required), `channel?`, `displayName?`.
+
+The phone number is the conversation identity — SMS, WhatsApp, and voice with the same (Project, Agent, number) share one thread, so `sendFromAgent()` continues whatever conversation is already in progress. See [SDK Guide: Messaging](/docs/sdk/v0.14.1/guides/messaging) for the full error table.

@@ -18,5 +18,9 @@ description: "Opt-in Project-level admin surface — all default off"
 | `POST` | `/architect` | `architect` | `client.architect.stream` → SSE + `x-persona-run-id` |
 | `POST` | `/workflows` | `workflowsWrite` | `client.workflows.create` |
 | `GET` | `/workflows/:id/mermaid` | `workflowsWrite` | `client.workflows.getMermaid` |
+| `POST` | `/messages` | `messages` | `client.messages.send` |
+| `POST` | `/messages/agent` | `messages` | `client.messages.sendFromAgent` |
+
+`messages` differs from the rest: voice and chat are end-user-scoped by `resolveUser`, but a send reaches **any** E.164 number the caller names and spends this Project's Twilio balance, so it stays off until you opt in rather than riding on `chat`. The routes still require the caller to authenticate.
 
 A disabled capability's routes are absent (`404`/`405`), not `403` — no leak. See [Runtime: Capabilities concept](/concepts/capabilities) (todo).

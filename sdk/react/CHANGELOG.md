@@ -3,6 +3,18 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.18.1
+
+- **Fixed: non-ok `fetchWithAuth` responses now log their parsed error body.** Previously the
+  non-ok branch logged only `{ path, status }`, so the browser console showed
+  `Failed to create thread: Not Found` with no way to tell a 404 "Agent not found" from a
+  visibility refusal from a bad route. `fetchWithAuth` now clones + parses the JSON error body
+  on non-ok, logs `code` and `message` alongside `path`/`status`, and attaches the details to
+  the Response as `personaError` (`PersonaFailureResponse` / `PersonaHttpFailureInfo`, both
+  newly exported). `useChat` uses them, so thread-creation and history-load failures read like
+  `Failed to create thread: 404, NOT_FOUND, Agent not found` instead of a bare `statusText`.
+- `VERSION` is now `"0.18.1"`.
+
 ## 0.18.0
 
 - **New: `useMessages()`** — outbound SMS/WhatsApp from the browser via your own backend's new

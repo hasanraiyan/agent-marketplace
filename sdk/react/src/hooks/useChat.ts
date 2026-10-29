@@ -26,6 +26,22 @@ import {
   persistedTraceToActivityEntries,
   type PersistedSubagentTraceItem,
 } from "./streamEventHelpers.js";
+import type { PersonaFailureResponse } from "../context/PersonaContext.js";
+
+/**
+ * Builds a trackable failure Error for a non-ok Response: prefers the
+ * structured `personaError` details attached by fetchWithAuth (upstream
+ * status + code + message, e.g. "Agent not found (NOT_FOUND, 404)") and
+ * falls back to the bare statusText when the body wasn't parseable.
+ */
+function httpFailure(res: Response, what: string): Error {
+  const info = (res as PersonaFailureResponse).personaError;
+  if (!info || (!info.code && !info.message)) {
+    return new Error(`Failed to ${what}: ${res.statusText || res.status}`);
+  }
+  const parts = [info.status, info.code, info.message].filter(Boolean).join(", ");
+  return new Error(`Failed to ${what}: ${parts}`);
+}
 
 // execute's args are `{ command }` and result `{ output, exitCode }` (see
 // CodeSandboxBackend.execute, agent-backend/src/modules/sandbox) — both
@@ -196,8 +212,7 @@ export function useChat(options: UseChatOptions = {}) {
       setError(null);
       try {
         const res = await fetchWithAuth(`/threads/${id}/messages`);
-        if (!res.ok)
-          throw new Error(`Failed to load thread history: ${res.statusText}`);
+        if (!res.ok) throw httpFailure(res, "load thread history");
         const body = await res.json();
         const data = body?.data ?? body;
         const raw = (data?.messages ?? []) as Array<{
@@ -534,7 +549,7 @@ export function useChat(options: UseChatOptions = {}) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ agentId: targetAgentId }),
           });
-          if (!createRes.ok) throw new Error(`Failed to create thread: ${createRes.statusText}`);
+          if (!createRes.ok) throw httpFailure(createRes, "create thread");
           const createBody = await createRes.json();
           const created = (createBody?.data ?? createBody) as { _id?: string; id?: string };
           resolvedThreadId = created._id ?? created.id;

@@ -26,3 +26,5 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 ```
 
 Uses Web `Request`/`Response` + `ReadableStream` — no `multer` needed; multipart via `Request.formData()`.
+
+The client entry re-exports all of `@personaai/react`, so `useChat`, `useMessages` (needs `capabilities: { messages: true }` in the handler options), and the rest import from the same specifier. See [useMessages](/docs/react/v0.18.0/hooks/useMessages).

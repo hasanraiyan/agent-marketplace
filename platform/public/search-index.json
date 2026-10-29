@@ -2,6 +2,583 @@
   {
     "id": 0,
     "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "guides",
+      "auth"
+    ],
+    "href": "/docs/sdk/v0.14.1/guides/auth",
+    "title": "Auth — credentials & external users",
+    "description": "When to use bare credential vs externalUserId",
+    "headings": [
+      "Auth",
+      "Credential",
+      "Dual-mode rule",
+      "`whoami()`"
+    ],
+    "snippet": "Auth Credential is minted in Developer Studio → Project → Credentials. It is a **server secret** — sent as . Never bundle it. See Concepts: Credentials. Dual-mode rule See Concepts: External Users. Side-effect-free auth check.",
+    "tokens": "auth — credentials & external users when to use bare credential vs externaluserid auth credential dual-mode rule `whoami()` auth credential is minted in developer studio → project → credentials. it is a **server secret** — sent as . never bundle it. see concepts: credentials. dual-mode rule see concepts: external users. side-effect-free auth check."
+  },
+  {
+    "id": 1,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "guides",
+      "chat"
+    ],
+    "href": "/docs/sdk/v0.14.1/guides/chat",
+    "title": "Chat streaming",
+    "description": "Stream AG-UI events and handle interrupts",
+    "headings": [
+      "Chat streaming",
+      "Stream",
+      "Drain helper",
+      "Events"
+    ],
+    "snippet": "Chat streaming yields raw AG-UI events; drains them to . Stream Drain helper Events See Concepts: AG-UI and Concepts: context vs contextOverride.",
+    "tokens": "chat streaming stream ag-ui events and handle interrupts chat streaming stream drain helper events chat streaming yields raw ag-ui events; drains them to . stream drain helper events see concepts: ag-ui and concepts: context vs contextoverride."
+  },
+  {
+    "id": 2,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "guides",
+      "logging"
+    ],
+    "href": "/docs/sdk/v0.14.1/guides/logging",
+    "title": "Logging",
+    "description": "OFF by default — per-client or global, with redaction",
+    "headings": [
+      "Logging"
+    ],
+    "snippet": "Logging Redacts and body keys matching . Child namespaces: , , , .",
+    "tokens": "logging off by default — per-client or global, with redaction logging logging redacts and body keys matching . child namespaces: , , , ."
+  },
+  {
+    "id": 3,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "guides",
+      "messaging"
+    ],
+    "href": "/docs/sdk/v0.14.1/guides/messaging",
+    "title": "Messaging (SMS & WhatsApp)",
+    "description": "Send outbound texts — plain, templated, or Agent-composed",
+    "headings": [
+      "Messaging (SMS & WhatsApp)",
+      "Channel and identity",
+      "WhatsApp templates",
+      "Errors to handle"
+    ],
+    "snippet": "Messaging (SMS & WhatsApp) sends outbound SMS and WhatsApp from this Project's own Twilio sender. Two shapes: Channel and identity The channel is inferred from a prefix on ; pass to be explicit. The phone number **is** the conversation identity: SMS, WhatsApp, and voice with the ",
+    "tokens": "messaging (sms & whatsapp) send outbound texts — plain, templated, or agent-composed messaging (sms & whatsapp) channel and identity whatsapp templates errors to handle messaging (sms & whatsapp) sends outbound sms and whatsapp from this project's own twilio sender. two shapes: channel and identity the channel is inferred from a prefix on ; pass to be explicit. the phone number **is** the conversation identity: sms, whatsapp, and voice with the same (project, agent, number) share one thread, so continues whatever conversation is already in progress. no external user needs to be asserted, and the sdk only sends — inbound messages reach your agent through persona's twilio webhook and the reply goes back out over the same channel. whatsapp templates business-initiated whatsapp outside the 24-hour session window needs an approved template: a body is required unless is supplied. errors to handle in react, wraps both routes through your own backend. in the runtime, they exist only when — see runtime: capability routes."
+  },
+  {
+    "id": 4,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "guides",
+      "rest-tools"
+    ],
+    "href": "/docs/sdk/v0.14.1/guides/rest-tools",
+    "title": "REST tools",
+    "description": "Define tools in code via zod, serve a manifest, register as a Source",
+    "headings": [
+      "REST tools"
+    ],
+    "snippet": "REST tools Define a tool from a zod schema and serve it as a manifest that Persona discovers live: Mount via — served at . Register that URL in Developer Studio as a **REST Tool Source** (URL + API Key = ) — attach the source to an agent, tools are fetched live each turn. is opti",
+    "tokens": "rest tools define tools in code via zod, serve a manifest, register as a source rest tools rest tools define a tool from a zod schema and serve it as a manifest that persona discovers live: mount via — served at . register that url in developer studio as a **rest tool source** (url + api key = ) — attach the source to an agent, tools are fetched live each turn. is optional peer ( ). see also for rcp manifests at ."
+  },
+  {
+    "id": 5,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "guides",
+      "threads"
+    ],
+    "href": "/docs/sdk/v0.14.1/guides/threads",
+    "title": "Threads",
+    "description": "Conversation scope — create, list, resume, reset",
+    "headings": [
+      "Threads",
+      "Create",
+      "Resume"
+    ],
+    "snippet": "Threads Threads scope messages, files, and memory to one conversation. The runtime and React auto-load them. Create In React, mints lazily when is undefined (see Ephemeral) — no needed. Resume In the runtime: loads history; clears it in place. See Runtime: Core routes.",
+    "tokens": "threads conversation scope — create, list, resume, reset threads create resume threads threads scope messages, files, and memory to one conversation. the runtime and react auto-load them. create in react, mints lazily when is undefined (see ephemeral) — no needed. resume in the runtime: loads history; clears it in place. see runtime: core routes."
+  },
+  {
+    "id": 6,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "guides",
+      "voice"
+    ],
+    "href": "/docs/sdk/v0.14.1/guides/voice",
+    "title": "Voice",
+    "description": "Gemini Live — mint a ticket, then WebSocket directly to Persona",
+    "headings": [
+      "Voice"
+    ],
+    "snippet": "Voice Mint a single-use ticket server-side, then connect from the browser: In React, see and (live refresh). See Runtime: Core routes and Concepts: context vs contextOverride.",
+    "tokens": "voice gemini live — mint a ticket, then websocket directly to persona voice voice mint a single-use ticket server-side, then connect from the browser: in react, see and (live refresh). see runtime: core routes and concepts: context vs contextoverride."
+  },
+  {
+    "id": 7,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "guides",
+      "workflows"
+    ],
+    "href": "/docs/sdk/v0.14.1/guides/workflows",
+    "title": "Workflows",
+    "description": "Multi-step agent graphs — draft, publish, stream, resume, cancel",
+    "headings": [
+      "Workflows",
+      "CRUD",
+      "Execute"
+    ],
+    "snippet": "Workflows Workflows are LangGraph StateGraph DAGs: + + , with (editable) and (immutable snapshot). CRUD Execute See Concepts: Workflows (todo) and .",
+    "tokens": "workflows multi-step agent graphs — draft, publish, stream, resume, cancel workflows crud execute workflows workflows are langgraph stategraph dags: + + , with (editable) and (immutable snapshot). crud execute see concepts: workflows (todo) and ."
+  },
+  {
+    "id": 8,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [],
+    "href": "/docs/sdk/v0.14.1",
+    "title": "@personaai/sdk 0.14.1",
+    "description": "Node.js/TypeScript SDK — raw Developer Platform API client (server-side)",
+    "headings": [
+      "@personaai/sdk 0.14.1",
+      "Install",
+      "peer (optional, only for rest-tools): npm install zod",
+      "Quickstart",
+      "Resources"
+    ],
+    "snippet": "@personaai/sdk 0.14.1 Node.js/TypeScript SDK for the Persona Developer Platform API — Agents, Skills, Knowledge, MCP, RCP, Stores, memory, streaming chat, and outbound SMS/WhatsApp **from your own backend**. > **Server-side only.** holds your Project credential — never construct ",
+    "tokens": "@personaai/sdk 0.14.1 node.js/typescript sdk — raw developer platform api client (server-side) @personaai/sdk 0.14.1 install peer (optional, only for rest-tools): npm install zod quickstart resources @personaai/sdk 0.14.1 node.js/typescript sdk for the persona developer platform api — agents, skills, knowledge, mcp, rcp, stores, memory, streaming chat, and outbound sms/whatsapp **from your own backend**. > **server-side only.** holds your project credential — never construct it in a browser bundle or client component. see concepts: credentials. install requires node 18+. quickstart see quickstart for the full first-chat walkthrough. resources see guides and resources. > **generated api reference:** types is generated from via typedoc — do not edit. regenerate with ."
+  },
+  {
+    "id": 9,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "quickstart"
+    ],
+    "href": "/docs/sdk/v0.14.1/quickstart",
+    "title": "Quickstart — @personaai/sdk",
+    "description": "Install, auth, create an agent, chat as an external user",
+    "headings": [
+      "Quickstart",
+      "1. Install",
+      "2. Construct the client (server-side)",
+      "3. Verify",
+      "4. Create an agent (one-time, control-plane)",
+      "5. Chat as one of your users",
+      "6. Send an SMS or WhatsApp (optional)",
+      "Next"
+    ],
+    "snippet": "Quickstart 1. Install Node 18+ (uses native ). 2. Construct the client (server-side) > Never construct in a browser bundle. See Credentials. 3. Verify 4. Create an agent (one-time, control-plane) 5. Chat as one of your users Most resources ( , , ) act on behalf of an end user. Cr",
+    "tokens": "quickstart — @personaai/sdk install, auth, create an agent, chat as an external user quickstart 1. install 2. construct the client (server-side) 3. verify 4. create an agent (one-time, control-plane) 5. chat as one of your users 6. send an sms or whatsapp (optional) next quickstart 1. install node 18+ (uses native ). 2. construct the client (server-side) > never construct in a browser bundle. see credentials. 3. verify 4. create an agent (one-time, control-plane) 5. chat as one of your users most resources ( , , ) act on behalf of an end user. create a per-request client: 6. send an sms or whatsapp (optional) acts from this project's own twilio sender, so it runs on the project client — no needed: next concepts: external users — when to set guide: chat streaming guide: threads guide: messaging — outbound sms and whatsapp adapters quickstart — if you want framework-mount instead of raw sdk"
+  },
+  {
+    "id": 10,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "agents"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/agents",
+    "title": "agents — @personaai/sdk",
+    "description": "Generated field tables for agents — do not edit",
+    "headings": [
+      "agents",
+      "Example",
+      "`Agent`",
+      "`AgentSocialLinks`",
+      "`AgentVisibility`",
+      "`AgentCategory`",
+      "`CreateAgentInput`",
+      "`UpdateAgentInput`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . agents > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Agents are AI personas with a system prompt, provider, and tool attachments. Create them with a control-plane client (no ), then chat with th",
+    "tokens": "agents — @personaai/sdk generated field tables for agents — do not edit agents example `agent` `agentsociallinks` `agentvisibility` `agentcategory` `createagentinput` `updateagentinput` > **generated from — do not edit.** regenerate with . agents > **auth:** requires (server-side). for per-user calls add . see credentials. agents are ai personas with a system prompt, provider, and tool attachments. create them with a control-plane client (no ), then chat with them via a per-user client. is the read shape; / are the write shapes. example **typescript** **curl** **response** --- note: like skill , this mirrors the real wire shape ( _id , raw domain/ownertype fields) — getone() returns skills / mcps / knowledgebases populated as objects, while create() / update() / list() return them as bare id strings; typed loosely here to reflect that real difference rather than picking one shape and being wrong for the other calls. _source: _ _interface_ _source: _ _interface_ unlisted is reachable by direct link/id but excluded from public discovery listings. _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ one authtype: 'oauth', authmode: 'user' mcp attached to an agent, and whether the calling identity (the client's asserted external user) has connected it yet. authorizeurl is only present when connected is false — send the browser there to start the oauth consent flow. _source: _ _interface_"
+  },
+  {
+    "id": 11,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "audit-logs"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/audit-logs",
+    "title": "audit-logs — @personaai/sdk",
+    "description": "Generated field tables for audit-logs — do not edit",
+    "headings": [
+      "audit-logs",
+      "Example",
+      "`AuditLogEntry`",
+      "`ListAuditLogsParams`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . audit-logs > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Audit logs are read-only, control-plane only — lifecycle events (credentials minted/revoked, membership, suspend/restore). Example **Type",
+    "tokens": "audit-logs — @personaai/sdk generated field tables for audit-logs — do not edit audit-logs example `auditlogentry` `listauditlogsparams` > **generated from — do not edit.** regenerate with . audit-logs > **auth:** requires (server-side). for per-user calls add . see credentials. audit logs are read-only, control-plane only — lifecycle events (credentials minted/revoked, membership, suspend/restore). example **typescript** **curl** **response** --- mirrors agent-backend/src/modules/audit/auditlog.model.js . covers project-lifecycle events only (credential minted/revoked, membership changes, suspend/restore) — not resource crud (agent/skill/knowledge/ provider/mcp create/update/delete aren't logged here yet). _source: _ _interface_ _source: _ _interface_"
+  },
+  {
+    "id": 12,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "chat"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/chat",
+    "title": "chat — @personaai/sdk",
+    "description": "Generated field tables for chat — do not edit",
+    "headings": [
+      "chat",
+      "Example",
+      "`AguiEvent`",
+      "`ChatMessageInput`",
+      "`ChatResume`",
+      "`SendMessageOptions`",
+      "`ChatInterrupt`",
+      "`ChatResult`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . chat > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Chat is AG-UI SSE streaming: yields / / events; drains to . Example **TypeScript** **cURL** **Response** --- The full discriminated union of ev",
+    "tokens": "chat — @personaai/sdk generated field tables for chat — do not edit chat example `aguievent` `chatmessageinput` `chatresume` `sendmessageoptions` `chatinterrupt` `chatresult` > **generated from — do not edit.** regenerate with . chat > **auth:** requires (server-side). for per-user calls add . see credentials. chat is ag-ui sse streaming: yields / / events; drains to . example **typescript** **curl** **response** --- the full discriminated union of every ag-ui protocol event this backend can emit. _source: _ _kind 2097152_ _source: _ _interface_ approves/denies a pending human-in-the-loop interrupt from a previous run, or answers a pending clarification. shape depends on the interrupt kind — see chatinterrupt . _source: _ _kind 2097152_ _source: _ _interface_ a pending interrupt surfaced via a custom event — this backend's own human-in-the-loop protocol (tool-approval or clarification-question), not the newer standard ag-ui runfinishedinterruptoutcome field (this backend's translator doesn't emit that; confirmed by reading aguitranslator.js directly rather than assuming the spec's newer shape applies). _source: _ _interface_ _source: _ _interface_ the schema document version this sdk release was written against. _source: _ _variable_ _source: _ _interface_ custom event hitl_request — pauses the run pending approval of one or more pending tool calls (an agent's interrupton config). actionrequests / reviewconfigs are opaque langchain humanintheloopmiddleware structures, passed through as-is by the backend. _source: _ _interface_ custom event mcp_app — an mcp-registered tool call declared an interactive widget via _meta.ui.resourceuri . _source: _ _interface_ a narrower, app-typed view of the native @ag-ui/core run_error event (already covered by aguievent 's union — this just gives code a literal type instead of string | undefined , and documents the extra fields this backend always sends alongside the base protocol's message ). _source: _ _interface_"
+  },
+  {
+    "id": 13,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "files"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/files",
+    "title": "files — @personaai/sdk",
+    "description": "Generated field tables for files — do not edit",
+    "headings": [
+      "files",
+      "Example",
+      "`PersonaFile`",
+      "`UploadFilePayload`",
+      "`ListFilesParams`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . files > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Files are user uploads (multipart part) scoped to an optional / . Example **TypeScript** **cURL** **Response** --- Clean formatted shape ( id ",
+    "tokens": "files — @personaai/sdk generated field tables for files — do not edit files example `personafile` `uploadfilepayload` `listfilesparams` > **generated from — do not edit.** regenerate with . files > **auth:** requires (server-side). for per-user calls add . see credentials. files are user uploads (multipart part) scoped to an optional / . example **typescript** **curl** **response** --- clean formatted shape ( id , not _id ) — unlike thread/skill/agent/knowledge. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+  },
+  {
+    "id": 14,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "knowledge"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/knowledge",
+    "title": "knowledge — @personaai/sdk",
+    "description": "Generated field tables for knowledge — do not edit",
+    "headings": [
+      "knowledge",
+      "Example",
+      "`KnowledgeBase`",
+      "`KnowledgeDocument`",
+      "`CreateKnowledgeBaseInput`",
+      "`UpdateKnowledgeBaseInput`",
+      "`DiscoverKnowledgeBasesParams`",
+      "`UploadFileInput`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . knowledge > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Knowledge bases are RAG collections backed by Qdrant. Upload documents, search, and attach to agents. Example **TypeScript** **cURL** **Re",
+    "tokens": "knowledge — @personaai/sdk generated field tables for knowledge — do not edit knowledge example `knowledgebase` `knowledgedocument` `createknowledgebaseinput` `updateknowledgebaseinput` `discoverknowledgebasesparams` `uploadfileinput` > **generated from — do not edit.** regenerate with . knowledge > **auth:** requires (server-side). for per-user calls add . see credentials. knowledge bases are rag collections backed by qdrant. upload documents, search, and attach to agents. example **typescript** **curl** **response** --- like skill/agent, this mirrors the real wire shape ( _id , raw domain/ownertype fields). _source: _ _interface_ one uploaded source document's chunking summary (not the chunks themselves). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. does not retroactively re-embed existing documents. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+  },
+  {
+    "id": 15,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "mcp"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/mcp",
+    "title": "mcp — @personaai/sdk",
+    "description": "Generated field tables for mcp — do not edit",
+    "headings": [
+      "mcp",
+      "Example",
+      "`Mcp`",
+      "`McpTransport`",
+      "`McpAuthType`",
+      "`McpAuthMode`",
+      "`McpTool`",
+      "`McpResourceSummary`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . mcp > **Auth:** Requires (server-side). For per-user calls add . See Credentials. MCP connectors are Model Context Protocol servers (tools/resources). Supports OAuth vs modes and / . Example **TypeScript** **cURL** **Response*",
+    "tokens": "mcp — @personaai/sdk generated field tables for mcp — do not edit mcp example `mcp` `mcptransport` `mcpauthtype` `mcpauthmode` `mcptool` `mcpresourcesummary` > **generated from — do not edit.** regenerate with . mcp > **auth:** requires (server-side). for per-user calls add . see credentials. mcp connectors are model context protocol servers (tools/resources). supports oauth vs modes and / . example **typescript** **curl** **response** --- like provider (not skill/agent/knowledge), this goes through a clean tosafejson() dto — oauth / apikeyencrypted are stripped in favor of hasapikey /a summarized oauth object. still _id -shaped, though ( tosafejson spreads the raw document minus secrets, doesn't rename it). _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ owner : one shared connection for the whole project. user : each external user connects their own. _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ a resource whose uri has placeholder params to fill before calling readresource() . _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+  },
+  {
+    "id": 16,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "memory"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/memory",
+    "title": "memory — @personaai/sdk",
+    "description": "Generated field tables for memory — do not edit",
+    "headings": [
+      "memory",
+      "Example",
+      "`MemoryFile`",
+      "`MemoryAgentGroup`",
+      "`MemoryListResult`",
+      "`MemoryFileScopeParams`",
+      "`GetMemoryFileParams`",
+      "`WriteMemoryFileInput`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . memory > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Memory is a file-based store: (shared) and (per user-agent). Agents read/write via / . Example **TypeScript** **cURL** **Response** --- Mirro",
+    "tokens": "memory — @personaai/sdk generated field tables for memory — do not edit memory example `memoryfile` `memoryagentgroup` `memorylistresult` `memoryfilescopeparams` `getmemoryfileparams` `writememoryfileinput` > **generated from — do not edit.** regenerate with . memory > **auth:** requires (server-side). for per-user calls add . see credentials. memory is a file-based store: (shared) and (per user-agent). agents read/write via / . example **typescript** **curl** **response** --- mirrors memory.service.js's _tofiledto — the wire shape for one memory file. _source: _ _interface_ one agent's group of agent-scoped memory files, as returned by memory.list() . _source: _ _interface_ get /api/v1/developer/memory — every memory file for the asserted external user. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+  },
+  {
+    "id": 17,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "messages"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/messages",
+    "title": "messages — @personaai/sdk",
+    "description": "Outbound SMS / WhatsApp from your Project's Twilio sender",
+    "headings": [
+      "messages",
+      "Example",
+      "`MessageChannel`",
+      "`SendMessageInput`",
+      "`MessageDelivery`",
+      "`SendAgentMessageInput`",
+      "`AgentMessageDelivery`",
+      "`MessagesResource`"
+    ],
+    "snippet": "messages sends outbound SMS and WhatsApp from this Project's own Twilio number. > **Auth:** Requires (server-side). An asserted external user is **not** required — the phone number is the conversation identity, not . The recipient's E.164 number is the shared identity across chan",
+    "tokens": "messages — @personaai/sdk outbound sms / whatsapp from your project's twilio sender messages example `messagechannel` `sendmessageinput` `messagedelivery` `sendagentmessageinput` `agentmessagedelivery` `messagesresource` messages sends outbound sms and whatsapp from this project's own twilio number. > **auth:** requires (server-side). an asserted external user is **not** required — the phone number is the conversation identity, not . the recipient's e.164 number is the shared identity across channels: an sms, a whatsapp message, and a voice call with the same (project, agent, number) all continue the same conversation. inbound messages are delivered by twilio to persona's configured webhook, which runs the agent and replies over the same channel — this sdk only sends. example **typescript** **curl** **response** --- extends with . missing twilio configuration surfaces as / / / ; sending to the project's own sender number is rejected with ."
+  },
+  {
+    "id": 18,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "providers"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/providers",
+    "title": "providers — @personaai/sdk",
+    "description": "Generated field tables for providers — do not edit",
+    "headings": [
+      "providers",
+      "Example",
+      "`Provider`",
+      "`CreateProviderInput`",
+      "`UpdateProviderInput`",
+      "`ProviderModel`",
+      "`ProviderTestConnectionResult`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . providers > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Providers hold LLM credentials (API keys). Requires a Project Secret; and verify them. Example **TypeScript** **cURL** **Response** --- A ",
+    "tokens": "providers — @personaai/sdk generated field tables for providers — do not edit providers example `provider` `createproviderinput` `updateproviderinput` `providermodel` `providertestconnectionresult` > **generated from — do not edit.** regenerate with . providers > **auth:** requires (server-side). for per-user calls add . see credentials. providers hold llm credentials (api keys). requires a project secret; and verify them. example **typescript** **curl** **response** --- a provider as returned by the api — apikey is never included. _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+  },
+  {
+    "id": 19,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "rcp-sources"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/rcp-sources",
+    "title": "rcp-sources — @personaai/sdk",
+    "description": "Hosted RCP manifests — discover an Agent's tools from a URL",
+    "headings": [
+      "rcp-sources",
+      "Example",
+      "`RcpSource`",
+      "`RcpSourceToolSummary`",
+      "`RcpSourceToolParamSummary`",
+      "`RcpParamContextMapEntry`",
+      "`CreateRcpSourceInput`",
+      "`DiscoverRcpSourcesParams`"
+    ],
+    "snippet": "rcp-sources manages **RCP (REST Connector Protocol)** sources — hosted manifest URLs that Persona discovers tools from live via on every Agent run. Independent of REST Tool Sources: same idea, different protocol. > **Auth:** Requires (server-side). Without an asserted external us",
+    "tokens": "rcp-sources — @personaai/sdk hosted rcp manifests — discover an agent's tools from a url rcp-sources example `rcpsource` `rcpsourcetoolsummary` `rcpsourcetoolparamsummary` `rcpparamcontextmapentry` `creatercpsourceinput` `discoverrcpsourcesparams` rcp-sources manages **rcp (rest connector protocol)** sources — hosted manifest urls that persona discovers tools from live via on every agent run. independent of rest tool sources: same idea, different protocol. > **auth:** requires (server-side). without an asserted external user the source is owned by this project; with it is owned by that end user ( ). see credentials. the manifest at must answer with . persona never calls the manifest at list/get time — is only a display cache written by . example **typescript** **curl** **response** --- shared across every agent this source is attached to — not per-attachment. is the same set of fields, all optional — only what you pass is changed; pass to clear it."
+  },
+  {
+    "id": 20,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "rest-tools"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/rest-tools",
+    "title": "rest-tools — @personaai/sdk",
+    "description": "Generated field tables for rest-tools — do not edit",
+    "headings": [
+      "rest-tools",
+      "Example",
+      "`RestApiTool`",
+      "`RestToolMethod`",
+      "`RestToolAuthType`",
+      "`RestToolBodyMode`",
+      "`RestToolParamIn`",
+      "`RestToolParamType`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . rest-tools > **Auth:** Requires (server-side). For per-user calls add . See Credentials. REST tools are code-first tools via (zod) served as and discovered live as a Source. Example **TypeScript** **cURL** **Response** --- A n",
+    "tokens": "rest-tools — @personaai/sdk generated field tables for rest-tools — do not edit rest-tools example `restapitool` `resttoolmethod` `resttoolauthtype` `resttoolbodymode` `resttoolparamin` `resttoolparamtype` > **generated from — do not edit.** regenerate with . rest-tools > **auth:** requires (server-side). for per-user calls add . see credentials. rest tools are code-first tools via (zod) served as and discovered live as a source. example **typescript** **curl** **response** --- a no-code rest api tool an agent can call. goes through tosafejson() — secretref 's underlying value is never returned, only hassecret . _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ one query-string or header entry. valuetemplate may contain {{token}} . _source: _ _interface_ declares one agent-fillable {{token}} referenced in url /params/headers/body. _source: _ _interface_ reshapes the raw json response before the agent sees it, e.g. types/resttool.ts:29 field string types/resttool.ts:30 path string types/resttool.ts:32 createresttoolinput types/resttool.ts:66 name string types/resttool.ts:67 description? string types/resttool.ts:68 method resttoolmethod types/resttool.ts:69 url string types/resttool.ts:70 queryparams? resttoolparamrow[] types/resttool.ts:71 headers? resttoolparamrow[] types/resttool.ts:72 bodymode? resttoolbodymode types/resttool.ts:74 bodytemplate? string types/resttool.ts:75 paramdescriptors? resttoolparamdescriptor[] types/resttool.ts:76 authtype? resttoolauthtype types/resttool.ts:78 secretref? string types/resttool.ts:80 responsemappings? resttoolresponsemapping[] types/resttool.ts:81 isenabled? boolean types/resttool.ts:83 updateresttoolinput types/resttool.ts:87 discoverresttoolsparams types/resttool.ts:92 page? number types/resttool.ts:94 limit? number types/resttool.ts:96 search? string types/resttool.ts:98 scope? \"mine\" types/resttool.ts:100 resttooltestresult types/resttool.ts:103 status number types/resttool.ts:104 ok boolean types/resttool.ts:105 body unknown types/resttool.ts:107 mapped unknown types/resttool.ts:109 testresttoolinput types/resttool.ts:113"
+  },
+  {
+    "id": 21,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "skills"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/skills",
+    "title": "skills — @personaai/sdk",
+    "description": "Generated field tables for skills — do not edit",
+    "headings": [
+      "skills",
+      "Example",
+      "`Skill`",
+      "`SkillFile`",
+      "`CreateSkillInput`",
+      "`UpdateSkillInput`",
+      "`DiscoverSkillsParams`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . skills > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Skills are reusable capabilities (file-backed) that agents can use. Manage them via the SDK and attach via . Example **TypeScript** **cURL** ",
+    "tokens": "skills — @personaai/sdk generated field tables for skills — do not edit skills example `skill` `skillfile` `createskillinput` `updateskillinput` `discoverskillsparams` > **generated from — do not edit.** regenerate with . skills > **auth:** requires (server-side). for per-user calls add . see credentials. skills are reusable capabilities (file-backed) that agents can use. manage them via the sdk and attach via . example **typescript** **curl** **response** --- note: unlike provider , the developer api returns skill documents in their raw mongo shape ( _id , not id ) — reflected here as-is rather than papering over a real backend inconsistency. _source: _ _interface_ a file bundled with a skill (e.g. a reference doc or script an agent can read). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_"
+  },
+  {
+    "id": 22,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "stores"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/stores",
+    "title": "stores — @personaai/sdk",
+    "description": "Generated field tables for stores — do not edit",
+    "headings": [
+      "stores",
+      "Example",
+      "`Store`",
+      "`StoreScope`",
+      "`StoreAccessMode`",
+      "`CreateStoreInput`",
+      "`UpdateStoreInput`",
+      "`DiscoverStoresParams`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . stores > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Stores are named mount points agents can be assigned to — filesystem-backed alternative to for larger reference material. Example **TypeScrip",
+    "tokens": "stores — @personaai/sdk generated field tables for stores — do not edit stores example `store` `storescope` `storeaccessmode` `createstoreinput` `updatestoreinput` `discoverstoresparams` > **generated from — do not edit.** regenerate with . stores > **auth:** requires (server-side). for per-user calls add . see credentials. stores are named mount points agents can be assigned to — filesystem-backed alternative to for larger reference material. example **typescript** **curl** **response** --- a named, scoped mount point assignable to agents ( agent.storemounts ), generalizing the fixed /memories/user/ / /memories/agent/ mounts into arbitrarily-named ones. mounted at /stores/<name>/ in the agent's filesystem. _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ scope is intentionally not included — immutable after creation. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
+  },
+  {
+    "id": 23,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "threads"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/threads",
+    "title": "threads — @personaai/sdk",
+    "description": "Generated field tables for threads — do not edit",
+    "headings": [
+      "threads",
+      "Example",
+      "`Thread`",
+      "`CreateThreadInput`",
+      "`UpdateThreadInput`",
+      "`ListThreadsParams`",
+      "`ThreadMessages`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . threads > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Threads scope messages, files, todos, and checkpoints to one conversation. Use so threads belong to your user. Example **TypeScript** **cURL",
+    "tokens": "threads — @personaai/sdk generated field tables for threads — do not edit threads example `thread` `createthreadinput` `updatethreadinput` `listthreadsparams` `threadmessages` > **generated from — do not edit.** regenerate with . threads > **auth:** requires (server-side). for per-user calls add . see credentials. threads scope messages, files, todos, and checkpoints to one conversation. use so threads belong to your user. example **typescript** **curl** **response** --- like skill/agent/knowledge/mcp, this mirrors the real wire shape ( _id ). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ messages holds raw langchain message objects (role/content/tool_calls vary by message type) — intentionally untyped rather than guessing at a shape this sdk doesn't own. _source: _ _interface_"
+  },
+  {
+    "id": 24,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "voice"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/voice",
+    "title": "voice — @personaai/sdk",
+    "description": "Generated field tables for voice — do not edit",
+    "headings": [
+      "voice",
+      "Example",
+      "`VoiceSessionInfo`",
+      "`VoiceSessionTicket`",
+      "`CreateVoiceSessionOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . voice > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Voice mints a Gemini Live ticket server-side, then the browser opens directly to Persona. Example **TypeScript** **cURL** **Response** --- Mir",
+    "tokens": "voice — @personaai/sdk generated field tables for voice — do not edit voice example `voicesessioninfo` `voicesessionticket` `createvoicesessionoptions` > **generated from — do not edit.** regenerate with . voice > **auth:** requires (server-side). for per-user calls add . see credentials. voice mints a gemini live ticket server-side, then the browser opens directly to persona. example **typescript** **curl** **response** --- mirrors the custom voice_session_ready ag-ui event's payload shape. _source: _ _interface_ returned by voiceresource.createsession. hand this whole object (or at least wsurl ) to your frontend — the ticket embedded in wsurl is single-use and expires at expiresat (60s from mint), so open the websocket promptly and never reuse it for a second connection attempt. _source: _ _interface_ options for voiceresource.createsession. _source: _ _interface_"
+  },
+  {
+    "id": 25,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "resources",
+      "workflows"
+    ],
+    "href": "/docs/sdk/v0.14.1/resources/workflows",
+    "title": "workflows — @personaai/sdk",
+    "description": "Generated field tables for workflows — do not edit",
+    "headings": [
+      "workflows",
+      "Example",
+      "`Workflow`",
+      "`WorkflowNodeType`",
+      "`WorkflowTriggerType`",
+      "`WorkflowVisibility`",
+      "`WorkflowOwnerType`",
+      "`NodeOnErrorAction`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . workflows > **Auth:** Requires (server-side). For per-user calls add . See Credentials. Workflows are multi-agent DAGs compiled to LangGraph StateGraphs — (editable) + (immutable). Stream via AG-UI with for resume and for safe",
+    "tokens": "workflows — @personaai/sdk generated field tables for workflows — do not edit workflows example `workflow` `workflownodetype` `workflowtriggertype` `workflowvisibility` `workflowownertype` `nodeonerroraction` > **generated from — do not edit.** regenerate with . workflows > **auth:** requires (server-side). for per-user calls add . see credentials. workflows are multi-agent dags compiled to langgraph stategraphs — (editable) + (immutable). stream via ag-ui with for resume and for safe testing. example **typescript** **curl** **response** --- _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _kind 2097152_"
+  },
+  {
+    "id": 26,
+    "sdk": "sdk",
+    "version": "0.14.1",
+    "slug": [
+      "types"
+    ],
+    "href": "/docs/sdk/v0.14.1/types",
+    "title": "Types — sdk v0.14.1",
+    "description": "Full export index (generated from TypeDoc)",
+    "headings": [
+      "Full export index"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . Full export index",
+    "tokens": "types — sdk v0.14.1 full export index (generated from typedoc) full export index > **generated from — do not edit.** regenerate with . full export index"
+  },
+  {
+    "id": 27,
+    "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
       "guides",
@@ -20,7 +597,7 @@
     "tokens": "auth — credentials & external users when to use bare credential vs externaluserid auth credential dual-mode rule `whoami()` auth credential is minted in developer studio → project → credentials. it is a **server secret** — sent as . never bundle it. see concepts: credentials. dual-mode rule see concepts: external users. side-effect-free auth check."
   },
   {
-    "id": 1,
+    "id": 28,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -40,7 +617,7 @@
     "tokens": "chat streaming stream ag-ui events and handle interrupts chat streaming stream drain helper events chat streaming yields raw ag-ui events; drains them to . stream drain helper events see concepts: ag-ui and concepts: context vs contextoverride."
   },
   {
-    "id": 2,
+    "id": 29,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -57,7 +634,7 @@
     "tokens": "logging off by default — per-client or global, with redaction logging logging redacts and body keys matching . child namespaces: , , , ."
   },
   {
-    "id": 3,
+    "id": 30,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -74,7 +651,7 @@
     "tokens": "rest tools define tools in code via zod, serve a manifest, register as a source rest tools rest tools define a tool from a zod schema and serve it as a manifest that persona discovers live: mount via — served at . register that url in developer studio as a **rest tool source** (url + api key = ) — attach the source to an agent, tools are fetched live each turn. is optional peer ( ). see also for rcp manifests at ."
   },
   {
-    "id": 4,
+    "id": 31,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -93,7 +670,7 @@
     "tokens": "threads conversation scope — create, list, resume, reset threads create resume threads threads scope messages, files, and memory to one conversation. the runtime and react auto-load them. create in react, mints lazily when is undefined (see ephemeral) — no needed. resume in the runtime: loads history; clears it in place. see runtime: core routes."
   },
   {
-    "id": 5,
+    "id": 32,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -110,7 +687,7 @@
     "tokens": "voice gemini live — mint a ticket, then websocket directly to persona voice voice mint a single-use ticket server-side, then connect from the browser: in react, see and (live refresh). see runtime: voice and concepts: context vs contextoverride."
   },
   {
-    "id": 6,
+    "id": 33,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -129,7 +706,7 @@
     "tokens": "workflows multi-step agent graphs — draft, publish, stream, resume, cancel workflows crud execute workflows workflows are langgraph stategraph dags: + + , with (editable) and (immutable snapshot). crud execute see concepts: workflows (todo) and ."
   },
   {
-    "id": 7,
+    "id": 34,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [],
@@ -147,7 +724,7 @@
     "tokens": "@personaai/sdk 0.9.0 node.js/typescript sdk — raw developer platform api client (server-side) @personaai/sdk 0.9.0 install peer (optional, only for rest-tools): npm install zod quickstart resources @personaai/sdk 0.9.0 node.js/typescript sdk for the persona developer platform api — agents, skills, knowledge, mcp, stores, memory, and streaming chat **from your own backend**. > **server-side only.** holds your project credential — never construct it in a browser bundle or client component. see concepts: credentials. install requires node 18+. quickstart see quickstart for the full first-chat walkthrough. resources see guides and resources. > **generated api reference:** types is generated from via typedoc — do not edit. regenerate with ."
   },
   {
-    "id": 8,
+    "id": 35,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -169,7 +746,7 @@
     "tokens": "quickstart — @personaai/sdk install, auth, create an agent, chat as an external user quickstart 1. install 2. construct the client (server-side) 3. verify 4. create an agent (one-time, control-plane) 5. chat as one of your users next quickstart 1. install node 18+ (uses native ). 2. construct the client (server-side) > never construct in a browser bundle. see credentials. 3. verify 4. create an agent (one-time, control-plane) 5. chat as one of your users most resources ( , , ) act on behalf of an end user. create a per-request client: next concepts: external users — when to set guide: chat streaming guide: threads adapters quickstart — if you want framework-mount instead of raw sdk"
   },
   {
-    "id": 9,
+    "id": 36,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -193,7 +770,7 @@
     "tokens": "agents — @personaai/sdk generated field tables for agents — do not edit agents example `agent` `agentsociallinks` `agentvisibility` `agentcategory` `createagentinput` `updateagentinput` > **generated from — do not edit.** regenerate with . agents > **auth:** requires (server-side). for per-user calls add . see credentials. agents are ai personas with a system prompt, provider, and tool attachments. create them with a control-plane client (no ), then chat with them via a per-user client. is the read shape; / are the write shapes. example **typescript** **curl** **response** --- note: like skill , this mirrors the real wire shape ( _id , raw domain/ownertype fields) — getone() returns skills / mcps / knowledgebases populated as objects, while create() / update() / list() return them as bare id strings; typed loosely here to reflect that real difference rather than picking one shape and being wrong for the other calls. _source: _ _interface_ _source: _ _interface_ unlisted is reachable by direct link/id but excluded from public discovery listings. _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ one authtype: 'oauth', authmode: 'user' mcp attached to an agent, and whether the calling identity (the client's asserted external user) has connected it yet. authorizeurl is only present when connected is false — send the browser there to start the oauth consent flow. _source: _ _interface_"
   },
   {
-    "id": 10,
+    "id": 37,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -213,7 +790,7 @@
     "tokens": "audit-logs — @personaai/sdk generated field tables for audit-logs — do not edit audit-logs example `auditlogentry` `listauditlogsparams` > **generated from — do not edit.** regenerate with . audit-logs > **auth:** requires (server-side). for per-user calls add . see credentials. audit logs are read-only, control-plane only — lifecycle events (credentials minted/revoked, membership, suspend/restore). example **typescript** **curl** **response** --- mirrors agent-backend/src/modules/audit/auditlog.model.js . covers project-lifecycle events only (credential minted/revoked, membership changes, suspend/restore) — not resource crud (agent/skill/knowledge/ provider/mcp create/update/delete aren't logged here yet). _source: _ _interface_ _source: _ _interface_"
   },
   {
-    "id": 11,
+    "id": 38,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -237,7 +814,7 @@
     "tokens": "chat — @personaai/sdk generated field tables for chat — do not edit chat example `aguievent` `chatmessageinput` `chatresume` `sendmessageoptions` `chatinterrupt` `chatresult` > **generated from — do not edit.** regenerate with . chat > **auth:** requires (server-side). for per-user calls add . see credentials. chat is ag-ui sse streaming: yields / / events; drains to . example **typescript** **curl** **response** --- the full discriminated union of every ag-ui protocol event this backend can emit. _source: _ _kind 2097152_ _source: _ _interface_ approves/denies a pending human-in-the-loop interrupt from a previous run, or answers a pending clarification. shape depends on the interrupt kind — see chatinterrupt . _source: _ _kind 2097152_ _source: _ _interface_ a pending interrupt surfaced via a custom event — this backend's own human-in-the-loop protocol (tool-approval or clarification-question), not the newer standard ag-ui runfinishedinterruptoutcome field (this backend's translator doesn't emit that; confirmed by reading aguitranslator.js directly rather than assuming the spec's newer shape applies). _source: _ _interface_ _source: _ _interface_ the schema document version this sdk release was written against. _source: _ _variable_ _source: _ _interface_ custom event hitl_request — pauses the run pending approval of one or more pending tool calls (an agent's interrupton config). actionrequests / reviewconfigs are opaque langchain humanintheloopmiddleware structures, passed through as-is by the backend. _source: _ _interface_ custom event mcp_app — an mcp-registered tool call declared an interactive widget via _meta.ui.resourceuri . _source: _ _interface_ a narrower, app-typed view of the native @ag-ui/core run_error event (already covered by aguievent 's union — this just gives code a literal type instead of string | undefined , and documents the extra fields this backend always sends alongside the base protocol's message ). _source: _ _interface_"
   },
   {
-    "id": 12,
+    "id": 39,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -258,7 +835,7 @@
     "tokens": "files — @personaai/sdk generated field tables for files — do not edit files example `personafile` `uploadfilepayload` `listfilesparams` > **generated from — do not edit.** regenerate with . files > **auth:** requires (server-side). for per-user calls add . see credentials. files are user uploads (multipart part) scoped to an optional / . example **typescript** **curl** **response** --- clean formatted shape ( id , not _id ) — unlike thread/skill/agent/knowledge. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
-    "id": 13,
+    "id": 40,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -282,7 +859,7 @@
     "tokens": "knowledge — @personaai/sdk generated field tables for knowledge — do not edit knowledge example `knowledgebase` `knowledgedocument` `createknowledgebaseinput` `updateknowledgebaseinput` `discoverknowledgebasesparams` `uploadfileinput` > **generated from — do not edit.** regenerate with . knowledge > **auth:** requires (server-side). for per-user calls add . see credentials. knowledge bases are rag collections backed by qdrant. upload documents, search, and attach to agents. example **typescript** **curl** **response** --- like skill/agent, this mirrors the real wire shape ( _id , raw domain/ownertype fields). _source: _ _interface_ one uploaded source document's chunking summary (not the chunks themselves). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. does not retroactively re-embed existing documents. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
-    "id": 14,
+    "id": 41,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -306,7 +883,7 @@
     "tokens": "mcp — @personaai/sdk generated field tables for mcp — do not edit mcp example `mcp` `mcptransport` `mcpauthtype` `mcpauthmode` `mcptool` `mcpresourcesummary` > **generated from — do not edit.** regenerate with . mcp > **auth:** requires (server-side). for per-user calls add . see credentials. mcp connectors are model context protocol servers (tools/resources). supports oauth vs modes and / . example **typescript** **curl** **response** --- like provider (not skill/agent/knowledge), this goes through a clean tosafejson() dto — oauth / apikeyencrypted are stripped in favor of hasapikey /a summarized oauth object. still _id -shaped, though ( tosafejson spreads the raw document minus secrets, doesn't rename it). _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ owner : one shared connection for the whole project. user : each external user connects their own. _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ a resource whose uri has placeholder params to fill before calling readresource() . _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
-    "id": 15,
+    "id": 42,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -330,7 +907,7 @@
     "tokens": "memory — @personaai/sdk generated field tables for memory — do not edit memory example `memoryfile` `memoryagentgroup` `memorylistresult` `memoryfilescopeparams` `getmemoryfileparams` `writememoryfileinput` > **generated from — do not edit.** regenerate with . memory > **auth:** requires (server-side). for per-user calls add . see credentials. memory is a file-based store: (shared) and (per user-agent). agents read/write via / . example **typescript** **curl** **response** --- mirrors memory.service.js's _tofiledto — the wire shape for one memory file. _source: _ _interface_ one agent's group of agent-scoped memory files, as returned by memory.list() . _source: _ _interface_ get /api/v1/developer/memory — every memory file for the asserted external user. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
-    "id": 16,
+    "id": 43,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -353,7 +930,7 @@
     "tokens": "providers — @personaai/sdk generated field tables for providers — do not edit providers example `provider` `createproviderinput` `updateproviderinput` `providermodel` `providertestconnectionresult` > **generated from — do not edit.** regenerate with . providers > **auth:** requires (server-side). for per-user calls add . see credentials. providers hold llm credentials (api keys). requires a project secret; and verify them. example **typescript** **curl** **response** --- a provider as returned by the api — apikey is never included. _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
-    "id": 17,
+    "id": 44,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -377,7 +954,7 @@
     "tokens": "rest-tools — @personaai/sdk generated field tables for rest-tools — do not edit rest-tools example `restapitool` `resttoolmethod` `resttoolauthtype` `resttoolbodymode` `resttoolparamin` `resttoolparamtype` > **generated from — do not edit.** regenerate with . rest-tools > **auth:** requires (server-side). for per-user calls add . see credentials. rest tools are code-first tools via (zod) served as and discovered live as a source. example **typescript** **curl** **response** --- a no-code rest api tool an agent can call. goes through tosafejson() — secretref 's underlying value is never returned, only hassecret . _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ one query-string or header entry. valuetemplate may contain {{token}} . _source: _ _interface_ declares one agent-fillable {{token}} referenced in url /params/headers/body. _source: _ _interface_ reshapes the raw json response before the agent sees it, e.g. types/resttool.ts:29 field string types/resttool.ts:30 path string types/resttool.ts:32 createresttoolinput types/resttool.ts:66 name string types/resttool.ts:67 description? string types/resttool.ts:68 method resttoolmethod types/resttool.ts:69 url string types/resttool.ts:70 queryparams? resttoolparamrow[] types/resttool.ts:71 headers? resttoolparamrow[] types/resttool.ts:72 bodymode? resttoolbodymode types/resttool.ts:74 bodytemplate? string types/resttool.ts:75 paramdescriptors? resttoolparamdescriptor[] types/resttool.ts:76 authtype? resttoolauthtype types/resttool.ts:78 secretref? string types/resttool.ts:80 responsemappings? resttoolresponsemapping[] types/resttool.ts:81 isenabled? boolean types/resttool.ts:83 updateresttoolinput types/resttool.ts:87 discoverresttoolsparams types/resttool.ts:92 page? number types/resttool.ts:94 limit? number types/resttool.ts:96 search? string types/resttool.ts:98 scope? \"mine\" types/resttool.ts:100 resttooltestresult types/resttool.ts:103 status number types/resttool.ts:104 ok boolean types/resttool.ts:105 body unknown types/resttool.ts:107 mapped unknown types/resttool.ts:109 testresttoolinput types/resttool.ts:113"
   },
   {
-    "id": 18,
+    "id": 45,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -400,7 +977,7 @@
     "tokens": "skills — @personaai/sdk generated field tables for skills — do not edit skills example `skill` `skillfile` `createskillinput` `updateskillinput` `discoverskillsparams` > **generated from — do not edit.** regenerate with . skills > **auth:** requires (server-side). for per-user calls add . see credentials. skills are reusable capabilities (file-backed) that agents can use. manage them via the sdk and attach via . example **typescript** **curl** **response** --- note: unlike provider , the developer api returns skill documents in their raw mongo shape ( _id , not id ) — reflected here as-is rather than papering over a real backend inconsistency. _source: _ _interface_ a file bundled with a skill (e.g. a reference doc or script an agent can read). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_"
   },
   {
-    "id": 19,
+    "id": 46,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -424,7 +1001,7 @@
     "tokens": "stores — @personaai/sdk generated field tables for stores — do not edit stores example `store` `storescope` `storeaccessmode` `createstoreinput` `updatestoreinput` `discoverstoresparams` > **generated from — do not edit.** regenerate with . stores > **auth:** requires (server-side). for per-user calls add . see credentials. stores are named mount points agents can be assigned to — filesystem-backed alternative to for larger reference material. example **typescript** **curl** **response** --- a named, scoped mount point assignable to agents ( agent.storemounts ), generalizing the fixed /memories/user/ / /memories/agent/ mounts into arbitrarily-named ones. mounted at /stores/<name>/ in the agent's filesystem. _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ scope is intentionally not included — immutable after creation. _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_"
   },
   {
-    "id": 20,
+    "id": 47,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -447,7 +1024,7 @@
     "tokens": "threads — @personaai/sdk generated field tables for threads — do not edit threads example `thread` `createthreadinput` `updatethreadinput` `listthreadsparams` `threadmessages` > **generated from — do not edit.** regenerate with . threads > **auth:** requires (server-side). for per-user calls add . see credentials. threads scope messages, files, todos, and checkpoints to one conversation. use so threads belong to your user. example **typescript** **curl** **response** --- like skill/agent/knowledge/mcp, this mirrors the real wire shape ( _id ). _source: _ _interface_ _source: _ _interface_ all fields optional — only what you pass is changed. _source: _ _interface_ _source: _ _interface_ messages holds raw langchain message objects (role/content/tool_calls vary by message type) — intentionally untyped rather than guessing at a shape this sdk doesn't own. _source: _ _interface_"
   },
   {
-    "id": 21,
+    "id": 48,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -468,7 +1045,7 @@
     "tokens": "voice — @personaai/sdk generated field tables for voice — do not edit voice example `voicesessioninfo` `voicesessionticket` `createvoicesessionoptions` > **generated from — do not edit.** regenerate with . voice > **auth:** requires (server-side). for per-user calls add . see credentials. voice mints a gemini live ticket server-side, then the browser opens directly to persona. example **typescript** **curl** **response** --- mirrors the custom voice_session_ready ag-ui event's payload shape. _source: _ _interface_ returned by voiceresource.createsession. hand this whole object (or at least wsurl ) to your frontend — the ticket embedded in wsurl is single-use and expires at expiresat (60s from mint), so open the websocket promptly and never reuse it for a second connection attempt. _source: _ _interface_ options for voiceresource.createsession. _source: _ _interface_"
   },
   {
-    "id": 22,
+    "id": 49,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -492,7 +1069,7 @@
     "tokens": "workflows — @personaai/sdk generated field tables for workflows — do not edit workflows example `workflow` `workflownodetype` `workflowtriggertype` `workflowvisibility` `workflowownertype` `nodeonerroraction` > **generated from — do not edit.** regenerate with . workflows > **auth:** requires (server-side). for per-user calls add . see credentials. workflows are multi-agent dags compiled to langgraph stategraphs — (editable) + (immutable). stream via ag-ui with for resume and for safe testing. example **typescript** **curl** **response** --- _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _kind 2097152_ _source: _ _kind 2097152_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _interface_ _source: _ _kind 2097152_"
   },
   {
-    "id": 23,
+    "id": 50,
     "sdk": "sdk",
     "version": "0.9.0",
     "slug": [
@@ -508,7 +1085,520 @@
     "tokens": "types — sdk v0.9.0 full export index (generated from typedoc) full export index > **generated from — do not edit.** regenerate with . full export index"
   },
   {
-    "id": 24,
+    "id": 51,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "guides",
+      "custom-host"
+    ],
+    "href": "/docs/runtime/v0.16.0/guides/custom-host",
+    "title": "Custom host",
+    "description": "Run the runtime without Express/Next/Nest — raw Node handler",
+    "headings": [
+      "Custom host"
+    ],
+    "snippet": "Custom host For Hono/Fastify/raw , copy the tested bridge at (not exported — only): Handles multipart via native / (no ). See quickstart.",
+    "tokens": "custom host run the runtime without express/next/nest — raw node handler custom host custom host for hono/fastify/raw , copy the tested bridge at (not exported — only): handles multipart via native / (no ). see quickstart."
+  },
+  {
+    "id": 52,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "guides",
+      "hooks"
+    ],
+    "href": "/docs/runtime/v0.16.0/guides/hooks",
+    "title": "Lifecycle hooks",
+    "description": "Where business logic meets the runtime",
+    "headings": [
+      "Lifecycle hooks"
+    ],
+    "snippet": "Lifecycle hooks All hooks are optional, async, isolated (throwing never triggers for a successful run).",
+    "tokens": "lifecycle hooks where business logic meets the runtime lifecycle hooks lifecycle hooks all hooks are optional, async, isolated (throwing never triggers for a successful run)."
+  },
+  {
+    "id": 53,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "guides",
+      "manifests"
+    ],
+    "href": "/docs/runtime/v0.16.0/guides/manifests",
+    "title": "Manifests",
+    "description": "Serve REST/RCP tool manifests that Persona discovers live",
+    "headings": [
+      "Manifests"
+    ],
+    "snippet": "Manifests Not capability-gated — host static data, only when configured. reflected as vs ; omit only for local dev.",
+    "tokens": "manifests serve rest/rcp tool manifests that persona discovers live manifests manifests not capability-gated — host static data, only when configured. reflected as vs ; omit only for local dev."
+  },
+  {
+    "id": 54,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "guides",
+      "resolve-user"
+    ],
+    "href": "/docs/runtime/v0.16.0/guides/resolve-user",
+    "title": "Resolve user",
+    "description": "The sacred contract between host auth and runtime",
+    "headings": [
+      "Resolve user"
+    ],
+    "snippet": "Resolve user returns — or throw → . See Concepts: External users.",
+    "tokens": "resolve user the sacred contract between host auth and runtime resolve user resolve user returns — or throw → . see concepts: external users."
+  },
+  {
+    "id": 55,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "guides",
+      "streaming-and-resume"
+    ],
+    "href": "/docs/runtime/v0.16.0/guides/streaming-and-resume",
+    "title": "Streaming & resume",
+    "description": "SSE framing, heartbeats, reconnect with seq",
+    "headings": [
+      "Streaming & resume"
+    ],
+    "snippet": "Streaming & resume streams AG-UI SSE; replays. Heartbeat comment every (default ) during gaps so proxies don't kill idle streams. See Concepts: AG-UI. Single-process/in-memory only — sticky sessions needed behind a load balancer. See for multi-instance plan (issue #229).",
+    "tokens": "streaming & resume sse framing, heartbeats, reconnect with seq streaming & resume streaming & resume streams ag-ui sse; replays. heartbeat comment every (default ) during gaps so proxies don't kill idle streams. see concepts: ag-ui. single-process/in-memory only — sticky sessions needed behind a load balancer. see for multi-instance plan (issue #229)."
+  },
+  {
+    "id": 56,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [],
+    "href": "/docs/runtime/v0.16.0",
+    "title": "@personaai/runtime 0.16.0",
+    "description": "Framework-agnostic runtime engine — the shared brain every adapter wraps",
+    "headings": [
+      "@personaai/runtime 0.16.0",
+      "Install",
+      "The sacred contract: `resolveUser`",
+      "Quickstart (raw Node)",
+      "Capabilities (opt-in, default off)",
+      "Routes"
+    ],
+    "snippet": "@personaai/runtime 0.16.0 Framework-agnostic runtime engine. Adapters ( , , ) are thin translators over this. > **Server-side only.** Holds — never bundle. Install If you use Express/Next/Nest, install instead — it wraps this. The sacred contract: Persona never authenticates user",
+    "tokens": "@personaai/runtime 0.16.0 framework-agnostic runtime engine — the shared brain every adapter wraps @personaai/runtime 0.16.0 install the sacred contract: `resolveuser` quickstart (raw node) capabilities (opt-in, default off) routes @personaai/runtime 0.16.0 framework-agnostic runtime engine. adapters ( , , ) are thin translators over this. > **server-side only.** holds — never bundle. install if you use express/next/nest, install instead — it wraps this. the sacred contract: persona never authenticates users. you tell the runtime who the request is from: returns — /throw → runtime responds . see guide: resolve-user. quickstart (raw node) for framework installs, see adapters quickstart. capabilities (opt-in, default off) disabled capabilities' routes are absent ( / ), not . see guide: capabilities. routes core always-on routes: see routes: core. capability-gated routes: see routes: capabilities."
+  },
+  {
+    "id": 57,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "quickstart"
+    ],
+    "href": "/docs/runtime/v0.16.0/quickstart",
+    "title": "Quickstart — @personaai/runtime",
+    "description": "Create a runtime and handle requests via the Node bridge",
+    "headings": [
+      "Quickstart",
+      "Mount path",
+      "Health",
+      "Next"
+    ],
+    "snippet": "Quickstart Mount path — runtime strips it before routing. Adapters do this for you. Health is public (no ) → via . Next Guide: resolve-user Guide: streaming & resume Guide: hooks Adapters quickstart — framework-mounted alternative",
+    "tokens": "quickstart — @personaai/runtime create a runtime and handle requests via the node bridge quickstart mount path health next quickstart mount path — runtime strips it before routing. adapters do this for you. health is public (no ) → via . next guide: resolve-user guide: streaming & resume guide: hooks adapters quickstart — framework-mounted alternative"
+  },
+  {
+    "id": 58,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "routes",
+      "capabilities"
+    ],
+    "href": "/docs/runtime/v0.16.0/routes/capabilities",
+    "title": "Capability routes",
+    "description": "Opt-in Project-level admin surface — all default off",
+    "headings": [
+      "Capability routes"
+    ],
+    "snippet": "Capability routes differs from the rest: voice and chat are end-user-scoped by , but a send reaches **any** E.164 number the caller names and spends this Project's Twilio balance, so it stays off until you opt in rather than riding on . The routes still require the caller to auth",
+    "tokens": "capability routes opt-in project-level admin surface — all default off capability routes capability routes differs from the rest: voice and chat are end-user-scoped by , but a send reaches **any** e.164 number the caller names and spends this project's twilio balance, so it stays off until you opt in rather than riding on . the routes still require the caller to authenticate. a disabled capability's routes are absent ( / ), not — no leak. see runtime: capabilities concept (todo)."
+  },
+  {
+    "id": 59,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "routes",
+      "core"
+    ],
+    "href": "/docs/runtime/v0.16.0/routes/core",
+    "title": "Core routes (always on)",
+    "description": "End-user-scoped routes — no capability flag needed",
+    "headings": [
+      "Core routes (always on)"
+    ],
+    "snippet": "Core routes (always on) See full table in README ( ). > Generated tables in this section will be produced from route table via — hand prose stays in , generated tables in .",
+    "tokens": "core routes (always on) end-user-scoped routes — no capability flag needed core routes (always on) core routes (always on) see full table in readme ( ). > generated tables in this section will be produced from route table via — hand prose stays in , generated tables in ."
+  },
+  {
+    "id": 60,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "CreateRuntimeOptions"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/CreateRuntimeOptions",
+    "title": "CreateRuntimeOptions — @personaai/runtime",
+    "description": "Generated field table for CreateRuntimeOptions — do not edit",
+    "headings": [
+      "`CreateRuntimeOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "createruntimeoptions — @personaai/runtime generated field table for createruntimeoptions — do not edit `createruntimeoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 61,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "ErrorContext"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/ErrorContext",
+    "title": "ErrorContext — @personaai/runtime",
+    "description": "Generated field table for ErrorContext — do not edit",
+    "headings": [
+      "`ErrorContext`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "errorcontext — @personaai/runtime generated field table for errorcontext — do not edit `errorcontext` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 62,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "FileUploadContext"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/FileUploadContext",
+    "title": "FileUploadContext — @personaai/runtime",
+    "description": "Generated field table for FileUploadContext — do not edit",
+    "headings": [
+      "`FileUploadContext`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "fileuploadcontext — @personaai/runtime generated field table for fileuploadcontext — do not edit `fileuploadcontext` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 63,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "MemoryWriteContext"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/MemoryWriteContext",
+    "title": "MemoryWriteContext — @personaai/runtime",
+    "description": "Generated field table for MemoryWriteContext — do not edit",
+    "headings": [
+      "`MemoryWriteContext`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "memorywritecontext — @personaai/runtime generated field table for memorywritecontext — do not edit `memorywritecontext` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 64,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RcpManifestOptions"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RcpManifestOptions",
+    "title": "RcpManifestOptions — @personaai/runtime",
+    "description": "Generated field table for RcpManifestOptions — do not edit",
+    "headings": [
+      "`RcpManifestOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Serves a list of code-defined RCP (REST Connector Protocol, npm rcp-sdk ) tools as a conformant { rcpVersion, auth, tools } manifest at GET {mountPath}/rcp/manifest — register that URL as an RCP source and any RCP client (Persona included) disc",
+    "tokens": "rcpmanifestoptions — @personaai/runtime generated field table for rcpmanifestoptions — do not edit `rcpmanifestoptions` > **generated from — do not edit.** serves a list of code-defined rcp (rest connector protocol, npm rcp-sdk ) tools as a conformant { rcpversion, auth, tools } manifest at get {mountpath}/rcp/manifest — register that url as an rcp source and any rcp client (persona included) discovers/calls these tools live. independent of resttoolsmanifestoptions — unrelated protocols, both servable from the same runtime instance if you want both. _source: _ _interface_"
+  },
+  {
+    "id": 65,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RestToolsManifestOptions"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RestToolsManifestOptions",
+    "title": "RestToolsManifestOptions — @personaai/runtime",
+    "description": "Generated field table for RestToolsManifestOptions — do not edit",
+    "headings": [
+      "`RestToolsManifestOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Serves a list of code-defined REST tools (built with defineRestTool from @personaai/sdk/rest-tools ) as a JSON manifest at GET {mountPath}/rest-tools/manifest — register that URL in the Persona dashboard as a REST Tool Source and it discovers/c",
+    "tokens": "resttoolsmanifestoptions — @personaai/runtime generated field table for resttoolsmanifestoptions — do not edit `resttoolsmanifestoptions` > **generated from — do not edit.** serves a list of code-defined rest tools (built with defineresttool from @personaai/sdk/rest-tools ) as a json manifest at get {mountpath}/rest-tools/manifest — register that url in the persona dashboard as a rest tool source and it discovers/calls these tools live, the same way it discovers an mcp server's tools. this is host-side static data the runtime *serves*, not a persona-proxy capability — it never calls personaclient and works even with no resolveuser traffic at all. _source: _ _interface_"
+  },
+  {
+    "id": 66,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RunContext"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RunContext",
+    "title": "RunContext — @personaai/runtime",
+    "description": "Generated field table for RunContext — do not edit",
+    "headings": [
+      "`RunContext`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "runcontext — @personaai/runtime generated field table for runcontext — do not edit `runcontext` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 67,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RunResult"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RunResult",
+    "title": "RunResult — @personaai/runtime",
+    "description": "Generated field table for RunResult — do not edit",
+    "headings": [
+      "`RunResult`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "runresult — @personaai/runtime generated field table for runresult — do not edit `runresult` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 68,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "Runtime"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/Runtime",
+    "title": "Runtime — @personaai/runtime",
+    "description": "Generated field table for Runtime — do not edit",
+    "headings": [
+      "`Runtime`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "runtime — @personaai/runtime generated field table for runtime — do not edit `runtime` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 69,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RuntimeBinaryResponse"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RuntimeBinaryResponse",
+    "title": "RuntimeBinaryResponse — @personaai/runtime",
+    "description": "Generated field table for RuntimeBinaryResponse — do not edit",
+    "headings": [
+      "`RuntimeBinaryResponse`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Raw bytes with a known (or unknown, chunked) length — file downloads only. _Source: _ _Interface_",
+    "tokens": "runtimebinaryresponse — @personaai/runtime generated field table for runtimebinaryresponse — do not edit `runtimebinaryresponse` > **generated from — do not edit.** raw bytes with a known (or unknown, chunked) length — file downloads only. _source: _ _interface_"
+  },
+  {
+    "id": 70,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RuntimeBufferedResponse"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RuntimeBufferedResponse",
+    "title": "RuntimeBufferedResponse — @personaai/runtime",
+    "description": "Generated field table for RuntimeBufferedResponse — do not edit",
+    "headings": [
+      "`RuntimeBufferedResponse`"
+    ],
+    "snippet": "> **Generated from — do not edit.** A complete response with a known-length body — every route except streaming chat. _Source: _ _Interface_",
+    "tokens": "runtimebufferedresponse — @personaai/runtime generated field table for runtimebufferedresponse — do not edit `runtimebufferedresponse` > **generated from — do not edit.** a complete response with a known-length body — every route except streaming chat. _source: _ _interface_"
+  },
+  {
+    "id": 71,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RuntimeCapabilities"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RuntimeCapabilities",
+    "title": "RuntimeCapabilities — @personaai/runtime",
+    "description": "Generated field table for RuntimeCapabilities — do not edit",
+    "headings": [
+      "`RuntimeCapabilities`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Every one of these is false unless explicitly enabled — always-off by default so upgrading this package never silently exposes new surface to whoever resolveUser accepts. These resources are Project-level configuration (LLM provider credentials",
+    "tokens": "runtimecapabilities — @personaai/runtime generated field table for runtimecapabilities — do not edit `runtimecapabilities` > **generated from — do not edit.** every one of these is false unless explicitly enabled — always-off by default so upgrading this package never silently exposes new surface to whoever resolveuser accepts. these resources are project-level configuration (llm provider credentials, skill/knowledge-base/vector-store management, security audit logs, an agent-building co-pilot) rather than things an end user does in a chat session — most hosts should manage them via @personaai/sdk directly from their own admin surface and never turn these on. turn one on only if you specifically want it reachable through whatever resolveuser gates (which may not be \"any logged-in end user\" — that's your call). _source: _ _interface_"
+  },
+  {
+    "id": 72,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RuntimeHooks"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RuntimeHooks",
+    "title": "RuntimeHooks — @personaai/runtime",
+    "description": "Generated field table for RuntimeHooks — do not edit",
+    "headings": [
+      "`RuntimeHooks`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Lifecycle hooks — the host application's voice inside the runtime's request handling. Plain async event listeners, not middleware: the runtime proceeds with sensible defaults when a hook is omitted, and a hook that wants to reject a run simply ",
+    "tokens": "runtimehooks — @personaai/runtime generated field table for runtimehooks — do not edit `runtimehooks` > **generated from — do not edit.** lifecycle hooks — the host application's voice inside the runtime's request handling. plain async event listeners, not middleware: the runtime proceeds with sensible defaults when a hook is omitted, and a hook that wants to reject a run simply throws (the throw is caught and routed through the same sanitized error path as any other failure). _source: _ _interface_"
+  },
+  {
+    "id": 73,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RuntimeRequest"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RuntimeRequest",
+    "title": "RuntimeRequest — @personaai/runtime",
+    "description": "Generated field table for RuntimeRequest — do not edit",
+    "headings": [
+      "`RuntimeRequest`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Framework-neutral inbound request. A framework adapter (Express, Node http , ...) translates its own request object into this shape and calls Runtime.handle() — the runtime never imports a framework. _Source: _ _Interface_",
+    "tokens": "runtimerequest — @personaai/runtime generated field table for runtimerequest — do not edit `runtimerequest` > **generated from — do not edit.** framework-neutral inbound request. a framework adapter (express, node http , ...) translates its own request object into this shape and calls runtime.handle() — the runtime never imports a framework. _source: _ _interface_"
+  },
+  {
+    "id": 74,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RuntimeStreamResponse"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RuntimeStreamResponse",
+    "title": "RuntimeStreamResponse — @personaai/runtime",
+    "description": "Generated field table for RuntimeStreamResponse — do not edit",
+    "headings": [
+      "`RuntimeStreamResponse`"
+    ],
+    "snippet": "> **Generated from — do not edit.** An open-ended SSE response — the chat route only. _Source: _ _Interface_",
+    "tokens": "runtimestreamresponse — @personaai/runtime generated field table for runtimestreamresponse — do not edit `runtimestreamresponse` > **generated from — do not edit.** an open-ended sse response — the chat route only. _source: _ _interface_"
+  },
+  {
+    "id": 75,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "RuntimeUploadedFile"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/RuntimeUploadedFile",
+    "title": "RuntimeUploadedFile — @personaai/runtime",
+    "description": "Generated field table for RuntimeUploadedFile — do not edit",
+    "headings": [
+      "`RuntimeUploadedFile`"
+    ],
+    "snippet": "> **Generated from — do not edit.** A single uploaded file — present on RuntimeRequest.file for a multipart POST /files . _Source: _ _Interface_",
+    "tokens": "runtimeuploadedfile — @personaai/runtime generated field table for runtimeuploadedfile — do not edit `runtimeuploadedfile` > **generated from — do not edit.** a single uploaded file — present on runtimerequest.file for a multipart post /files . _source: _ _interface_"
+  },
+  {
+    "id": 76,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "ThreadCreateContext"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/ThreadCreateContext",
+    "title": "ThreadCreateContext — @personaai/runtime",
+    "description": "Generated field table for ThreadCreateContext — do not edit",
+    "headings": [
+      "`ThreadCreateContext`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "threadcreatecontext — @personaai/runtime generated field table for threadcreatecontext — do not edit `threadcreatecontext` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 77,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "ToolCallContext"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/ToolCallContext",
+    "title": "ToolCallContext — @personaai/runtime",
+    "description": "Generated field table for ToolCallContext — do not edit",
+    "headings": [
+      "`ToolCallContext`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "toolcallcontext — @personaai/runtime generated field table for toolcallcontext — do not edit `toolcallcontext` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 78,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "VoiceSessionCreateContext"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/VoiceSessionCreateContext",
+    "title": "VoiceSessionCreateContext — @personaai/runtime",
+    "description": "Generated field table for VoiceSessionCreateContext — do not edit",
+    "headings": [
+      "`VoiceSessionCreateContext`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "voicesessioncreatecontext — @personaai/runtime generated field table for voicesessioncreatecontext — do not edit `voicesessioncreatecontext` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 79,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types",
+      "WorkflowNodeContext"
+    ],
+    "href": "/docs/runtime/v0.16.0/types/WorkflowNodeContext",
+    "title": "WorkflowNodeContext — @personaai/runtime",
+    "description": "Generated field table for WorkflowNodeContext — do not edit",
+    "headings": [
+      "`WorkflowNodeContext`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "workflownodecontext — @personaai/runtime generated field table for workflownodecontext — do not edit `workflownodecontext` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 80,
+    "sdk": "runtime",
+    "version": "0.16.0",
+    "slug": [
+      "types"
+    ],
+    "href": "/docs/runtime/v0.16.0/types",
+    "title": "Types — runtime v0.16.0",
+    "description": "Full export index (generated from TypeDoc)",
+    "headings": [
+      "Full export index"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . Full export index",
+    "tokens": "types — runtime v0.16.0 full export index (generated from typedoc) full export index > **generated from — do not edit.** regenerate with . full export index"
+  },
+  {
+    "id": 81,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -525,7 +1615,7 @@
     "tokens": "custom host run the runtime without express/next/nest — raw node handler custom host custom host for hono/fastify/raw , copy the tested bridge at (not exported — only): handles multipart via native / (no ). see quickstart."
   },
   {
-    "id": 25,
+    "id": 82,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -542,7 +1632,7 @@
     "tokens": "lifecycle hooks where business logic meets the runtime lifecycle hooks lifecycle hooks all hooks are optional, async, isolated (throwing never triggers for a successful run)."
   },
   {
-    "id": 26,
+    "id": 83,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -559,7 +1649,7 @@
     "tokens": "manifests serve rest/rcp tool manifests that persona discovers live manifests manifests not capability-gated — host static data, only when configured. reflected as vs ; omit only for local dev."
   },
   {
-    "id": 27,
+    "id": 84,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -576,7 +1666,7 @@
     "tokens": "resolve user the sacred contract between host auth and runtime resolve user resolve user returns — or throw → . see concepts: external users."
   },
   {
-    "id": 28,
+    "id": 85,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -593,7 +1683,7 @@
     "tokens": "streaming & resume sse framing, heartbeats, reconnect with seq streaming & resume streaming & resume streams ag-ui sse; replays. heartbeat comment every (default ) during gaps so proxies don't kill idle streams. see concepts: ag-ui. single-process/in-memory only — sticky sessions needed behind a load balancer. see for multi-instance plan (issue #229)."
   },
   {
-    "id": 29,
+    "id": 86,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [],
@@ -612,7 +1702,7 @@
     "tokens": "@personaai/runtime 0.11.0 framework-agnostic runtime engine — the shared brain every adapter wraps @personaai/runtime 0.11.0 install the sacred contract: `resolveuser` quickstart (raw node) capabilities (opt-in, default off) routes @personaai/runtime 0.11.0 framework-agnostic runtime engine. adapters ( , , ) are thin translators over this. > **server-side only.** holds — never bundle. install if you use express/next/nest, install instead — it wraps this. the sacred contract: persona never authenticates users. you tell the runtime who the request is from: returns — /throw → runtime responds . see guide: resolve-user. quickstart (raw node) for framework installs, see adapters quickstart. capabilities (opt-in, default off) disabled capabilities' routes are absent ( / ), not . see guide: capabilities. routes core always-on routes: see routes: core. capability-gated routes: see routes: capabilities."
   },
   {
-    "id": 30,
+    "id": 87,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -631,7 +1721,7 @@
     "tokens": "quickstart — @personaai/runtime create a runtime and handle requests via the node bridge quickstart mount path health next quickstart mount path — runtime strips it before routing. adapters do this for you. health is public (no ) → via . next guide: resolve-user guide: streaming & resume guide: hooks adapters quickstart — framework-mounted alternative"
   },
   {
-    "id": 31,
+    "id": 88,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -648,7 +1738,7 @@
     "tokens": "capability routes opt-in project-level admin surface — all default off capability routes capability routes a disabled capability's routes are absent ( / ), not — no leak. see runtime: capabilities concept (todo)."
   },
   {
-    "id": 32,
+    "id": 89,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -665,7 +1755,7 @@
     "tokens": "core routes (always on) end-user-scoped routes — no capability flag needed core routes (always on) core routes (always on) see full table in readme ( ). > generated tables in this section will be produced from route table via — hand prose stays in , generated tables in ."
   },
   {
-    "id": 33,
+    "id": 90,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -682,7 +1772,7 @@
     "tokens": "createruntimeoptions — @personaai/runtime generated field table for createruntimeoptions — do not edit `createruntimeoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 34,
+    "id": 91,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -699,7 +1789,7 @@
     "tokens": "errorcontext — @personaai/runtime generated field table for errorcontext — do not edit `errorcontext` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 35,
+    "id": 92,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -716,7 +1806,7 @@
     "tokens": "fileuploadcontext — @personaai/runtime generated field table for fileuploadcontext — do not edit `fileuploadcontext` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 36,
+    "id": 93,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -733,7 +1823,7 @@
     "tokens": "memorywritecontext — @personaai/runtime generated field table for memorywritecontext — do not edit `memorywritecontext` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 37,
+    "id": 94,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -750,7 +1840,7 @@
     "tokens": "rcpmanifestoptions — @personaai/runtime generated field table for rcpmanifestoptions — do not edit `rcpmanifestoptions` > **generated from — do not edit.** serves a list of code-defined rcp (rest connector protocol, npm rcp-sdk ) tools as a conformant { rcpversion, auth, tools } manifest at get {mountpath}/rcp/manifest — register that url as an rcp source and any rcp client (persona included) discovers/calls these tools live. independent of resttoolsmanifestoptions — unrelated protocols, both servable from the same runtime instance if you want both. _source: _ _interface_"
   },
   {
-    "id": 38,
+    "id": 95,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -767,7 +1857,7 @@
     "tokens": "resttoolsmanifestoptions — @personaai/runtime generated field table for resttoolsmanifestoptions — do not edit `resttoolsmanifestoptions` > **generated from — do not edit.** serves a list of code-defined rest tools (built with defineresttool from @personaai/sdk/rest-tools ) as a json manifest at get {mountpath}/rest-tools/manifest — register that url in the persona dashboard as a rest tool source and it discovers/calls these tools live, the same way it discovers an mcp server's tools. this is host-side static data the runtime *serves*, not a persona-proxy capability — it never calls personaclient and works even with no resolveuser traffic at all. _source: _ _interface_"
   },
   {
-    "id": 39,
+    "id": 96,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -784,7 +1874,7 @@
     "tokens": "runcontext — @personaai/runtime generated field table for runcontext — do not edit `runcontext` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 40,
+    "id": 97,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -801,7 +1891,7 @@
     "tokens": "runresult — @personaai/runtime generated field table for runresult — do not edit `runresult` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 41,
+    "id": 98,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -818,7 +1908,7 @@
     "tokens": "runtime — @personaai/runtime generated field table for runtime — do not edit `runtime` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 42,
+    "id": 99,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -835,7 +1925,7 @@
     "tokens": "runtimebinaryresponse — @personaai/runtime generated field table for runtimebinaryresponse — do not edit `runtimebinaryresponse` > **generated from — do not edit.** raw bytes with a known (or unknown, chunked) length — file downloads only. _source: _ _interface_"
   },
   {
-    "id": 43,
+    "id": 100,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -852,7 +1942,7 @@
     "tokens": "runtimebufferedresponse — @personaai/runtime generated field table for runtimebufferedresponse — do not edit `runtimebufferedresponse` > **generated from — do not edit.** a complete response with a known-length body — every route except streaming chat. _source: _ _interface_"
   },
   {
-    "id": 44,
+    "id": 101,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -869,7 +1959,7 @@
     "tokens": "runtimecapabilities — @personaai/runtime generated field table for runtimecapabilities — do not edit `runtimecapabilities` > **generated from — do not edit.** every one of these is false unless explicitly enabled — always-off by default so upgrading this package never silently exposes new surface to whoever resolveuser accepts. these resources are project-level configuration (llm provider credentials, skill/knowledge-base/vector-store management, security audit logs, an agent-building co-pilot) rather than things an end user does in a chat session — most hosts should manage them via @personaai/sdk directly from their own admin surface and never turn these on. turn one on only if you specifically want it reachable through whatever resolveuser gates (which may not be \"any logged-in end user\" — that's your call). _source: _ _interface_"
   },
   {
-    "id": 45,
+    "id": 102,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -886,7 +1976,7 @@
     "tokens": "runtimehooks — @personaai/runtime generated field table for runtimehooks — do not edit `runtimehooks` > **generated from — do not edit.** lifecycle hooks — the host application's voice inside the runtime's request handling. plain async event listeners, not middleware: the runtime proceeds with sensible defaults when a hook is omitted, and a hook that wants to reject a run simply throws (the throw is caught and routed through the same sanitized error path as any other failure). _source: _ _interface_"
   },
   {
-    "id": 46,
+    "id": 103,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -903,7 +1993,7 @@
     "tokens": "runtimerequest — @personaai/runtime generated field table for runtimerequest — do not edit `runtimerequest` > **generated from — do not edit.** framework-neutral inbound request. a framework adapter (express, node http , ...) translates its own request object into this shape and calls runtime.handle() — the runtime never imports a framework. _source: _ _interface_"
   },
   {
-    "id": 47,
+    "id": 104,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -920,7 +2010,7 @@
     "tokens": "runtimestreamresponse — @personaai/runtime generated field table for runtimestreamresponse — do not edit `runtimestreamresponse` > **generated from — do not edit.** an open-ended sse response — the chat route only. _source: _ _interface_"
   },
   {
-    "id": 48,
+    "id": 105,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -937,7 +2027,7 @@
     "tokens": "runtimeuploadedfile — @personaai/runtime generated field table for runtimeuploadedfile — do not edit `runtimeuploadedfile` > **generated from — do not edit.** a single uploaded file — present on runtimerequest.file for a multipart post /files . _source: _ _interface_"
   },
   {
-    "id": 49,
+    "id": 106,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -954,7 +2044,7 @@
     "tokens": "threadcreatecontext — @personaai/runtime generated field table for threadcreatecontext — do not edit `threadcreatecontext` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 50,
+    "id": 107,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -971,7 +2061,7 @@
     "tokens": "toolcallcontext — @personaai/runtime generated field table for toolcallcontext — do not edit `toolcallcontext` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 51,
+    "id": 108,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -988,7 +2078,7 @@
     "tokens": "voicesessioncreatecontext — @personaai/runtime generated field table for voicesessioncreatecontext — do not edit `voicesessioncreatecontext` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 52,
+    "id": 109,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -1005,7 +2095,7 @@
     "tokens": "workflownodecontext — @personaai/runtime generated field table for workflownodecontext — do not edit `workflownodecontext` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 53,
+    "id": 110,
     "sdk": "runtime",
     "version": "0.11.0",
     "slug": [
@@ -1021,7 +2111,370 @@
     "tokens": "types — runtime v0.11.0 full export index (generated from typedoc) full export index > **generated from — do not edit.** regenerate with . full export index"
   },
   {
-    "id": 54,
+    "id": 111,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "guides",
+      "express"
+    ],
+    "href": "/docs/adapters/v0.8.0/guides/express",
+    "title": "Express",
+    "description": "Mount the runtime as an Express Router",
+    "headings": [
+      "Express"
+    ],
+    "snippet": "Express Or two mounts: + at different paths with different . See Quickstart.",
+    "tokens": "express mount the runtime as an express router express express or two mounts: + at different paths with different . see quickstart."
+  },
+  {
+    "id": 112,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "guides",
+      "nestjs"
+    ],
+    "href": "/docs/adapters/v0.8.0/guides/nestjs",
+    "title": "NestJS",
+    "description": "PersonaModule with resolveUserFrom",
+    "headings": [
+      "NestJS"
+    ],
+    "snippet": "NestJS + (scoped SDK client) also available. is applied by the module. Requires + peers.",
+    "tokens": "nestjs personamodule with resolveuserfrom nestjs nestjs + (scoped sdk client) also available. is applied by the module. requires + peers."
+  },
+  {
+    "id": 113,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "guides",
+      "nextjs"
+    ],
+    "href": "/docs/adapters/v0.8.0/guides/nextjs",
+    "title": "Next.js",
+    "description": "App Router handler + PersonaProvider",
+    "headings": [
+      "Next.js"
+    ],
+    "snippet": "Next.js Uses Web / + — no needed; multipart via . The client entry re-exports all of , so , (needs in the handler options), and the rest import from the same specifier. See useMessages.",
+    "tokens": "next.js app router handler + personaprovider next.js next.js uses web / + — no needed; multipart via . the client entry re-exports all of , so , (needs in the handler options), and the rest import from the same specifier. see usemessages."
+  },
+  {
+    "id": 114,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "guides",
+      "shared-core"
+    ],
+    "href": "/docs/adapters/v0.8.0/guides/shared-core",
+    "title": "Shared core",
+    "description": "One source of truth for Express/NestJS/Next.js",
+    "headings": [
+      "Shared core"
+    ],
+    "snippet": "Shared core is the single source of truth: Fix once, ship everywhere. is **not** a published package — not exported to consumers.",
+    "tokens": "shared core one source of truth for express/nestjs/next.js shared core shared core is the single source of truth: fix once, ship everywhere. is **not** a published package — not exported to consumers."
+  },
+  {
+    "id": 115,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [],
+    "href": "/docs/adapters/v0.8.0",
+    "title": "@personaai/adapters 0.8.0",
+    "description": "One package, three frameworks — Express, Next.js, NestJS via subpaths",
+    "headings": [
+      "@personaai/adapters 0.8.0",
+      "Install",
+      "peer: install only the framework you use",
+      "npm install express          # for Express",
+      "npm install next react       # for Next.js",
+      "npm install @nestjs/common @nestjs/core reflect-metadata rxjs  # for NestJS",
+      "Exports",
+      "Migration from legacy packages"
+    ],
+    "snippet": "@personaai/adapters 0.8.0 Unified adapter — **one install, three frameworks, one shared core** ( ). Replaces legacy / / (frozen/deprecated). Install Exports See Quickstart — pick your framework tab. Migration from legacy packages Old packages' last versions keep working but never",
+    "tokens": "@personaai/adapters 0.8.0 one package, three frameworks — express, next.js, nestjs via subpaths @personaai/adapters 0.8.0 install peer: install only the framework you use npm install express          # for express npm install next react       # for next.js npm install @nestjs/common @nestjs/core reflect-metadata rxjs  # for nestjs exports migration from legacy packages @personaai/adapters 0.8.0 unified adapter — **one install, three frameworks, one shared core** ( ). replaces legacy / / (frozen/deprecated). install exports see quickstart — pick your framework tab. migration from legacy packages old packages' last versions keep working but never receive updates. shared core (errors, headers, multipart-node, write-node/web, handler-node, translate-node) is single source of truth — fix once, ship everywhere."
+  },
+  {
+    "id": 116,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "quickstart"
+    ],
+    "href": "/docs/adapters/v0.8.0/quickstart",
+    "title": "Quickstart — @personaai/adapters",
+    "description": "Express / Next.js / NestJS — one package, pick your framework",
+    "headings": [
+      "Quickstart",
+      "Express",
+      "Next.js (App Router)",
+      "NestJS",
+      "Next"
+    ],
+    "snippet": "Quickstart Express Or for two mounts (app + admin) at different paths. Next.js (App Router) NestJS + also available. Next Guide: Express · Guide: Next.js · Guide: NestJS Concepts: resolve-user (via runtime guide)",
+    "tokens": "quickstart — @personaai/adapters express / next.js / nestjs — one package, pick your framework quickstart express next.js (app router) nestjs next quickstart express or for two mounts (app + admin) at different paths. next.js (app router) nestjs + also available. next guide: express · guide: next.js · guide: nestjs concepts: resolve-user (via runtime guide)"
+  },
+  {
+    "id": 117,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "collectMulterFiles"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/collectMulterFiles",
+    "title": "collectMulterFiles — @personaai/adapters",
+    "description": "Generated field table for collectMulterFiles — do not edit",
+    "headings": [
+      "`collectMulterFiles`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Type alias_ _No fields_",
+    "tokens": "collectmulterfiles — @personaai/adapters generated field table for collectmulterfiles — do not edit `collectmulterfiles` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
+  },
+  {
+    "id": 118,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "CreateExpressAdapterOptions"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/CreateExpressAdapterOptions",
+    "title": "CreateExpressAdapterOptions — @personaai/adapters",
+    "description": "Generated field table for CreateExpressAdapterOptions — do not edit",
+    "headings": [
+      "`CreateExpressAdapterOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "createexpressadapteroptions — @personaai/adapters generated field table for createexpressadapteroptions — do not edit `createexpressadapteroptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 119,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "CreatePersonaHandlerOptions"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/CreatePersonaHandlerOptions",
+    "title": "CreatePersonaHandlerOptions — @personaai/adapters",
+    "description": "Generated field table for CreatePersonaHandlerOptions — do not edit",
+    "headings": [
+      "`CreatePersonaHandlerOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "createpersonahandleroptions — @personaai/adapters generated field table for createpersonahandleroptions — do not edit `createpersonahandleroptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 120,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "MultipartResult"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/MultipartResult",
+    "title": "MultipartResult — @personaai/adapters",
+    "description": "Generated field table for MultipartResult — do not edit",
+    "headings": [
+      "`MultipartResult`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "multipartresult — @personaai/adapters generated field table for multipartresult — do not edit `multipartresult` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 121,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "NextRouteContext"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/NextRouteContext",
+    "title": "NextRouteContext — @personaai/adapters",
+    "description": "Generated field table for NextRouteContext — do not edit",
+    "headings": [
+      "`NextRouteContext`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "nextroutecontext — @personaai/adapters generated field table for nextroutecontext — do not edit `nextroutecontext` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 122,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "parseMultipart"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/parseMultipart",
+    "title": "parseMultipart — @personaai/adapters",
+    "description": "Generated field table for parseMultipart — do not edit",
+    "headings": [
+      "`parseMultipart`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Type alias_ _No fields_",
+    "tokens": "parsemultipart — @personaai/adapters generated field table for parsemultipart — do not edit `parsemultipart` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
+  },
+  {
+    "id": 123,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "PersonaModuleAsyncOptions"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/PersonaModuleAsyncOptions",
+    "title": "PersonaModuleAsyncOptions — @personaai/adapters",
+    "description": "Generated field table for PersonaModuleAsyncOptions — do not edit",
+    "headings": [
+      "`PersonaModuleAsyncOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personamoduleasyncoptions — @personaai/adapters generated field table for personamoduleasyncoptions — do not edit `personamoduleasyncoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 124,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "PersonaModuleOptions"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/PersonaModuleOptions",
+    "title": "PersonaModuleOptions — @personaai/adapters",
+    "description": "Generated field table for PersonaModuleOptions — do not edit",
+    "headings": [
+      "`PersonaModuleOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personamoduleoptions — @personaai/adapters generated field table for personamoduleoptions — do not edit `personamoduleoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 125,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "PersonaOptionsFactory"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/PersonaOptionsFactory",
+    "title": "PersonaOptionsFactory — @personaai/adapters",
+    "description": "Generated field table for PersonaOptionsFactory — do not edit",
+    "headings": [
+      "`PersonaOptionsFactory`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaoptionsfactory — @personaai/adapters generated field table for personaoptionsfactory — do not edit `personaoptionsfactory` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 126,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "PersonaRouteHandlers"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/PersonaRouteHandlers",
+    "title": "PersonaRouteHandlers — @personaai/adapters",
+    "description": "Generated field table for PersonaRouteHandlers — do not edit",
+    "headings": [
+      "`PersonaRouteHandlers`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaroutehandlers — @personaai/adapters generated field table for personaroutehandlers — do not edit `personaroutehandlers` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 127,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "ToNextRouteHandlersOptions"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/ToNextRouteHandlersOptions",
+    "title": "ToNextRouteHandlersOptions — @personaai/adapters",
+    "description": "Generated field table for ToNextRouteHandlersOptions — do not edit",
+    "headings": [
+      "`ToNextRouteHandlersOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "tonextroutehandlersoptions — @personaai/adapters generated field table for tonextroutehandlersoptions — do not edit `tonextroutehandlersoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 128,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "toRuntimeRequest"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/toRuntimeRequest",
+    "title": "toRuntimeRequest — @personaai/adapters",
+    "description": "Generated field table for toRuntimeRequest — do not edit",
+    "headings": [
+      "`toRuntimeRequest`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Type alias_ _No fields_",
+    "tokens": "toruntimerequest — @personaai/adapters generated field table for toruntimerequest — do not edit `toruntimerequest` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
+  },
+  {
+    "id": 129,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "TranslationError"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/TranslationError",
+    "title": "TranslationError — @personaai/adapters",
+    "description": "Generated field table for TranslationError — do not edit",
+    "headings": [
+      "`TranslationError`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Type alias_ _No fields_",
+    "tokens": "translationerror — @personaai/adapters generated field table for translationerror — do not edit `translationerror` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
+  },
+  {
+    "id": 130,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types",
+      "writeRuntimeResponse"
+    ],
+    "href": "/docs/adapters/v0.8.0/types/writeRuntimeResponse",
+    "title": "writeRuntimeResponse — @personaai/adapters",
+    "description": "Generated field table for writeRuntimeResponse — do not edit",
+    "headings": [
+      "`writeRuntimeResponse`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Type alias_ _No fields_",
+    "tokens": "writeruntimeresponse — @personaai/adapters generated field table for writeruntimeresponse — do not edit `writeruntimeresponse` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
+  },
+  {
+    "id": 131,
+    "sdk": "adapters",
+    "version": "0.8.0",
+    "slug": [
+      "types"
+    ],
+    "href": "/docs/adapters/v0.8.0/types",
+    "title": "Types — adapters v0.8.0",
+    "description": "Full export index (generated from TypeDoc)",
+    "headings": [
+      "Full export index"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . Full export index",
+    "tokens": "types — adapters v0.8.0 full export index (generated from typedoc) full export index > **generated from — do not edit.** regenerate with . full export index"
+  },
+  {
+    "id": 132,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1038,7 +2491,7 @@
     "tokens": "express mount the runtime as an express router express express or two mounts: + at different paths with different . see quickstart."
   },
   {
-    "id": 55,
+    "id": 133,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1055,7 +2508,7 @@
     "tokens": "nestjs personamodule with resolveuserfrom nestjs nestjs + (scoped sdk client) also available. is applied by the module. requires + peers."
   },
   {
-    "id": 56,
+    "id": 134,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1072,7 +2525,7 @@
     "tokens": "next.js app router handler + personaprovider next.js next.js uses web / + — no needed; multipart via ."
   },
   {
-    "id": 57,
+    "id": 135,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1089,7 +2542,7 @@
     "tokens": "shared core one source of truth for express/nestjs/next.js shared core shared core is the single source of truth: fix once, ship everywhere. is **not** a published package — not exported to consumers."
   },
   {
-    "id": 58,
+    "id": 136,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [],
@@ -1110,7 +2563,7 @@
     "tokens": "@personaai/adapters 0.3.0 one package, three frameworks — express, next.js, nestjs via subpaths @personaai/adapters 0.3.0 install peer: install only the framework you use npm install express          # for express npm install next react       # for next.js npm install @nestjs/common @nestjs/core reflect-metadata rxjs  # for nestjs exports migration from legacy packages @personaai/adapters 0.3.0 unified adapter — **one install, three frameworks, one shared core** ( ). replaces legacy / / (frozen/deprecated). install exports see quickstart — pick your framework tab. migration from legacy packages old packages' last versions keep working but never receive updates. shared core (errors, headers, multipart-node, write-node/web, handler-node, translate-node) is single source of truth — fix once, ship everywhere."
   },
   {
-    "id": 59,
+    "id": 137,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1130,7 +2583,7 @@
     "tokens": "quickstart — @personaai/adapters express / next.js / nestjs — one package, pick your framework quickstart express next.js (app router) nestjs next quickstart express or for two mounts (app + admin) at different paths. next.js (app router) nestjs + also available. next guide: express · guide: next.js · guide: nestjs concepts: resolve-user (via runtime guide)"
   },
   {
-    "id": 60,
+    "id": 138,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1147,7 +2600,7 @@
     "tokens": "collectmulterfiles — @personaai/adapters generated field table for collectmulterfiles — do not edit `collectmulterfiles` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
   },
   {
-    "id": 61,
+    "id": 139,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1164,7 +2617,7 @@
     "tokens": "createexpressadapteroptions — @personaai/adapters generated field table for createexpressadapteroptions — do not edit `createexpressadapteroptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 62,
+    "id": 140,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1181,7 +2634,7 @@
     "tokens": "createpersonahandleroptions — @personaai/adapters generated field table for createpersonahandleroptions — do not edit `createpersonahandleroptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 63,
+    "id": 141,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1198,7 +2651,7 @@
     "tokens": "multipartresult — @personaai/adapters generated field table for multipartresult — do not edit `multipartresult` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 64,
+    "id": 142,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1215,7 +2668,7 @@
     "tokens": "nextroutecontext — @personaai/adapters generated field table for nextroutecontext — do not edit `nextroutecontext` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 65,
+    "id": 143,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1232,7 +2685,7 @@
     "tokens": "parsemultipart — @personaai/adapters generated field table for parsemultipart — do not edit `parsemultipart` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
   },
   {
-    "id": 66,
+    "id": 144,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1249,7 +2702,7 @@
     "tokens": "personamoduleasyncoptions — @personaai/adapters generated field table for personamoduleasyncoptions — do not edit `personamoduleasyncoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 67,
+    "id": 145,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1266,7 +2719,7 @@
     "tokens": "personamoduleoptions — @personaai/adapters generated field table for personamoduleoptions — do not edit `personamoduleoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 68,
+    "id": 146,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1283,7 +2736,7 @@
     "tokens": "personaoptionsfactory — @personaai/adapters generated field table for personaoptionsfactory — do not edit `personaoptionsfactory` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 69,
+    "id": 147,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1300,7 +2753,7 @@
     "tokens": "personaroutehandlers — @personaai/adapters generated field table for personaroutehandlers — do not edit `personaroutehandlers` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 70,
+    "id": 148,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1317,7 +2770,7 @@
     "tokens": "tonextroutehandlersoptions — @personaai/adapters generated field table for tonextroutehandlersoptions — do not edit `tonextroutehandlersoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 71,
+    "id": 149,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1334,7 +2787,7 @@
     "tokens": "toruntimerequest — @personaai/adapters generated field table for toruntimerequest — do not edit `toruntimerequest` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
   },
   {
-    "id": 72,
+    "id": 150,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1351,7 +2804,7 @@
     "tokens": "translationerror — @personaai/adapters generated field table for translationerror — do not edit `translationerror` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
   },
   {
-    "id": 73,
+    "id": 151,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1368,7 +2821,7 @@
     "tokens": "writeruntimeresponse — @personaai/adapters generated field table for writeruntimeresponse — do not edit `writeruntimeresponse` > **generated from — do not edit.** _source: _ _type alias_ _no fields_"
   },
   {
-    "id": 74,
+    "id": 152,
     "sdk": "adapters",
     "version": "0.3.0",
     "slug": [
@@ -1384,7 +2837,995 @@
     "tokens": "types — adapters v0.3.0 full export index (generated from typedoc) full export index > **generated from — do not edit.** regenerate with . full export index"
   },
   {
-    "id": 75,
+    "id": 153,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "guides",
+      "ephemeral"
+    ],
+    "href": "/docs/react/v0.18.0/guides/ephemeral",
+    "title": "Ephemeral new chat",
+    "description": "Start a chat without minting an empty thread",
+    "headings": [
+      "Ephemeral new chat"
+    ],
+    "snippet": "Ephemeral new chat / return ( sent, dropped while streaming).",
+    "tokens": "ephemeral new chat start a chat without minting an empty thread ephemeral new chat ephemeral new chat / return ( sent, dropped while streaming)."
+  },
+  {
+    "id": 154,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "guides",
+      "voice"
+    ],
+    "href": "/docs/react/v0.18.0/guides/voice",
+    "title": "Voice",
+    "description": "Gemini Live — start, transcript, partial, mute, and chat injection",
+    "headings": [
+      "Voice"
+    ],
+    "snippet": "Voice live-refreshes RCP context over the open socket without reconnect. Share with to merge turns automatically.",
+    "tokens": "voice gemini live — start, transcript, partial, mute, and chat injection voice voice live-refreshes rcp context over the open socket without reconnect. share with to merge turns automatically."
+  },
+  {
+    "id": 155,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "guides",
+      "workflows"
+    ],
+    "href": "/docs/react/v0.18.0/guides/workflows",
+    "title": "Workflows",
+    "description": "Stream multi-step workflows with node state",
+    "headings": [
+      "Workflows"
+    ],
+    "snippet": "Workflows See SDK Workflows guide for the underlying / / semantics.",
+    "tokens": "workflows stream multi-step workflows with node state workflows workflows see sdk workflows guide for the underlying / / semantics."
+  },
+  {
+    "id": 156,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "hooks",
+      "useChat"
+    ],
+    "href": "/docs/react/v0.18.0/hooks/useChat",
+    "title": "useChat",
+    "description": "Streaming chat — messages, send, interrupts, voice, ephemeral",
+    "headings": [
+      "useChat"
+    ],
+    "snippet": "useChat See SDK Guide: Chat for the underlying AG-UI events. > Generated props table for will be produced from via TypeDoc.",
+    "tokens": "usechat streaming chat — messages, send, interrupts, voice, ephemeral usechat usechat see sdk guide: chat for the underlying ag-ui events. > generated props table for will be produced from via typedoc."
+  },
+  {
+    "id": 157,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "hooks",
+      "useMessages"
+    ],
+    "href": "/docs/react/v0.18.0/hooks/useMessages",
+    "title": "useMessages",
+    "description": "Outbound SMS / WhatsApp through your mounted runtime",
+    "headings": [
+      "useMessages",
+      "Return value",
+      "Inputs"
+    ],
+    "snippet": "useMessages sends SMS and WhatsApp messages through your own backend — it s to and on the runtime, so the credential never reaches the browser. > Requires the runtime to be mounted with — both routes 404 otherwise. See Runtime: Capability routes. Return value Inputs : (E.164, req",
+    "tokens": "usemessages outbound sms / whatsapp through your mounted runtime usemessages return value inputs usemessages sends sms and whatsapp messages through your own backend — it s to and on the runtime, so the credential never reaches the browser. > requires the runtime to be mounted with — both routes 404 otherwise. see runtime: capability routes. return value inputs : (e.164, required), ( , inferred from a prefix), , , , . : , , (all required), , . the phone number is the conversation identity — sms, whatsapp, and voice with the same (project, agent, number) share one thread, so continues whatever conversation is already in progress. see sdk guide: messaging for the full error table."
+  },
+  {
+    "id": 158,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "hooks",
+      "useThreads"
+    ],
+    "href": "/docs/react/v0.18.0/hooks/useThreads",
+    "title": "useThreads",
+    "description": "Thread CRUD — list, create, delete, rename, reset, archive",
+    "headings": [
+      "useThreads"
+    ],
+    "snippet": "useThreads Auto-refetch via (often wired to 's ).",
+    "tokens": "usethreads thread crud — list, create, delete, rename, reset, archive usethreads usethreads auto-refetch via (often wired to 's )."
+  },
+  {
+    "id": 159,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "hooks",
+      "useVoice"
+    ],
+    "href": "/docs/react/v0.18.0/hooks/useVoice",
+    "title": "useVoice",
+    "description": "Real-time voice — Gemini Live",
+    "headings": [
+      "useVoice"
+    ],
+    "snippet": "useVoice See Guide: Voice. Full API: , , , , , , , , , , . is live-only (no history replay). See etc.",
+    "tokens": "usevoice real-time voice — gemini live usevoice usevoice see guide: voice. full api: , , , , , , , , , , . is live-only (no history replay). see etc."
+  },
+  {
+    "id": 160,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "hooks",
+      "useWorkflows"
+    ],
+    "href": "/docs/react/v0.18.0/hooks/useWorkflows",
+    "title": "useWorkflows",
+    "description": "List, search, create workflows",
+    "headings": [
+      "useWorkflows"
+    ],
+    "snippet": "useWorkflows See SDK Workflows and Guide: Workflows.",
+    "tokens": "useworkflows list, search, create workflows useworkflows useworkflows see sdk workflows and guide: workflows."
+  },
+  {
+    "id": 161,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [],
+    "href": "/docs/react/v0.18.0",
+    "title": "@personaai/react 0.18.0",
+    "description": "React hooks + Provider for building chat UIs",
+    "headings": [
+      "@personaai/react 0.18.0",
+      "Install",
+      "Quickstart",
+      "Hooks"
+    ],
+    "snippet": "@personaai/react 0.18.0 React hooks + for building chat UIs against any Persona backend (runtime or adapters). > **Client-side only** — never holds a credential. points to your own mounted runtime (e.g. ). Install Quickstart See Quickstart. Hooks See Hooks.",
+    "tokens": "@personaai/react 0.18.0 react hooks + provider for building chat uis @personaai/react 0.18.0 install quickstart hooks @personaai/react 0.18.0 react hooks + for building chat uis against any persona backend (runtime or adapters). > **client-side only** — never holds a credential. points to your own mounted runtime (e.g. ). install quickstart see quickstart. hooks see hooks."
+  },
+  {
+    "id": 162,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "quickstart"
+    ],
+    "href": "/docs/react/v0.18.0/quickstart",
+    "title": "Quickstart — @personaai/react",
+    "description": "Provider + useChat in under 10 lines",
+    "headings": [
+      "Quickstart",
+      "Ephemeral new chat",
+      "Voice"
+    ],
+    "snippet": "Quickstart Ephemeral new chat See Guide: ephemeral and useChat. Voice",
+    "tokens": "quickstart — @personaai/react provider + usechat in under 10 lines quickstart ephemeral new chat voice quickstart ephemeral new chat see guide: ephemeral and usechat. voice"
+  },
+  {
+    "id": 163,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "CreateWorkflowInput"
+    ],
+    "href": "/docs/react/v0.18.0/types/CreateWorkflowInput",
+    "title": "CreateWorkflowInput — @personaai/react",
+    "description": "Generated field table for CreateWorkflowInput — do not edit",
+    "headings": [
+      "`CreateWorkflowInput`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "createworkflowinput — @personaai/react generated field table for createworkflowinput — do not edit `createworkflowinput` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 164,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "OpenSSEOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/OpenSSEOptions",
+    "title": "OpenSSEOptions — @personaai/react",
+    "description": "Generated field table for OpenSSEOptions — do not edit",
+    "headings": [
+      "`OpenSSEOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "opensseoptions — @personaai/react generated field table for opensseoptions — do not edit `opensseoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 165,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaAgentSummary"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaAgentSummary",
+    "title": "PersonaAgentSummary — @personaai/react",
+    "description": "Generated field table for PersonaAgentSummary — do not edit",
+    "headings": [
+      "`PersonaAgentSummary`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaagentsummary — @personaai/react generated field table for personaagentsummary — do not edit `personaagentsummary` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 166,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaClarificationQuestion"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaClarificationQuestion",
+    "title": "PersonaClarificationQuestion — @personaai/react",
+    "description": "Generated field table for PersonaClarificationQuestion — do not edit",
+    "headings": [
+      "`PersonaClarificationQuestion`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaclarificationquestion — @personaai/react generated field table for personaclarificationquestion — do not edit `personaclarificationquestion` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 167,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaFileItem"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaFileItem",
+    "title": "PersonaFileItem — @personaai/react",
+    "description": "Generated field table for PersonaFileItem — do not edit",
+    "headings": [
+      "`PersonaFileItem`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Mirrors the wire shape of GET/POST /files — id , not _id . _Source: _ _Interface_",
+    "tokens": "personafileitem — @personaai/react generated field table for personafileitem — do not edit `personafileitem` > **generated from — do not edit.** mirrors the wire shape of get/post /files — id , not _id . _source: _ _interface_"
+  },
+  {
+    "id": 168,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaHealthInfo"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaHealthInfo",
+    "title": "PersonaHealthInfo — @personaai/react",
+    "description": "Generated field table for PersonaHealthInfo — do not edit",
+    "headings": [
+      "`PersonaHealthInfo`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personahealthinfo — @personaai/react generated field table for personahealthinfo — do not edit `personahealthinfo` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 169,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaHitlActionRequest"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaHitlActionRequest",
+    "title": "PersonaHitlActionRequest — @personaai/react",
+    "description": "Generated field table for PersonaHitlActionRequest — do not edit",
+    "headings": [
+      "`PersonaHitlActionRequest`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personahitlactionrequest — @personaai/react generated field table for personahitlactionrequest — do not edit `personahitlactionrequest` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 170,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaMcpConnection"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaMcpConnection",
+    "title": "PersonaMcpConnection — @personaai/react",
+    "description": "Generated field table for PersonaMcpConnection — do not edit",
+    "headings": [
+      "`PersonaMcpConnection`"
+    ],
+    "snippet": "> **Generated from — do not edit.** One authType: 'oauth', authMode: 'user' MCP an Agent has attached, and whether the current end user has connected it yet. authorizeUrl is only present when connected is false — navigate the browser there (a same-tab redirect is fine; it's a rea",
+    "tokens": "personamcpconnection — @personaai/react generated field table for personamcpconnection — do not edit `personamcpconnection` > **generated from — do not edit.** one authtype: 'oauth', authmode: 'user' mcp an agent has attached, and whether the current end user has connected it yet. authorizeurl is only present when connected is false — navigate the browser there (a same-tab redirect is fine; it's a real oauth authorization url) to start the consent flow. _source: _ _interface_"
+  },
+  {
+    "id": 171,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaMemoryAgentGroup"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaMemoryAgentGroup",
+    "title": "PersonaMemoryAgentGroup — @personaai/react",
+    "description": "Generated field table for PersonaMemoryAgentGroup — do not edit",
+    "headings": [
+      "`PersonaMemoryAgentGroup`"
+    ],
+    "snippet": "> **Generated from — do not edit.** One agent's group of agent-scoped memory files, as returned by GET /memory . _Source: _ _Interface_",
+    "tokens": "personamemoryagentgroup — @personaai/react generated field table for personamemoryagentgroup — do not edit `personamemoryagentgroup` > **generated from — do not edit.** one agent's group of agent-scoped memory files, as returned by get /memory . _source: _ _interface_"
+  },
+  {
+    "id": 172,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaMemoryFile"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaMemoryFile",
+    "title": "PersonaMemoryFile — @personaai/react",
+    "description": "Generated field table for PersonaMemoryFile — do not edit",
+    "headings": [
+      "`PersonaMemoryFile`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personamemoryfile — @personaai/react generated field table for personamemoryfile — do not edit `personamemoryfile` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 173,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaMemoryList"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaMemoryList",
+    "title": "PersonaMemoryList — @personaai/react",
+    "description": "Generated field table for PersonaMemoryList — do not edit",
+    "headings": [
+      "`PersonaMemoryList`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personamemorylist — @personaai/react generated field table for personamemorylist — do not edit `personamemorylist` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 174,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaMessage"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaMessage",
+    "title": "PersonaMessage — @personaai/react",
+    "description": "Generated field table for PersonaMessage — do not edit",
+    "headings": [
+      "`PersonaMessage`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personamessage — @personaai/react generated field table for personamessage — do not edit `personamessage` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 175,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaNodeRunState"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaNodeRunState",
+    "title": "PersonaNodeRunState — @personaai/react",
+    "description": "Generated field table for PersonaNodeRunState — do not edit",
+    "headings": [
+      "`PersonaNodeRunState`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personanoderunstate — @personaai/react generated field table for personanoderunstate — do not edit `personanoderunstate` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 176,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaPresentedFile"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaPresentedFile",
+    "title": "PersonaPresentedFile — @personaai/react",
+    "description": "Generated field table for PersonaPresentedFile — do not edit",
+    "headings": [
+      "`PersonaPresentedFile`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Set when the agent calls present_file to highlight a workspace file. _Source: _ _Interface_",
+    "tokens": "personapresentedfile — @personaai/react generated field table for personapresentedfile — do not edit `personapresentedfile` > **generated from — do not edit.** set when the agent calls present_file to highlight a workspace file. _source: _ _interface_"
+  },
+  {
+    "id": 177,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaProviderProps"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaProviderProps",
+    "title": "PersonaProviderProps — @personaai/react",
+    "description": "Generated field table for PersonaProviderProps — do not edit",
+    "headings": [
+      "`PersonaProviderProps`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaproviderprops — @personaai/react generated field table for personaproviderprops — do not edit `personaproviderprops` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 178,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaSandboxCommand"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaSandboxCommand",
+    "title": "PersonaSandboxCommand — @personaai/react",
+    "description": "Generated field table for PersonaSandboxCommand — do not edit",
+    "headings": [
+      "`PersonaSandboxCommand`"
+    ],
+    "snippet": "> **Generated from — do not edit.** One execute tool call against an Agent's sandbox (real shell execution in an isolated CodeSandbox VM — requires the Agent's sandboxEnabled and a CSB_API_KEY Project Secret; see the Agent's sandboxEnabled field). Derived from PersonaToolCall s n",
+    "tokens": "personasandboxcommand — @personaai/react generated field table for personasandboxcommand — do not edit `personasandboxcommand` > **generated from — do not edit.** one execute tool call against an agent's sandbox (real shell execution in an isolated codesandbox vm — requires the agent's sandboxenabled and a csb_api_key project secret; see the agent's sandboxenabled field). derived from personatoolcall s named execute across every message in the conversation, in stream order — not a separate live/history-tracked state, so it's always consistent with messages . _source: _ _interface_"
+  },
+  {
+    "id": 179,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaSubagentActivityEntry"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaSubagentActivityEntry",
+    "title": "PersonaSubagentActivityEntry — @personaai/react",
+    "description": "Generated field table for PersonaSubagentActivityEntry — do not edit",
+    "headings": [
+      "`PersonaSubagentActivityEntry`"
+    ],
+    "snippet": "> **Generated from — do not edit.** One live update on a running task (subagent) tool call's timeline. _Source: _ _Interface_",
+    "tokens": "personasubagentactivityentry — @personaai/react generated field table for personasubagentactivityentry — do not edit `personasubagentactivityentry` > **generated from — do not edit.** one live update on a running task (subagent) tool call's timeline. _source: _ _interface_"
+  },
+  {
+    "id": 180,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaThread"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaThread",
+    "title": "PersonaThread — @personaai/react",
+    "description": "Generated field table for PersonaThread — do not edit",
+    "headings": [
+      "`PersonaThread`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personathread — @personaai/react generated field table for personathread — do not edit `personathread` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 181,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaTodo"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaTodo",
+    "title": "PersonaTodo — @personaai/react",
+    "description": "Generated field table for PersonaTodo — do not edit",
+    "headings": [
+      "`PersonaTodo`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personatodo — @personaai/react generated field table for personatodo — do not edit `personatodo` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 182,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaToolCall"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaToolCall",
+    "title": "PersonaToolCall — @personaai/react",
+    "description": "Generated field table for PersonaToolCall — do not edit",
+    "headings": [
+      "`PersonaToolCall`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personatoolcall — @personaai/react generated field table for personatoolcall — do not edit `personatoolcall` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 183,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaVoiceToolCall"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaVoiceToolCall",
+    "title": "PersonaVoiceToolCall — @personaai/react",
+    "description": "Generated field table for PersonaVoiceToolCall — do not edit",
+    "headings": [
+      "`PersonaVoiceToolCall`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personavoicetoolcall — @personaai/react generated field table for personavoicetoolcall — do not edit `personavoicetoolcall` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 184,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaVoiceTranscriptLine"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaVoiceTranscriptLine",
+    "title": "PersonaVoiceTranscriptLine — @personaai/react",
+    "description": "Generated field table for PersonaVoiceTranscriptLine — do not edit",
+    "headings": [
+      "`PersonaVoiceTranscriptLine`"
+    ],
+    "snippet": "> **Generated from — do not edit.** A committed transcript line. See partial on UseVoiceResult for the in-progress one. _Source: _ _Interface_",
+    "tokens": "personavoicetranscriptline — @personaai/react generated field table for personavoicetranscriptline — do not edit `personavoicetranscriptline` > **generated from — do not edit.** a committed transcript line. see partial on usevoiceresult for the in-progress one. _source: _ _interface_"
+  },
+  {
+    "id": 185,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaWorkflow"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaWorkflow",
+    "title": "PersonaWorkflow — @personaai/react",
+    "description": "Generated field table for PersonaWorkflow — do not edit",
+    "headings": [
+      "`PersonaWorkflow`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaworkflow — @personaai/react generated field table for personaworkflow — do not edit `personaworkflow` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 186,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaWorkflowDraft"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaWorkflowDraft",
+    "title": "PersonaWorkflowDraft — @personaai/react",
+    "description": "Generated field table for PersonaWorkflowDraft — do not edit",
+    "headings": [
+      "`PersonaWorkflowDraft`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaworkflowdraft — @personaai/react generated field table for personaworkflowdraft — do not edit `personaworkflowdraft` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 187,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaWorkflowEdge"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaWorkflowEdge",
+    "title": "PersonaWorkflowEdge — @personaai/react",
+    "description": "Generated field table for PersonaWorkflowEdge — do not edit",
+    "headings": [
+      "`PersonaWorkflowEdge`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaworkflowedge — @personaai/react generated field table for personaworkflowedge — do not edit `personaworkflowedge` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 188,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaWorkflowNode"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaWorkflowNode",
+    "title": "PersonaWorkflowNode — @personaai/react",
+    "description": "Generated field table for PersonaWorkflowNode — do not edit",
+    "headings": [
+      "`PersonaWorkflowNode`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaworkflownode — @personaai/react generated field table for personaworkflownode — do not edit `personaworkflownode` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 189,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaWorkflowRunSummary"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaWorkflowRunSummary",
+    "title": "PersonaWorkflowRunSummary — @personaai/react",
+    "description": "Generated field table for PersonaWorkflowRunSummary — do not edit",
+    "headings": [
+      "`PersonaWorkflowRunSummary`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaworkflowrunsummary — @personaai/react generated field table for personaworkflowrunsummary — do not edit `personaworkflowrunsummary` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 190,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaWorkflowSummary"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaWorkflowSummary",
+    "title": "PersonaWorkflowSummary — @personaai/react",
+    "description": "Generated field table for PersonaWorkflowSummary — do not edit",
+    "headings": [
+      "`PersonaWorkflowSummary`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaworkflowsummary — @personaai/react generated field table for personaworkflowsummary — do not edit `personaworkflowsummary` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 191,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaWorkflowTrigger"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaWorkflowTrigger",
+    "title": "PersonaWorkflowTrigger — @personaai/react",
+    "description": "Generated field table for PersonaWorkflowTrigger — do not edit",
+    "headings": [
+      "`PersonaWorkflowTrigger`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaworkflowtrigger — @personaai/react generated field table for personaworkflowtrigger — do not edit `personaworkflowtrigger` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 192,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaWorkflowVersionSummary"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaWorkflowVersionSummary",
+    "title": "PersonaWorkflowVersionSummary — @personaai/react",
+    "description": "Generated field table for PersonaWorkflowVersionSummary — do not edit",
+    "headings": [
+      "`PersonaWorkflowVersionSummary`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "personaworkflowversionsummary — @personaai/react generated field table for personaworkflowversionsummary — do not edit `personaworkflowversionsummary` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 193,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "PersonaWorkspaceFile"
+    ],
+    "href": "/docs/react/v0.18.0/types/PersonaWorkspaceFile",
+    "title": "PersonaWorkspaceFile — @personaai/react",
+    "description": "Generated field table for PersonaWorkspaceFile — do not edit",
+    "headings": [
+      "`PersonaWorkspaceFile`"
+    ],
+    "snippet": "> **Generated from — do not edit.** A file in the agent's own virtual workspace (deepagents' state-backed filesystem — write_file / read_file tool calls, distinct from PersonaFileItem uploads). Populated from STATE_SNAPSHOT events, or from a reloaded thread's persisted state. _So",
+    "tokens": "personaworkspacefile — @personaai/react generated field table for personaworkspacefile — do not edit `personaworkspacefile` > **generated from — do not edit.** a file in the agent's own virtual workspace (deepagents' state-backed filesystem — write_file / read_file tool calls, distinct from personafileitem uploads). populated from state_snapshot events, or from a reloaded thread's persisted state. _source: _ _interface_"
+  },
+  {
+    "id": 194,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "SendArchitectMessageOverride"
+    ],
+    "href": "/docs/react/v0.18.0/types/SendArchitectMessageOverride",
+    "title": "SendArchitectMessageOverride — @personaai/react",
+    "description": "Generated field table for SendArchitectMessageOverride — do not edit",
+    "headings": [
+      "`SendArchitectMessageOverride`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "sendarchitectmessageoverride — @personaai/react generated field table for sendarchitectmessageoverride — do not edit `sendarchitectmessageoverride` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 195,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "SendMessageOverride"
+    ],
+    "href": "/docs/react/v0.18.0/types/SendMessageOverride",
+    "title": "SendMessageOverride — @personaai/react",
+    "description": "Generated field table for SendMessageOverride — do not edit",
+    "headings": [
+      "`SendMessageOverride`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "sendmessageoverride — @personaai/react generated field table for sendmessageoverride — do not edit `sendmessageoverride` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 196,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "SSEReader"
+    ],
+    "href": "/docs/react/v0.18.0/types/SSEReader",
+    "title": "SSEReader — @personaai/react",
+    "description": "Generated field table for SSEReader — do not edit",
+    "headings": [
+      "`SSEReader`"
+    ],
+    "snippet": "> **Generated from — do not edit.** Minimal reader interface, mirroring the shape of a ReadableStream reader. _Source: _ _Interface_",
+    "tokens": "ssereader — @personaai/react generated field table for ssereader — do not edit `ssereader` > **generated from — do not edit.** minimal reader interface, mirroring the shape of a readablestream reader. _source: _ _interface_"
+  },
+  {
+    "id": 197,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "SSEStream"
+    ],
+    "href": "/docs/react/v0.18.0/types/SSEStream",
+    "title": "SSEStream — @personaai/react",
+    "description": "Generated field table for SSEStream — do not edit",
+    "headings": [
+      "`SSEStream`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "ssestream — @personaai/react generated field table for ssestream — do not edit `ssestream` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 198,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseArchitectChatOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseArchitectChatOptions",
+    "title": "UseArchitectChatOptions — @personaai/react",
+    "description": "Generated field table for UseArchitectChatOptions — do not edit",
+    "headings": [
+      "`UseArchitectChatOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "usearchitectchatoptions — @personaai/react generated field table for usearchitectchatoptions — do not edit `usearchitectchatoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 199,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseChatOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseChatOptions",
+    "title": "UseChatOptions — @personaai/react",
+    "description": "Generated field table for UseChatOptions — do not edit",
+    "headings": [
+      "`UseChatOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "usechatoptions — @personaai/react generated field table for usechatoptions — do not edit `usechatoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 200,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseMcpConnectionsOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseMcpConnectionsOptions",
+    "title": "UseMcpConnectionsOptions — @personaai/react",
+    "description": "Generated field table for UseMcpConnectionsOptions — do not edit",
+    "headings": [
+      "`UseMcpConnectionsOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "usemcpconnectionsoptions — @personaai/react generated field table for usemcpconnectionsoptions — do not edit `usemcpconnectionsoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 201,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseMcpOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseMcpOptions",
+    "title": "UseMcpOptions — @personaai/react",
+    "description": "Generated field table for UseMcpOptions — do not edit",
+    "headings": [
+      "`UseMcpOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "usemcpoptions — @personaai/react generated field table for usemcpoptions — do not edit `usemcpoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 202,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseVoiceOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseVoiceOptions",
+    "title": "UseVoiceOptions — @personaai/react",
+    "description": "Generated field table for UseVoiceOptions — do not edit",
+    "headings": [
+      "`UseVoiceOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "usevoiceoptions — @personaai/react generated field table for usevoiceoptions — do not edit `usevoiceoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 203,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseVoiceResult"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseVoiceResult",
+    "title": "UseVoiceResult — @personaai/react",
+    "description": "Generated field table for UseVoiceResult — do not edit",
+    "headings": [
+      "`UseVoiceResult`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "usevoiceresult — @personaai/react generated field table for usevoiceresult — do not edit `usevoiceresult` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 204,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseWorkflowOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseWorkflowOptions",
+    "title": "UseWorkflowOptions — @personaai/react",
+    "description": "Generated field table for UseWorkflowOptions — do not edit",
+    "headings": [
+      "`UseWorkflowOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "useworkflowoptions — @personaai/react generated field table for useworkflowoptions — do not edit `useworkflowoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 205,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseWorkflowRunsOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseWorkflowRunsOptions",
+    "title": "UseWorkflowRunsOptions — @personaai/react",
+    "description": "Generated field table for UseWorkflowRunsOptions — do not edit",
+    "headings": [
+      "`UseWorkflowRunsOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "useworkflowrunsoptions — @personaai/react generated field table for useworkflowrunsoptions — do not edit `useworkflowrunsoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 206,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseWorkflowsOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseWorkflowsOptions",
+    "title": "UseWorkflowsOptions — @personaai/react",
+    "description": "Generated field table for UseWorkflowsOptions — do not edit",
+    "headings": [
+      "`UseWorkflowsOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "useworkflowsoptions — @personaai/react generated field table for useworkflowsoptions — do not edit `useworkflowsoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 207,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseWorkflowStreamOptions"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseWorkflowStreamOptions",
+    "title": "UseWorkflowStreamOptions — @personaai/react",
+    "description": "Generated field table for UseWorkflowStreamOptions — do not edit",
+    "headings": [
+      "`UseWorkflowStreamOptions`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "useworkflowstreamoptions — @personaai/react generated field table for useworkflowstreamoptions — do not edit `useworkflowstreamoptions` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 208,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "UseWorkflowStreamResult"
+    ],
+    "href": "/docs/react/v0.18.0/types/UseWorkflowStreamResult",
+    "title": "UseWorkflowStreamResult — @personaai/react",
+    "description": "Generated field table for UseWorkflowStreamResult — do not edit",
+    "headings": [
+      "`UseWorkflowStreamResult`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "useworkflowstreamresult — @personaai/react generated field table for useworkflowstreamresult — do not edit `useworkflowstreamresult` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 209,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types",
+      "WorkflowsPagination"
+    ],
+    "href": "/docs/react/v0.18.0/types/WorkflowsPagination",
+    "title": "WorkflowsPagination — @personaai/react",
+    "description": "Generated field table for WorkflowsPagination — do not edit",
+    "headings": [
+      "`WorkflowsPagination`"
+    ],
+    "snippet": "> **Generated from — do not edit.** _Source: _ _Interface_",
+    "tokens": "workflowspagination — @personaai/react generated field table for workflowspagination — do not edit `workflowspagination` > **generated from — do not edit.** _source: _ _interface_"
+  },
+  {
+    "id": 210,
+    "sdk": "react",
+    "version": "0.18.0",
+    "slug": [
+      "types"
+    ],
+    "href": "/docs/react/v0.18.0/types",
+    "title": "Types — react v0.18.0",
+    "description": "Full export index (generated from TypeDoc)",
+    "headings": [
+      "Full export index"
+    ],
+    "snippet": "> **Generated from — do not edit.** Regenerate with . Full export index",
+    "tokens": "types — react v0.18.0 full export index (generated from typedoc) full export index > **generated from — do not edit.** regenerate with . full export index"
+  },
+  {
+    "id": 211,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1401,7 +3842,7 @@
     "tokens": "ephemeral new chat start a chat without minting an empty thread ephemeral new chat ephemeral new chat / return ( sent, dropped while streaming)."
   },
   {
-    "id": 76,
+    "id": 212,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1418,7 +3859,7 @@
     "tokens": "voice gemini live — start, transcript, partial, mute, and chat injection voice voice live-refreshes rcp context over the open socket without reconnect. share with to merge turns automatically."
   },
   {
-    "id": 77,
+    "id": 213,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1435,7 +3876,7 @@
     "tokens": "workflows stream multi-step workflows with node state workflows workflows see sdk workflows guide for the underlying / / semantics."
   },
   {
-    "id": 78,
+    "id": 214,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1452,7 +3893,7 @@
     "tokens": "usechat streaming chat — messages, send, interrupts, voice, ephemeral usechat usechat see sdk guide: chat for the underlying ag-ui events. > generated props table for will be produced from via typedoc."
   },
   {
-    "id": 79,
+    "id": 215,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1469,7 +3910,7 @@
     "tokens": "usethreads thread crud — list, create, delete, rename, reset, archive usethreads usethreads auto-refetch via (often wired to 's )."
   },
   {
-    "id": 80,
+    "id": 216,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1486,7 +3927,7 @@
     "tokens": "usevoice real-time voice — gemini live usevoice usevoice see guide: voice. full api: , , , , , , , , , , . is live-only (no history replay). see etc."
   },
   {
-    "id": 81,
+    "id": 217,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1503,7 +3944,7 @@
     "tokens": "useworkflows list, search, create workflows useworkflows useworkflows see sdk workflows and guide: workflows."
   },
   {
-    "id": 82,
+    "id": 218,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [],
@@ -1520,7 +3961,7 @@
     "tokens": "@personaai/react 0.10.0 react hooks + provider for building chat uis @personaai/react 0.10.0 install quickstart hooks @personaai/react 0.10.0 react hooks + for building chat uis against any persona backend (runtime or adapters). > **client-side only** — never holds a credential. points to your own mounted runtime (e.g. ). install quickstart see quickstart. hooks see hooks."
   },
   {
-    "id": 83,
+    "id": 219,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1538,7 +3979,7 @@
     "tokens": "quickstart — @personaai/react provider + usechat in under 10 lines quickstart ephemeral new chat voice quickstart ephemeral new chat see guide: ephemeral and usechat. voice"
   },
   {
-    "id": 84,
+    "id": 220,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1555,7 +3996,7 @@
     "tokens": "createworkflowinput — @personaai/react generated field table for createworkflowinput — do not edit `createworkflowinput` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 85,
+    "id": 221,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1572,7 +4013,7 @@
     "tokens": "opensseoptions — @personaai/react generated field table for opensseoptions — do not edit `opensseoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 86,
+    "id": 222,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1589,7 +4030,7 @@
     "tokens": "personaagentsummary — @personaai/react generated field table for personaagentsummary — do not edit `personaagentsummary` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 87,
+    "id": 223,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1606,7 +4047,7 @@
     "tokens": "personaclarificationquestion — @personaai/react generated field table for personaclarificationquestion — do not edit `personaclarificationquestion` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 88,
+    "id": 224,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1623,7 +4064,7 @@
     "tokens": "personafileitem — @personaai/react generated field table for personafileitem — do not edit `personafileitem` > **generated from — do not edit.** mirrors the wire shape of get/post /files — id , not _id . _source: _ _interface_"
   },
   {
-    "id": 89,
+    "id": 225,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1640,7 +4081,7 @@
     "tokens": "personahealthinfo — @personaai/react generated field table for personahealthinfo — do not edit `personahealthinfo` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 90,
+    "id": 226,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1657,7 +4098,7 @@
     "tokens": "personahitlactionrequest — @personaai/react generated field table for personahitlactionrequest — do not edit `personahitlactionrequest` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 91,
+    "id": 227,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1674,7 +4115,7 @@
     "tokens": "personamcpconnection — @personaai/react generated field table for personamcpconnection — do not edit `personamcpconnection` > **generated from — do not edit.** one authtype: 'oauth', authmode: 'user' mcp an agent has attached, and whether the current end user has connected it yet. authorizeurl is only present when connected is false — navigate the browser there (a same-tab redirect is fine; it's a real oauth authorization url) to start the consent flow. _source: _ _interface_"
   },
   {
-    "id": 92,
+    "id": 228,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1691,7 +4132,7 @@
     "tokens": "personamemoryagentgroup — @personaai/react generated field table for personamemoryagentgroup — do not edit `personamemoryagentgroup` > **generated from — do not edit.** one agent's group of agent-scoped memory files, as returned by get /memory . _source: _ _interface_"
   },
   {
-    "id": 93,
+    "id": 229,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1708,7 +4149,7 @@
     "tokens": "personamemoryfile — @personaai/react generated field table for personamemoryfile — do not edit `personamemoryfile` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 94,
+    "id": 230,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1725,7 +4166,7 @@
     "tokens": "personamemorylist — @personaai/react generated field table for personamemorylist — do not edit `personamemorylist` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 95,
+    "id": 231,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1742,7 +4183,7 @@
     "tokens": "personamessage — @personaai/react generated field table for personamessage — do not edit `personamessage` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 96,
+    "id": 232,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1759,7 +4200,7 @@
     "tokens": "personanoderunstate — @personaai/react generated field table for personanoderunstate — do not edit `personanoderunstate` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 97,
+    "id": 233,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1776,7 +4217,7 @@
     "tokens": "personapresentedfile — @personaai/react generated field table for personapresentedfile — do not edit `personapresentedfile` > **generated from — do not edit.** set when the agent calls present_file to highlight a workspace file. _source: _ _interface_"
   },
   {
-    "id": 98,
+    "id": 234,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1793,7 +4234,7 @@
     "tokens": "personaproviderprops — @personaai/react generated field table for personaproviderprops — do not edit `personaproviderprops` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 99,
+    "id": 235,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1810,7 +4251,7 @@
     "tokens": "personasandboxcommand — @personaai/react generated field table for personasandboxcommand — do not edit `personasandboxcommand` > **generated from — do not edit.** one execute tool call against an agent's sandbox (real shell execution in an isolated codesandbox vm — requires the agent's sandboxenabled and a csb_api_key project secret; see the agent's sandboxenabled field). derived from personatoolcall s named execute across every message in the conversation, in stream order — not a separate live/history-tracked state, so it's always consistent with messages . _source: _ _interface_"
   },
   {
-    "id": 100,
+    "id": 236,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1827,7 +4268,7 @@
     "tokens": "personasubagentactivityentry — @personaai/react generated field table for personasubagentactivityentry — do not edit `personasubagentactivityentry` > **generated from — do not edit.** one live update on a running task (subagent) tool call's timeline. _source: _ _interface_"
   },
   {
-    "id": 101,
+    "id": 237,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1844,7 +4285,7 @@
     "tokens": "personathread — @personaai/react generated field table for personathread — do not edit `personathread` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 102,
+    "id": 238,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1861,7 +4302,7 @@
     "tokens": "personatodo — @personaai/react generated field table for personatodo — do not edit `personatodo` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 103,
+    "id": 239,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1878,7 +4319,7 @@
     "tokens": "personatoolcall — @personaai/react generated field table for personatoolcall — do not edit `personatoolcall` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 104,
+    "id": 240,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1895,7 +4336,7 @@
     "tokens": "personavoicetoolcall — @personaai/react generated field table for personavoicetoolcall — do not edit `personavoicetoolcall` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 105,
+    "id": 241,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1912,7 +4353,7 @@
     "tokens": "personavoicetranscriptline — @personaai/react generated field table for personavoicetranscriptline — do not edit `personavoicetranscriptline` > **generated from — do not edit.** a committed transcript line. see partial on usevoiceresult for the in-progress one. _source: _ _interface_"
   },
   {
-    "id": 106,
+    "id": 242,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1929,7 +4370,7 @@
     "tokens": "personaworkflow — @personaai/react generated field table for personaworkflow — do not edit `personaworkflow` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 107,
+    "id": 243,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1946,7 +4387,7 @@
     "tokens": "personaworkflowdraft — @personaai/react generated field table for personaworkflowdraft — do not edit `personaworkflowdraft` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 108,
+    "id": 244,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1963,7 +4404,7 @@
     "tokens": "personaworkflowedge — @personaai/react generated field table for personaworkflowedge — do not edit `personaworkflowedge` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 109,
+    "id": 245,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1980,7 +4421,7 @@
     "tokens": "personaworkflownode — @personaai/react generated field table for personaworkflownode — do not edit `personaworkflownode` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 110,
+    "id": 246,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -1997,7 +4438,7 @@
     "tokens": "personaworkflowrunsummary — @personaai/react generated field table for personaworkflowrunsummary — do not edit `personaworkflowrunsummary` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 111,
+    "id": 247,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2014,7 +4455,7 @@
     "tokens": "personaworkflowsummary — @personaai/react generated field table for personaworkflowsummary — do not edit `personaworkflowsummary` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 112,
+    "id": 248,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2031,7 +4472,7 @@
     "tokens": "personaworkflowtrigger — @personaai/react generated field table for personaworkflowtrigger — do not edit `personaworkflowtrigger` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 113,
+    "id": 249,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2048,7 +4489,7 @@
     "tokens": "personaworkflowversionsummary — @personaai/react generated field table for personaworkflowversionsummary — do not edit `personaworkflowversionsummary` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 114,
+    "id": 250,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2065,7 +4506,7 @@
     "tokens": "personaworkspacefile — @personaai/react generated field table for personaworkspacefile — do not edit `personaworkspacefile` > **generated from — do not edit.** a file in the agent's own virtual workspace (deepagents' state-backed filesystem — write_file / read_file tool calls, distinct from personafileitem uploads). populated from state_snapshot events, or from a reloaded thread's persisted state. _source: _ _interface_"
   },
   {
-    "id": 115,
+    "id": 251,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2082,7 +4523,7 @@
     "tokens": "sendarchitectmessageoverride — @personaai/react generated field table for sendarchitectmessageoverride — do not edit `sendarchitectmessageoverride` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 116,
+    "id": 252,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2099,7 +4540,7 @@
     "tokens": "sendmessageoverride — @personaai/react generated field table for sendmessageoverride — do not edit `sendmessageoverride` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 117,
+    "id": 253,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2116,7 +4557,7 @@
     "tokens": "ssereader — @personaai/react generated field table for ssereader — do not edit `ssereader` > **generated from — do not edit.** minimal reader interface, mirroring the shape of a readablestream reader. _source: _ _interface_"
   },
   {
-    "id": 118,
+    "id": 254,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2133,7 +4574,7 @@
     "tokens": "ssestream — @personaai/react generated field table for ssestream — do not edit `ssestream` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 119,
+    "id": 255,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2150,7 +4591,7 @@
     "tokens": "usearchitectchatoptions — @personaai/react generated field table for usearchitectchatoptions — do not edit `usearchitectchatoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 120,
+    "id": 256,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2167,7 +4608,7 @@
     "tokens": "usechatoptions — @personaai/react generated field table for usechatoptions — do not edit `usechatoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 121,
+    "id": 257,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2184,7 +4625,7 @@
     "tokens": "usemcpconnectionsoptions — @personaai/react generated field table for usemcpconnectionsoptions — do not edit `usemcpconnectionsoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 122,
+    "id": 258,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2201,7 +4642,7 @@
     "tokens": "usemcpoptions — @personaai/react generated field table for usemcpoptions — do not edit `usemcpoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 123,
+    "id": 259,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2218,7 +4659,7 @@
     "tokens": "usevoiceoptions — @personaai/react generated field table for usevoiceoptions — do not edit `usevoiceoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 124,
+    "id": 260,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2235,7 +4676,7 @@
     "tokens": "usevoiceresult — @personaai/react generated field table for usevoiceresult — do not edit `usevoiceresult` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 125,
+    "id": 261,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2252,7 +4693,7 @@
     "tokens": "useworkflowoptions — @personaai/react generated field table for useworkflowoptions — do not edit `useworkflowoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 126,
+    "id": 262,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2269,7 +4710,7 @@
     "tokens": "useworkflowrunsoptions — @personaai/react generated field table for useworkflowrunsoptions — do not edit `useworkflowrunsoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 127,
+    "id": 263,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2286,7 +4727,7 @@
     "tokens": "useworkflowsoptions — @personaai/react generated field table for useworkflowsoptions — do not edit `useworkflowsoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 128,
+    "id": 264,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2303,7 +4744,7 @@
     "tokens": "useworkflowstreamoptions — @personaai/react generated field table for useworkflowstreamoptions — do not edit `useworkflowstreamoptions` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 129,
+    "id": 265,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2320,7 +4761,7 @@
     "tokens": "useworkflowstreamresult — @personaai/react generated field table for useworkflowstreamresult — do not edit `useworkflowstreamresult` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 130,
+    "id": 266,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2337,7 +4778,7 @@
     "tokens": "workflowspagination — @personaai/react generated field table for workflowspagination — do not edit `workflowspagination` > **generated from — do not edit.** _source: _ _interface_"
   },
   {
-    "id": 131,
+    "id": 267,
     "sdk": "react",
     "version": "0.10.0",
     "slug": [
@@ -2353,7 +4794,7 @@
     "tokens": "types — react v0.10.0 full export index (generated from typedoc) full export index > **generated from — do not edit.** regenerate with . full export index"
   },
   {
-    "id": 132,
+    "id": 268,
     "sdk": "concepts",
     "version": "latest",
     "slug": [
@@ -2370,7 +4811,7 @@
     "tokens": "ag-ui protocol & events sse framing and event types ag-ui protocol & events streaming uses sse: core types header on response (e.g. ). sdk exports it. runtime adds sequencing for resume: buffers frames with , replays, heartbeat keeps idle connections alive."
   },
   {
-    "id": 133,
+    "id": 269,
     "sdk": "concepts",
     "version": "latest",
     "slug": [
@@ -2388,7 +4829,7 @@
     "tokens": "context vs contextoverride two fields, same name family, opposite trust boundaries context vs contextoverride both are per-turn caller-supplied context on , but they differ in **visibility to the model**. — model-visible patch appended to this turn's system prompt only, never persisted. cap chars → if exceeded. — never shown to model, only rcp reads it flat object (no nesting), capped at bytes serialized → if violated. only ever read live by an **rcp tool's resolver** at the moment it's called; a param mapped via is permanently absent from the model's tool schema. must be resent on every turn you want it to apply — never remembered. voice: at-connect seed only ( ); live refresh via websocket . runtime: , validated by (flat, ≤2000 bytes, for edge compat). **never confuse them.** use for live page prose the model should quote; use for typed values an rcp tool resolves without ever exposing the value to the model. see sdk guide chat streaming and runtime guide streaming & resume."
   },
   {
-    "id": 134,
+    "id": 270,
     "sdk": "concepts",
     "version": "latest",
     "slug": [
@@ -2406,7 +4847,7 @@
     "tokens": "credentials & projects project credential lifecycle — mint, rotate, revoke credentials & projects a **project** is an external consumer of persona's infrastructure — your app, not a persona user session. create in developer studio → → — you become . each project has **credentials**: shown once. this is the you set as . lifecycle → (credentials stop authenticating; reversible) → (grace-period, cancellable) → . **revoke** a credential — it stops immediately. **suspend** a project — all its credentials stop. **admin surface** (members, credentials, suspend/restore) uses clerk session auth — **not** the machine credential this sdk uses. manage there: developer studio. rules never bundle the credential (see sdk quickstart). server-side only. rotate by minting a new credential, deploying it, then revoking the old one. rate-limited mutations use + header for safe retries."
   },
   {
-    "id": 135,
+    "id": 271,
     "sdk": "concepts",
     "version": "latest",
     "slug": [
@@ -2428,7 +4869,7 @@
     "tokens": "errors error envelope, typed errors, and how to handle them errors all sdk errors are typed and carry the server's + . envelope every non-2xx response is (see ). typed errors runtime mode — includes (message/stack/upstream envelope) in error responses; hides it behind generic . default is unless . rate limiting responses are retried via header ( default). all mutation routes are rate-limited ( ). see . retries & idempotency pass as last arg to any (or ) → sent as header; replay with same key returns original response instead of duplicate. ag-ui run errors when a run ends in (auth, rate-limit, tool timeout, context length), returns and contains the frame. this is a normal completed-run shape, not a thrown exception — still fires, does not. see also concepts: credentials and sdk guide: chat."
   },
   {
-    "id": 136,
+    "id": 272,
     "sdk": "concepts",
     "version": "latest",
     "slug": [
@@ -2446,7 +4887,7 @@
     "tokens": "external users — the dual-mode rule when to assert externaluserid and when not to external users persona never authenticates your users — it receives a **resolved user id** and scopes data to it. two planes runtime: — → . when to set it ** threads/files/chat ** always need it (or the thread belongs to no one — ). ** agents/mcps ** can be project-owned (no user) or per-user ( listing). ** ** without → ; with → ."
   },
   {
-    "id": 137,
+    "id": 273,
     "sdk": "concepts",
     "version": "latest",
     "slug": [
@@ -2464,7 +4905,7 @@
     "tokens": "pagination paginated list envelope — page, limit, total, pages pagination list/discover methods return a **pagination envelope**, not a bare array (since ). per-resource params bulk delete is best-effort: . see and ."
   },
   {
-    "id": 138,
+    "id": 274,
     "sdk": "concepts",
     "version": "latest",
     "slug": [
@@ -2480,7 +4921,7 @@
     "tokens": "readme  concepts — cross-sdk, version-agnostic these pages are **shared across all 4 js sdks** — one place fixes all. versioned sdk guides link here instead of duplicating. planned pages (greenfield will author from scratch, not copy legacy): — project credential lifecycle (mint/revoke, blocks immediately) — dual-mode (control-plane vs runtime-plane) + when to assert — threads & memory & stores mental model — ag-ui event table — (never-shown, rcp-only) vs (prompt-appended) — errors · pagination · idempotency · — workflow graph (nodes/edges/trigger/draft/publishedversion) each is rendered alongside versioned docs via future reader (or symlinked into each version's nav as \"concepts\" group)."
   },
   {
-    "id": 139,
+    "id": 275,
     "sdk": "concepts",
     "version": "latest",
     "slug": [
@@ -2500,7 +4941,7 @@
     "tokens": "threads, memory & stores conversation scope, file-backed memory, and named mount points threads, memory & stores three related primitives that scope an agent's state to your user. threads a **thread** is a conversation ( , , ) that owns its messages, files, todos, and langgraph checkpoints. **create:** — requires so the thread belongs to your user. omit and the backend uses a deterministic per-project thread (not per-user). **resume:** pass on every turn; the server loads + (files/todos). returns , , , and . **reset vs delete:** clears messages/files/todos/subagent traces *in place* (keeps same ); removes it. is best-effort. **react:** auto-loads history; enters ephemeral mode ( true) until first mints a real id via . memory file-based memory that survives restarts (mongodb-backed, not ): sdk: agent tools / operate on the same paths. memory is never auto-sent to the model — the agent reads it on demand. stores named, scoped mount points you assign to agents — filesystem-backed alternative to for larger reference material. agent then from instead of holding large context in the prompt. how they relate **threads** are *per-conversation* state (messages + workspace files/todos). **memory** is *long-term* per-user / per-agent state (preferences, memory files). **stores** are *per-project* reference data the agent mounts on demand. use for continuity, for personalization, for shared knowledge that doesn't fit in (4000 chars) or (2000 bytes, never shown to model — see context vs contextoverride)."
   },
   {
-    "id": 140,
+    "id": 276,
     "sdk": "concepts",
     "version": "latest",
     "slug": [

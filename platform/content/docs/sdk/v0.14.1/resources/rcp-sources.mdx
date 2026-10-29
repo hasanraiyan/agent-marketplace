@@ -1,0 +1,157 @@
+---
+title: "rcp-sources — @personaai/sdk"
+description: "Hosted RCP manifests — discover an Agent's tools from a URL"
+---
+
+# rcp-sources
+
+`client.rcpSources` manages **RCP (REST Connector Protocol)** sources — hosted manifest URLs that Persona discovers tools from live via [`rcp-sdk`](https://www.npmjs.com/package/rcp-sdk) on every Agent run. Independent of REST Tool Sources: same idea, different protocol.
+
+> **Auth:** Requires `Authorization: Bearer <keyId>.<secret>` (server-side). Without an asserted external user the source is owned by this Project; with `externalUserId` it is owned by that end user (`ownerType: 'ExternalUser'`). See [Credentials](/concepts/credentials).
+
+The manifest at `url` must answer `GET` with `{ rcpVersion, auth, tools[] }`. Persona never calls the manifest at list/get time — `RcpSource.tools` is only a display cache written by `testConnection()`.
+
+## Example
+
+**TypeScript**
+
+```ts
+const source = await client.rcpSources.create({
+  name: 'Billing',
+  url: 'https://billing.example.com/rcp/manifest.json',
+  authType: 'header',
+  secretRef: secret._id, // Project Secret holding the header value
+});
+
+// Fetch the manifest now to preview the tool list (and cache it)
+const { tools } = await client.rcpSources.testConnection(source._id);
+console.log(tools.map((t) => `${t.method} ${t.name}`));
+
+// Map caller-supplied context keys onto tool params
+await client.rcpSources.update(source._id, {
+  paramContextMap: [{ param: 'accountId', contextKey: 'accountId' }],
+});
+```
+
+**cURL**
+
+```bash
+curl -X POST https://api.persona.hasanraiyan.me/api/v1/developer/rcp-sources \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Billing","url":"https://billing.example.com/rcp/manifest.json"}'
+
+curl -X POST https://api.persona.hasanraiyan.me/api/v1/developer/rcp-sources/rs_123/test \
+  -H "Authorization: Bearer $PERSONA_CREDENTIAL"
+```
+
+**Response**
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "_id": "rs_123",
+        "domain": "acme",
+        "ownerType": "Project",
+        "name": "Billing",
+        "url": "https://billing.example.com/rcp/manifest.json",
+        "authType": "none",
+        "isEnabled": true,
+        "tools": [],
+        "paramContextMap": [],
+        "createdAt": "2026-10-29T10:00:00.000Z",
+        "updatedAt": "2026-10-29T10:00:00.000Z"
+      }
+    ],
+    "pagination": { "total": 1, "page": 1, "limit": 20, "pages": 1 }
+  }
+}
+```
+
+---
+
+## `RcpSource`
+
+| Field | Type | Description |
+|---|---|---|
+| `_id` | `string` | Source id. |
+| `domain` | `string` | Owning domain. |
+| `ownerType` | `'PersonaUser' \| 'Project' \| 'ExternalUser'` | Who owns the source. |
+| `ownerId?` | `string` | Set for `PersonaUser` / `Project` owners. |
+| `externalOwnerId?` | `string` | Set for `ExternalUser` owners. |
+| `name` | `string` | Display name. |
+| `description` | `string` | Display description. |
+| `url` | `string` | Manifest URL — `GET` must return `{ rcpVersion, auth, tools[] }`. |
+| `authType` | `'none' \| 'header'` | How Persona authenticates the manifest/tool calls. |
+| `secretRef?` | `string \| null` | Project Secret id, present only when `authType` is `'header'`. Never the plaintext value. |
+| `isEnabled` | `boolean` | Disabled sources stay saved but are not attached to runs. |
+| `lastTestedAt?` | `string \| null` | Last successful/failed `testConnection()` time. |
+| `tools` | `RcpSourceToolSummary[]` | Display cache written by `testConnection()` — Agent runs discover tools live instead. |
+| `paramContextMap` | `RcpParamContextMapEntry[]` | Maps tool params to keys callers send in a message's per-turn `context`. |
+| `createdAt` / `updatedAt` | `string` | ISO timestamps. |
+
+## `RcpSourceToolSummary`
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | Tool name. |
+| `description` | `string` | Tool description shown to the Agent. |
+| `method` | `string` | HTTP method. |
+| `url` | `string` | Resolved endpoint. |
+| `params` | `RcpSourceToolParamSummary[]` | Every param the tool exposes — never resolver-filtered, so you can build `paramContextMap` from it. |
+
+## `RcpSourceToolParamSummary`
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | Param name. |
+| `type` | `string` | Param type. |
+| `description` | `string` | Param description. |
+| `required` | `boolean` | Whether the Agent must supply it. |
+
+## `RcpParamContextMapEntry`
+
+| Field | Type | Description |
+|---|---|---|
+| `param` | `string` | The tool param name. |
+| `contextKey` | `string` | Key the caller sends in a message's `context` object. |
+
+Shared across every Agent this source is attached to — not per-attachment.
+
+## `CreateRcpSourceInput`
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | `string` | Required. |
+| `url` | `string` | Required. Manifest URL. |
+| `description?` | `string` | Display description. |
+| `authType?` | `'none' \| 'header'` | Defaults to `'none'`. |
+| `secretRef?` | `string` | Project Secret id. Required when `authType` is `'header'`. |
+| `isEnabled?` | `boolean` | Defaults to `true`. |
+| `paramContextMap?` | `RcpParamContextMapEntry[]` | Param-to-context mappings. |
+
+`UpdateRcpSourceInput` is the same set of fields, all optional — only what you pass is changed; pass `secretRef: null` to clear it.
+
+## `DiscoverRcpSourcesParams`
+
+| Field | Type | Description |
+|---|---|---|
+| `page?` | `number` | Defaults to 1. |
+| `limit?` | `number` | Defaults to 20. |
+| `search?` | `string` | Free-text match against `name`. |
+
+## `RcpSourcesResource`
+
+| Method | Calls | Notes |
+|---|---|---|
+| `create(input, idempotencyKey?)` | `POST /api/v1/developer/rcp-sources` | Pass an `Idempotency-Key` to make retries safe. |
+| `list(params?)` | `GET /api/v1/developer/rcp-sources` | Returns `{ items, pagination }`. |
+| `get(sourceId)` | `GET /api/v1/developer/rcp-sources/{id}` | |
+| `update(sourceId, input)` | `PATCH /api/v1/developer/rcp-sources/{id}` | Owner only. |
+| `delete(sourceId)` | `DELETE /api/v1/developer/rcp-sources/{id}` | Owner only; detaches from every Agent using it. |
+| `getUsage(sourceId)` | `GET /api/v1/developer/rcp-sources/{id}/usage` | `agentCount` is the real total; `agents` is a preview capped at 20. |
+| `testConnection(sourceId)` | `POST /api/v1/developer/rcp-sources/{id}/test` | Throws `PersonaApiError` (400) if the manifest is unreachable, non-2xx, invalid, or an unsupported `rcpVersion`. |
+| `bulkDelete(ids)` | `POST /api/v1/developer/rcp-sources/bulk-delete` | Up to 100 ids; best-effort — check `failed` in the result. |

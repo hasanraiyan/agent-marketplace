@@ -75,9 +75,25 @@ if (result.interrupt) {
 }
 ```
 
+## 6. Send an SMS or WhatsApp (optional)
+
+`messages` acts from this Project's own Twilio sender, so it runs on the Project client — no `externalUserId` needed:
+
+```ts
+await persona.messages.send({ to: '+919876543210', body: 'Your order shipped!' });
+
+// Or let the Agent compose the reply on the phone number's conversation
+await persona.messages.sendFromAgent({
+  agentId: agent._id,
+  to: '+919876543210',
+  prompt: 'Remind the customer their appointment is tomorrow at 10.',
+});
+```
+
 ## Next
 
 - [Concepts: External Users](/concepts/external-users) — when to set `externalUserId`
 - [Guide: Chat streaming](/docs/sdk/v0.14.1/guides/chat)
 - [Guide: Threads](/docs/sdk/v0.14.1/guides/threads)
+- [Guide: Messaging](/docs/sdk/v0.14.1/guides/messaging) — outbound SMS and WhatsApp
 - [Adapters quickstart](/docs/adapters/v0.8.0/quickstart) — if you want framework-mount instead of raw SDK

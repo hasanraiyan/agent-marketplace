@@ -65,10 +65,33 @@ function PersonaProvider({
           ok: res.ok
         });
         if (!res.ok) {
+          const parsedResult = { isJson: false };
+          try {
+            const body = await res.clone().json();
+            if (body && typeof body === "object") {
+              const message = body.error?.message ?? body.message ?? void 0;
+              if (body.error?.code ?? message) {
+                parsedResult.isJson = true;
+                parsedResult.info = {
+                  status: res.status,
+                  code: body.error?.code,
+                  message
+                };
+              }
+            }
+          } catch {
+          }
           logger.warn("fetchWithAuth non-ok", {
             path: cleanPath,
-            status: res.status
+            status: res.status,
+            ...parsedResult.info ?? {}
           });
+          if (parsedResult.info) {
+            try {
+              res.personaError = parsedResult.info;
+            } catch {
+            }
+          }
         } else {
           logger.info("fetchWithAuth succeeded", {
             path: cleanPath,
@@ -364,6 +387,14 @@ function normalizePendingInterrupt(pending) {
 }
 
 // src/hooks/useChat.ts
+function httpFailure(res, what) {
+  const info = res.personaError;
+  if (!info || !info.code && !info.message) {
+    return new Error(`Failed to ${what}: ${res.statusText || res.status}`);
+  }
+  const parts = [info.status, info.code, info.message].filter(Boolean).join(", ");
+  return new Error(`Failed to ${what}: ${parts}`);
+}
 function parseSandboxCommand(tc) {
   let command = tc.args ?? "";
   try {
@@ -496,8 +527,7 @@ function useChat(options = {}) {
       setError(null);
       try {
         const res = await fetchWithAuth(`/threads/${id}/messages`);
-        if (!res.ok)
-          throw new Error(`Failed to load thread history: ${res.statusText}`);
+        if (!res.ok) throw httpFailure(res, "load thread history");
         const body = await res.json();
         const data = body?.data ?? body;
         const raw = data?.messages ?? [];
@@ -757,7 +787,7 @@ function useChat(options = {}) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ agentId: targetAgentId })
           });
-          if (!createRes.ok) throw new Error(`Failed to create thread: ${createRes.statusText}`);
+          if (!createRes.ok) throw httpFailure(createRes, "create thread");
           const createBody = await createRes.json();
           const created = createBody?.data ?? createBody;
           resolvedThreadId = created._id ?? created.id;
@@ -4372,7 +4402,7 @@ import {
   getLogLevel,
   isLevelEnabled
 } from "@personaai/logger";
-var VERSION = "0.18.0";
+var VERSION = "0.18.1";
 export {
   ARCHITECT_AGENT_ID,
   PersonaProvider,

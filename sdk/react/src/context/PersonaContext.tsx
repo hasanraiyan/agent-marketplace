@@ -13,6 +13,18 @@ interface PersonaContextValue {
   logger: Logger;
 }
 
+/** Structured, trackable details of a non-ok API response. */
+export interface PersonaHttpFailureInfo {
+  status: number;
+  code?: string;
+  message?: string;
+}
+
+/** A Response whose error body has been parsed and attached by fetchWithAuth. */
+export interface PersonaFailureResponse extends Response {
+  personaError?: PersonaHttpFailureInfo;
+}
+
 const PersonaContext = createContext<PersonaContextValue | null>(null);
 
 export function PersonaProvider({
@@ -86,10 +98,49 @@ export function PersonaProvider({
           ok: res.ok,
         });
         if (!res.ok) {
+          // Parse the error body so failures are trackable (`code` +
+          // `message`, e.g. NOT_FOUND "Agent not found") instead of only a
+          // status number — and attach them on the Response for callers so
+          // they never have to re-parse (see PersonaFailureResponse).
+          const parsedResult: {
+            info?: PersonaHttpFailureInfo;
+            isJson: boolean;
+          } = { isJson: false };
+          try {
+            const body = (await res.clone().json()) as {
+              error?: { code?: string; message?: string };
+              message?: string;
+            };
+            if (body && typeof body === "object") {
+              const message =
+                body.error?.message ?? body.message ?? undefined;
+              if (body.error?.code ?? message) {
+                parsedResult.isJson = true;
+                parsedResult.info = {
+                  status: res.status,
+                  code: body.error?.code,
+                  message,
+                };
+              }
+            }
+          } catch {
+            // body isn't JSON (HTML error page, empty body) — nothing to
+            // attach, callers fall back to status/statusText as before.
+          }
           logger.warn("fetchWithAuth non-ok", {
             path: cleanPath,
             status: res.status,
+            ...(parsedResult.info ?? {}),
           });
+          if (parsedResult.info) {
+            try {
+              (res as PersonaFailureResponse).personaError =
+                parsedResult.info;
+            } catch {
+              // Response engines that reject expando properties — logging
+              // above already carries full detail.
+            }
+          }
         } else {
           logger.info("fetchWithAuth succeeded", {
             path: cleanPath,

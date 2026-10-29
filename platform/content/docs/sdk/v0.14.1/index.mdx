@@ -5,7 +5,7 @@ description: "Node.js/TypeScript SDK — raw Developer Platform API client (serv
 
 # @personaai/sdk 0.14.1
 
-Node.js/TypeScript SDK for the Persona Developer Platform API — Agents, Skills, Knowledge, MCP, Stores, memory, and streaming chat **from your own backend**.
+Node.js/TypeScript SDK for the Persona Developer Platform API — Agents, Skills, Knowledge, MCP, RCP, Stores, memory, streaming chat, and outbound SMS/WhatsApp **from your own backend**.
 
 > **Server-side only.** `PersonaClient` holds your Project credential — never construct it in a browser bundle or client component. See [Concepts: Credentials](/concepts/credentials).
 
@@ -64,6 +64,7 @@ See [Quickstart](/docs/sdk/v0.14.1/quickstart) for the full first-chat walkthrou
 | `.knowledge` | `/api/v1/developer/knowledge` |
 | `.mcps` (+ `.mcps.oauth`) | `/api/v1/developer/mcps` |
 | `.restTools` | `/api/v1/developer/rest-tools` |
+| `.rcpSources` | `/api/v1/developer/rcp-sources` |
 | `.threads` | `/api/v1/developer/threads` |
 | `.memory` | `/api/v1/developer/memory` |
 | `.stores` | `/api/v1/developer/stores` |
@@ -72,6 +73,7 @@ See [Quickstart](/docs/sdk/v0.14.1/quickstart) for the full first-chat walkthrou
 | `.architect` | `/api/v1/developer/architect/agui` |
 | `.workflows` | `/api/v1/developer/workflows` |
 | `.voice` | `/api/v1/developer/voice/sessions` |
+| `.messages` | `/api/v1/developer/messages` (outbound SMS / WhatsApp) |
 
 See [Guides](/docs/sdk/v0.14.1/guides/chat) and [Resources](/docs/sdk/v0.14.1/resources/agents).
 

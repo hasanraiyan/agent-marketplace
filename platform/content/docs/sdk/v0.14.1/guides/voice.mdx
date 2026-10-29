@@ -20,4 +20,4 @@ const ws = new WebSocket(ticket.wsUrl); // ticket embedded, direct to Persona
 // For mid-call context refresh, send { type: 'voice.context', context: { ... } } over the open socket
 ```
 
-In React, see `useVoice({ agentId, threadId, contextOverride, context })` and `updateContext` (live refresh). See [Runtime: Voice](/docs/runtime/v0.16.0/guides/voice) and [Concepts: context vs contextOverride](/concepts/context-vs-override).
+In React, see `useVoice({ agentId, threadId, contextOverride, context })` and `updateContext` (live refresh). See [Runtime: Core routes](/docs/runtime/v0.16.0/routes/core) and [Concepts: context vs contextOverride](/concepts/context-vs-override).
