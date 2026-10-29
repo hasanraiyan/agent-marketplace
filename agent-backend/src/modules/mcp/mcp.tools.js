@@ -90,10 +90,15 @@ export async function resolveMcpTools(
 ) {
   if (!agent.mcps || agent.mcps.length === 0) {
     logger.info(`[MCP] No MCP servers attached to agent ${agent._id || agent.id}`);
-    return { tools: [], mcpAppMap: {} };
+    return { tools: [], mcpAppMap: {}, mcpAuthRequired: [] };
   }
 
   const mcpServers = {};
+  // User-mode OAuth servers skipped because this end user has no usable
+  // connection. Surfaced to the caller so the AG-UI stream can tell the
+  // client exactly which connectors need a "Connect" click — previously
+  // these tools just vanished from the toolset with no signal at all.
+  const mcpAuthRequired = [];
   // Maps the agent's namespaced tool name (server-prefixed, matching what
   // `@langchain/mcp-adapters` produces below) to the MCP App widget it should
   // render. Built from each Mcp doc's `resourceTemplates`, captured by the last
@@ -120,6 +125,15 @@ export async function resolveMcpTools(
           logger.info(
             `[MCP] Skipping OAuth server "${mcp.name}" (id: ${mcp._id}) - missing user or owner token`
           );
+          // Only the end user can fix a user-mode connection; an owner-mode
+          // token is a Project config problem, not something to prompt for.
+          if (mcp.authMode === 'user') {
+            mcpAuthRequired.push({
+              mcpId: String(mcp._id),
+              name: mcp.name,
+              description: mcp.description || '',
+            });
+          }
           continue;
         }
       } else if (mcp.authType === 'apiKey') {
@@ -166,7 +180,7 @@ export async function resolveMcpTools(
 
   if (Object.keys(mcpServers).length === 0) {
     logger.info(`[MCP] No active MCP servers prepared for agent ${agent._id || agent.id}`);
-    return { tools: [], mcpAppMap: {} };
+    return { tools: [], mcpAppMap: {}, mcpAuthRequired };
   }
 
   const client = new MultiServerMCPClient({
@@ -182,9 +196,9 @@ export async function resolveMcpTools(
     logger.info(
       `[MCP] Successfully resolved ${tools.length} tools from ${Object.keys(mcpServers).length} active MCP servers: [${tools.map((t) => t.name).join(', ')}]`
     );
-    return { tools, mcpAppMap };
+    return { tools, mcpAppMap, mcpAuthRequired };
   } catch (err) {
     logger.error(`[MCP] failed to load tools: ${err?.message}`);
-    return { tools: [], mcpAppMap: {} };
+    return { tools: [], mcpAppMap: {}, mcpAuthRequired };
   }
 }

@@ -101,11 +101,8 @@ class DeveloperAgentController {
 
       const connections = await Promise.all(
         userAuthMcps.map(async (mcp) => {
-          const { connected } = await mcpService.getUserConnectionStatus(
-            mcp._id,
-            undefined,
-            req.projectContext
-          );
+          const { connected, status, expiresAt, lastError } =
+            await mcpService.getUserConnectionStatus(mcp._id, undefined, req.projectContext);
           const authorizeUrl = connected
             ? null
             : await mcpService.getUserAuthorizationUrl(
@@ -119,6 +116,13 @@ class DeveloperAgentController {
             name: mcp.name,
             description: mcp.description || '',
             connected,
+            // `needs_auth` means the provider rejected the stored grant
+            // (revoked/expired refresh token) — show "Reconnect", not just
+            // "Connect". `expired`, `not_connected` and `connected` cover the
+            // rest; every state is a plain DB read, never a provider round-trip.
+            status,
+            expiresAt,
+            lastError,
             authorizeUrl,
           };
         })

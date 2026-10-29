@@ -531,7 +531,12 @@ describe('Mcp Service', () => {
 
       const status = await mcpService.getUserConnectionStatus(mockMcp._id, mockUserId);
 
-      expect(status).toEqual({ connected: true });
+      expect(status).toEqual({
+        connected: true,
+        status: 'connected',
+        expiresAt: null,
+        lastError: null,
+      });
     });
 
     it('reports not connected when no connection record exists', async () => {
@@ -539,7 +544,12 @@ describe('Mcp Service', () => {
 
       const status = await mcpService.getUserConnectionStatus(mockMcp._id, mockUserId);
 
-      expect(status).toEqual({ connected: false });
+      expect(status).toEqual({
+        connected: false,
+        status: 'not_connected',
+        expiresAt: null,
+        lastError: null,
+      });
     });
 
     it('reports not connected when a record exists but its token is unusable (hard-expired, no refresh token)', async () => {
@@ -553,7 +563,34 @@ describe('Mcp Service', () => {
       const status = await mcpService.getUserConnectionStatus(mockMcp._id, mockUserId);
 
       expect(mcpTokenService.isTokenUsable).toHaveBeenCalledWith(deadConnection);
-      expect(status).toEqual({ connected: false });
+      expect(status).toEqual({
+        connected: false,
+        status: 'expired',
+        expiresAt: null,
+        lastError: null,
+      });
+    });
+
+    it('reports needs_auth when the provider already rejected the stored grant', async () => {
+      const expiresAt = new Date('2026-01-01T00:00:00.000Z');
+      mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({
+        _id: 'conn1',
+        status: 'needs_auth',
+        expiresAt,
+        lastError: 'invalid_grant: refresh token revoked',
+      });
+
+      const status = await mcpService.getUserConnectionStatus(mockMcp._id, mockUserId);
+
+      // The row still exists, but isTokenUsable would keep saying "connected" —
+      // the persisted needs_auth marker must win.
+      expect(mcpTokenService.isTokenUsable).not.toHaveBeenCalled();
+      expect(status).toEqual({
+        connected: false,
+        status: 'needs_auth',
+        expiresAt,
+        lastError: 'invalid_grant: refresh token revoked',
+      });
     });
   });
 
@@ -893,7 +930,8 @@ describe('Mcp Service', () => {
         domain: 'project-1',
         externalUserId: 'sabik',
       });
-      expect(status).toEqual({ connected: true });
+      expect(status.connected).toBe(true);
+      expect(status.status).toBe('connected');
     });
 
     test('disconnectUserConnection builds an ExternalUser Subject filter', async () => {

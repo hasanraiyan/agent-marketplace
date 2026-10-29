@@ -344,11 +344,13 @@ export function extractStructuredContent(output) {
   return artifact.find((item) => item?.type === 'mcp_structured_content')?.data;
 }
 
-// LangGraph's ToolNode already catches tool exceptions and feeds the model an
-// error ToolMessage (see `defaultHandleToolErrors` in `langchain`'s ToolNode) —
-// the run itself never crashes. But the *traced* tool.invoke() call still ends
-// in on_tool_error rather than on_tool_end, so the AG-UI stream must read the
-// failure off event.data.error (not event.data.output) to describe it.
+// Tool exceptions are converted to an error ToolMessage the model can recover
+// from by the `toolErrorFeedback` middleware (toolErrorFeedback.middleware.js) —
+// langchain's own `defaultHandleToolErrors` re-throws once any middleware
+// installs a wrapToolCall hook, which deepagents' filesystem middleware always
+// does. The *traced* tool.invoke() call still ends in on_tool_error rather than
+// on_tool_end, so the AG-UI stream must read the failure off event.data.error
+// (not event.data.output) to describe it.
 export function extractToolErrorMessage(err) {
   if (!err) return 'Tool execution failed.';
   if (typeof err === 'string') return err;

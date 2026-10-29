@@ -51,6 +51,23 @@ const mcpUserConnectionSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // `active` until the provider says the grant is dead (refresh rejected
+    // with invalid_grant/invalid_client). Persisting that lets
+    // getUserConnectionStatus report the truth instead of "connected" forever,
+    // and stops every run from re-attempting a refresh that cannot succeed.
+    status: {
+      type: String,
+      enum: ['active', 'needs_auth'],
+      default: 'active',
+    },
+    lastError: {
+      type: String,
+      default: null,
+    },
+    lastErrorAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );

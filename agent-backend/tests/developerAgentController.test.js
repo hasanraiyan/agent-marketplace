@@ -160,7 +160,12 @@ describe('Developer Agent Controller', () => {
           { _id: 'm3', name: 'No auth MCP', authType: 'none' },
         ],
       });
-      mcpService.getUserConnectionStatus.mockResolvedValue({ connected: false });
+      mcpService.getUserConnectionStatus.mockResolvedValue({
+        connected: false,
+        status: 'needs_auth',
+        expiresAt: new Date('2026-01-01T00:00:00.000Z'),
+        lastError: 'Token refresh was rejected (invalid_grant)',
+      });
       mcpService.getUserAuthorizationUrl.mockResolvedValue('https://mcp.example.com/authorize?x=1');
 
       await developerAgentController.getMcpConnections(mockReq, mockRes, next);
@@ -188,6 +193,9 @@ describe('Developer Agent Controller', () => {
             name: 'User MCP',
             description: 'desc',
             connected: false,
+            status: 'needs_auth',
+            expiresAt: new Date('2026-01-01T00:00:00.000Z'),
+            lastError: 'Token refresh was rejected (invalid_grant)',
             authorizeUrl: 'https://mcp.example.com/authorize?x=1',
           },
         ],
@@ -200,7 +208,12 @@ describe('Developer Agent Controller', () => {
         _id: 'a1',
         mcps: [{ _id: 'm1', name: 'User MCP', authType: 'oauth', authMode: 'user' }],
       });
-      mcpService.getUserConnectionStatus.mockResolvedValue({ connected: true });
+      mcpService.getUserConnectionStatus.mockResolvedValue({
+        connected: true,
+        status: 'connected',
+        expiresAt: null,
+        lastError: null,
+      });
 
       await developerAgentController.getMcpConnections(mockReq, mockRes, next);
 
@@ -213,6 +226,9 @@ describe('Developer Agent Controller', () => {
             name: 'User MCP',
             description: '',
             connected: true,
+            status: 'connected',
+            expiresAt: null,
+            lastError: null,
             authorizeUrl: null,
           },
         ],

@@ -9,6 +9,16 @@ import { loggerService } from '../../utils/index.js';
 const logger = loggerService.getLogger();
 const TOKEN_REFRESH_SKEW_MS = 60 * 1000;
 
+// Provider-side "this grant is dead, the user must reconnect" codes. Anything
+// else (timeouts, 5xx, network) is transient and must not flip the connection
+// to needs_auth — the next run should simply try the refresh again.
+const DEAD_GRANT_ERROR_CODES = new Set(['invalid_grant', 'invalid_client', 'unauthorized_client']);
+
+function isDeadGrantError(err) {
+  const code = err?.code ?? err?.errorCode ?? err?.error;
+  return typeof code === 'string' && DEAD_GRANT_ERROR_CODES.has(code);
+}
+
 /**
  * Token resolution is split out from mcp.service.js so the runtime tool
  * loader (tools/mcp.tools.js) can depend on it without pulling in
@@ -125,6 +135,10 @@ class McpTokenService {
     // Hard-expired with nothing to refresh — returning the stale token here
     // used to just defer the failure to whatever request tried to use it.
     if (!this.isTokenUsable(connection)) return null;
+    // The provider already rejected this grant; retrying the refresh every
+    // run only hammers the provider. The user has to reconnect (the OAuth
+    // callback resets status to active).
+    if (connection.status === 'needs_auth') return null;
 
     const expiresAt = connection.expiresAt ? new Date(connection.expiresAt).getTime() : 0;
     const isExpiring = expiresAt && expiresAt - Date.now() < TOKEN_REFRESH_SKEW_MS;
@@ -154,6 +168,9 @@ class McpTokenService {
       // chat run's tool resolution, or an MCP App widget's resource/tool
       // call — see mcp.tools.js and mcp.service.js#_resolveAuthHeaders).
       logger.error(`[MCP] user token refresh failed for mcp ${mcp._id}: ${err?.message}`);
+      if (isDeadGrantError(err)) {
+        await this._markNeedsAuth(mcp._id, subjectFilter, err);
+      }
       return null;
     }
 
@@ -167,9 +184,47 @@ class McpTokenService {
         ? encryption.encrypt(refreshed.refresh_token)
         : connection.refreshTokenEncrypted,
       expiresAt: newExpiresAt,
+      status: 'active',
+      lastError: null,
+      lastErrorAt: null,
     });
 
     return refreshed.access_token;
+  }
+
+  /**
+   * Records that the provider rejected this connection's grant. Best-effort:
+   * a persistence failure must never break token resolution for this run.
+   */
+  async _markNeedsAuth(mcpId, subjectFilter, err) {
+    try {
+      await mcpUserConnectionRepository.upsert(mcpId, subjectFilter, {
+        status: 'needs_auth',
+        lastError: `Token refresh was rejected (${err?.errorCode ?? err?.code ?? err?.message ?? 'unknown error'})`,
+        lastErrorAt: new Date(),
+      });
+    } catch (persistErr) {
+      logger.warn(`[MCP] failed to persist needs_auth for mcp ${mcpId}: ${persistErr?.message}`);
+      return;
+    }
+
+    // A cached agent build still holds this MCP's tools with the dead token
+    // baked into their transport headers, plus the mcpAuthRequired list from
+    // its last build. Evict it so the next run rebuilds, sees needs_auth,
+    // drops the tools, and emits mcp_auth_required. Dynamic imports keep this
+    // leaf module free of the import cycle back through agent.factory.js.
+    try {
+      const [{ default: agentRepository }, { default: agentFactory }] = await Promise.all([
+        import('../agents/agent.repository.js'),
+        import('../agents/agent.factory.js'),
+      ]);
+      const agents = await agentRepository.findAgentsUsingMcp(mcpId, '_id');
+      for (const agent of agents) agentFactory.invalidate(agent._id);
+    } catch (invalidateErr) {
+      logger.warn(
+        `[MCP] failed to invalidate agents after needs_auth for mcp ${mcpId}: ${invalidateErr?.message}`
+      );
+    }
   }
 
   /**

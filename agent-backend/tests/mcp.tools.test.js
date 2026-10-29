@@ -25,9 +25,10 @@ describe('resolveMcpTools', () => {
   });
 
   it('returns no tools when the agent has no mcps', async () => {
-    const { tools, mcpAppMap } = await resolveMcpTools({ mcps: [] }, 'user1');
+    const { tools, mcpAppMap, mcpAuthRequired } = await resolveMcpTools({ mcps: [] }, 'user1');
     expect(tools).toEqual([]);
     expect(mcpAppMap).toEqual({});
+    expect(mcpAuthRequired).toEqual([]);
     expect(MultiServerMCPClient).not.toHaveBeenCalled();
   });
 
@@ -86,6 +87,7 @@ describe('resolveMcpTools', () => {
         {
           _id: 'mcp1',
           name: 'User MCP',
+          description: 'A user-connected MCP',
           transport: 'http',
           url: 'https://x.com/mcp',
           authType: 'oauth',
@@ -94,10 +96,39 @@ describe('resolveMcpTools', () => {
       ],
     };
 
-    const { tools } = await resolveMcpTools(agent, 'user1');
+    const { tools, mcpAuthRequired } = await resolveMcpTools(agent, 'user1');
 
     expect(tools).toEqual([]);
+    // Surfaced so the AG-UI stream can prompt a "Connect" — previously this
+    // server just vanished from the toolset with no signal at all.
+    expect(mcpAuthRequired).toEqual([
+      { mcpId: 'mcp1', name: 'User MCP', description: 'A user-connected MCP' },
+    ]);
     expect(MultiServerMCPClient).not.toHaveBeenCalled();
+  });
+
+  it('does not report an owner-mode oauth server with a missing token as user auth required', async () => {
+    mcpTokenService.getOwnerAccessToken.mockResolvedValue(null);
+
+    const agent = {
+      mcps: [
+        {
+          _id: 'mcp1',
+          name: 'Owner MCP',
+          transport: 'http',
+          url: 'https://x.com/mcp',
+          authType: 'oauth',
+          authMode: 'owner',
+        },
+      ],
+    };
+
+    const { tools, mcpAuthRequired } = await resolveMcpTools(agent, 'user1');
+
+    expect(tools).toEqual([]);
+    // Owner-mode is a Project config problem, not something to prompt the
+    // end user to fix.
+    expect(mcpAuthRequired).toEqual([]);
   });
 
   it('forwards the execution context to getUserAccessToken (blueprint Phase 9, PR-48)', async () => {

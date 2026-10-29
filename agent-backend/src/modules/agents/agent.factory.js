@@ -39,6 +39,7 @@ import encryption from '../../utils/encryption.js';
 import { resolveAgentTools } from '../tools/index.js';
 import { sanitizeToolsForGemini } from './sanitizeToolsForGemini.js';
 import { sanitizeMessagesForModel, inspectMessageContent } from './sanitizeMessagesForModel.js';
+import { createToolErrorFeedbackMiddleware } from './toolErrorFeedback.middleware.js';
 import {
   ARCHITECT_AGENT_ID,
   PROJECT_ARCHITECT_AGENT_ID,
@@ -722,11 +723,11 @@ class AgentFactory {
         }
       : agent;
 
-    const { tools: resolvedTools, mcpAppMap } = await resolveAgentTools(
-      effectiveAgent,
-      userId,
-      executionContext
-    );
+    const {
+      tools: resolvedTools,
+      mcpAppMap,
+      mcpAuthRequired = [],
+    } = await resolveAgentTools(effectiveAgent, userId, executionContext);
     // Gemini's function-calling API 400s the WHOLE request if any tool
     // schema contains a keyword it doesn't recognize — exclusiveMinimum/
     // exclusiveMaximum from a .positive()/.gt() constraint, from either
@@ -909,6 +910,12 @@ class AgentFactory {
       backendRoutes
     );
 
+    // Any thrown tool error (bad LLM arguments, MCP/REST 4xx, …) becomes an
+    // error ToolMessage the model can retry from instead of killing the run.
+    // Must be passed to subagents too — their tool calls go through the same
+    // re-throwing ToolNode path. See toolErrorFeedback.middleware.js.
+    const toolErrorFeedbackMiddleware = createToolErrorFeedbackMiddleware();
+
     const agentInstance = await createDeepAgent({
       model: llm,
       systemPrompt: personalizedPrompt,
@@ -916,7 +923,7 @@ class AgentFactory {
       store: getGlobalStore(),
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
-      middleware: [contextOverrideMiddleware],
+      middleware: [contextOverrideMiddleware, toolErrorFeedbackMiddleware],
       backend,
       // Skills are served live from the DB via the /skills/ route above.
       skills: ['/skills/'],
@@ -927,6 +934,7 @@ class AgentFactory {
         {
           name: 'general-purpose',
           description: DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
+          middleware: [toolErrorFeedbackMiddleware],
           systemPrompt: `In order to complete the objective that the user asks of you, you have access to a number of standard tools.
 
 ### WORKSPACE OUTPUT ROUTING RULES
@@ -971,6 +979,10 @@ class AgentFactory {
         modelName: agent.modelName || provider.defaultModel || 'gpt-3.5-turbo',
       },
       mcpAppMap,
+      // User-mode MCP connectors whose tools were dropped for this end user
+      // because they haven't connected (or their grant died). agui.service.js
+      // emits these as an `mcp_auth_required` CUSTOM event on every run.
+      mcpAuthRequired,
     };
 
     // Cache the compiled result

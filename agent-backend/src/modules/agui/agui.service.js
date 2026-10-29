@@ -125,7 +125,31 @@ export async function* runAgentAsAguiEvents({
     return;
   }
 
-  const { agentInstance, agentConfig, providerConfig, llm, mcpAppMap } = agentBuild;
+  const {
+    agentInstance,
+    agentConfig,
+    providerConfig,
+    llm,
+    mcpAppMap,
+    mcpAuthRequired = [],
+  } = agentBuild;
+
+  // User-mode MCP connectors this end user hasn't connected: their tools were
+  // dropped from the agent's toolset at build time. Emit the list up front so
+  // the client can offer a "Connect" affordance instead of silently missing
+  // capabilities. Sent on resume too — the connection may have died since the
+  // interrupt, and the build is re-run (and invalidated on connect/disconnect).
+  if (mcpAuthRequired.length > 0) {
+    logger.info('[AG-UI] user-mode MCP auth required', {
+      agentId,
+      mcpIds: mcpAuthRequired.map((s) => s.mcpId),
+    });
+    yield {
+      type: EventType.CUSTOM,
+      name: 'mcp_auth_required',
+      value: { servers: mcpAuthRequired },
+    };
+  }
 
   // HITL-guarded tools: the graph pauses before executing these, so their args
   // must not be live-streamed (the card would be stranded "running" across the

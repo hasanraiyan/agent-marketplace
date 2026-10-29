@@ -30,12 +30,29 @@ jest.unstable_mockModule('../src/modules/mcp/mcp-oauth-client.js', () => ({
   refreshAccessToken: jest.fn(),
 }));
 
+// _markNeedsAuth evicts cached agent builds so the next run re-resolves this
+// MCP's tools (dropping them) and emits mcp_auth_required. Dynamic imports
+// resolve to these mocks.
+jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({
+  default: {
+    findAgentsUsingMcp: jest.fn(),
+  },
+}));
+
+jest.unstable_mockModule('../src/modules/agents/agent.factory.js', () => ({
+  default: {
+    invalidate: jest.fn(),
+  },
+}));
+
 const mcpRepository = (await import('../src/modules/mcp/mcp.repository.js')).default;
 const mcpUserConnectionRepository = (
   await import('../src/modules/mcp/mcp-user-connection.repository.js')
 ).default;
 const encryption = (await import('../src/utils/encryption.js')).default;
 const { refreshAccessToken } = await import('../src/modules/mcp/mcp-oauth-client.js');
+const agentRepository = (await import('../src/modules/agents/agent.repository.js')).default;
+const agentFactory = (await import('../src/modules/agents/agent.factory.js')).default;
 const mcpTokenService = (await import('../src/modules/mcp/mcp-token.service.js')).default;
 
 describe('McpToken Service', () => {
@@ -307,6 +324,120 @@ describe('McpToken Service', () => {
 
       await expect(mcpTokenService.getUserAccessToken(mcp, 'user1')).resolves.toBeNull();
       expect(mcpUserConnectionRepository.upsert).not.toHaveBeenCalled();
+    });
+
+    it('does not retry a connection already marked needs_auth', async () => {
+      mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({
+        accessTokenEncrypted: 'enc:user-access',
+        refreshTokenEncrypted: 'enc:refresh',
+        expiresAt: new Date(Date.now() + 5 * 1000),
+        status: 'needs_auth',
+      });
+
+      const result = await mcpTokenService.getUserAccessToken(
+        { _id: 'mcp1', authType: 'oauth', authMode: 'user' },
+        'user1'
+      );
+
+      expect(result).toBeNull();
+      // Retrying a rejected grant every run only hammers the provider.
+      expect(refreshAccessToken).not.toHaveBeenCalled();
+      expect(encryption.decrypt).not.toHaveBeenCalled();
+    });
+
+    it('persists needs_auth and evicts cached agent builds on a dead-grant rejection', async () => {
+      mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({
+        accessTokenEncrypted: 'enc:old-user-access',
+        refreshTokenEncrypted: 'enc:revoked-user-refresh',
+        expiresAt: new Date(Date.now() + 5 * 1000),
+      });
+      agentRepository.findAgentsUsingMcp.mockResolvedValue([{ _id: 'agent1' }, { _id: 'agent2' }]);
+
+      const deadGrant = Object.assign(new Error('Refresh token revoked'), {
+        errorCode: 'invalid_grant',
+      });
+      refreshAccessToken.mockRejectedValue(deadGrant);
+
+      const result = await mcpTokenService.getUserAccessToken(
+        {
+          _id: 'mcp1',
+          authType: 'oauth',
+          authMode: 'user',
+          oauth: { clientId: 'client1', tokenEndpoint: 'https://example.com/token' },
+        },
+        'user1'
+      );
+
+      expect(result).toBeNull();
+      expect(mcpUserConnectionRepository.upsert).toHaveBeenCalledWith(
+        'mcp1',
+        { userId: 'user1' },
+        expect.objectContaining({
+          status: 'needs_auth',
+          lastError: expect.stringContaining('invalid_grant'),
+        })
+      );
+      // Cached builds hold the dead token in their transport headers — they
+      // must be evicted so the next run reports mcp_auth_required instead.
+      expect(agentRepository.findAgentsUsingMcp).toHaveBeenCalledWith('mcp1', '_id');
+      expect(agentFactory.invalidate).toHaveBeenCalledWith('agent1');
+      expect(agentFactory.invalidate).toHaveBeenCalledWith('agent2');
+    });
+
+    it('does not mark needs_auth on a transient refresh failure', async () => {
+      mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({
+        accessTokenEncrypted: 'enc:old-user-access',
+        refreshTokenEncrypted: 'enc:refresh',
+        expiresAt: new Date(Date.now() + 5 * 1000),
+      });
+      refreshAccessToken.mockRejectedValue(
+        Object.assign(new Error('upstream unavailable'), { code: 'ETIMEDOUT' })
+      );
+
+      await expect(
+        mcpTokenService.getUserAccessToken(
+          {
+            _id: 'mcp1',
+            authType: 'oauth',
+            authMode: 'user',
+            oauth: { clientId: 'client1', tokenEndpoint: 'https://example.com/token' },
+          },
+          'user1'
+        )
+      ).resolves.toBeNull();
+
+      // The next run should simply try the refresh again.
+      expect(mcpUserConnectionRepository.upsert).not.toHaveBeenCalled();
+      expect(agentFactory.invalidate).not.toHaveBeenCalled();
+    });
+
+    it('clears the needs_auth marker when a refresh succeeds', async () => {
+      mcpUserConnectionRepository.findByMcpAndUser.mockResolvedValue({
+        accessTokenEncrypted: 'enc:old-user-access',
+        refreshTokenEncrypted: 'enc:old-user-refresh',
+        expiresAt: new Date(Date.now() + 5 * 1000),
+      });
+      refreshAccessToken.mockResolvedValue({
+        access_token: 'new-user-access',
+        refresh_token: 'new-user-refresh',
+        expires_in: 3600,
+      });
+
+      await mcpTokenService.getUserAccessToken(
+        {
+          _id: 'mcp1',
+          authType: 'oauth',
+          authMode: 'user',
+          oauth: { clientId: 'client1', tokenEndpoint: 'https://example.com/token' },
+        },
+        'user1'
+      );
+
+      expect(mcpUserConnectionRepository.upsert).toHaveBeenCalledWith(
+        'mcp1',
+        { userId: 'user1' },
+        expect.objectContaining({ status: 'active', lastError: null, lastErrorAt: null })
+      );
     });
 
     describe('context-aware Subject resolution (blueprint Phase 9, PR-48)', () => {

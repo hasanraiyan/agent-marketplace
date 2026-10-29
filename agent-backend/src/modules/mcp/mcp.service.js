@@ -805,6 +805,11 @@ class McpService {
         ? encryption.encrypt(tokenResponse.refresh_token)
         : null,
       expiresAt,
+      // Reconnecting is the user's recovery path from a dead grant — clear
+      // the persisted needs_auth marker so status reports connected again.
+      status: 'active',
+      lastError: null,
+      lastErrorAt: null,
     });
     await this._invalidateAgentsUsingMcp(id);
     return decoded.returnTo || config.websiteUrl;
@@ -815,15 +820,33 @@ class McpService {
       id,
       subjectFilterForContext(context)
     );
-    // `isTokenUsable` is a cheap DB-only check (expiresAt vs. now, or a
-    // refresh token present to renew with) — not a live provider round-trip,
-    // so a refresh token the provider itself revoked still reads as
-    // connected here until the next actual token resolution attempt fails.
-    // Still a real improvement over "does a row exist": the common dead
-    // case (hard-expired access token, no refresh token at all) now reports
-    // disconnected instead of lying, which is what re-lights `authorizeUrl`
-    // for this connection in getMcpConnections (developerAgent.controller.js).
-    return { connected: Boolean(connection) && mcpTokenService.isTokenUsable(connection) };
+    if (!connection) {
+      return { connected: false, status: 'not_connected', expiresAt: null, lastError: null };
+    }
+
+    // The provider already rejected this grant (revoked/expired refresh
+    // token) — reconnect is the only fix, so report it even though a token
+    // row still exists. `isTokenUsable` alone would keep saying "connected".
+    if (connection.status === 'needs_auth') {
+      return {
+        connected: false,
+        status: 'needs_auth',
+        expiresAt: connection.expiresAt ?? null,
+        lastError: connection.lastError ?? null,
+      };
+    }
+
+    // Cheap DB-only check (expiresAt vs. now, or a refresh token present to
+    // renew with) — not a live provider round-trip. A hard-expired access
+    // token with nothing to refresh is reported as expired, which re-lights
+    // `authorizeUrl` for this connection in getMcpConnections.
+    const usable = mcpTokenService.isTokenUsable(connection);
+    return {
+      connected: usable,
+      status: usable ? 'connected' : 'expired',
+      expiresAt: connection.expiresAt ?? null,
+      lastError: null,
+    };
   }
 
   async disconnectUserConnection(id, userId, context = personaExecutionContext(userId)) {

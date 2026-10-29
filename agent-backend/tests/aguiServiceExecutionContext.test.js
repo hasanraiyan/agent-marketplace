@@ -105,4 +105,44 @@ describe('runAgentAsAguiEvents — executionContext forwarding', () => {
       { allowPrivateExecution: false }
     );
   });
+
+  test('emits mcp_auth_required before streaming when the build reports disconnected user-mode MCPs', async () => {
+    const servers = [{ mcpId: 'mcp-1', name: 'Notion', description: 'Docs' }];
+    agentFactory.buildAgent.mockResolvedValue({
+      agentInstance: mockAgentInstance(),
+      agentConfig: {},
+      providerConfig: {},
+      llm: {},
+      mcpAppMap: {},
+      mcpAuthRequired: servers,
+    });
+
+    const events = [];
+    for await (const event of runAgentAsAguiEvents({
+      agentId: 'agent-1',
+      userId: 'user-1',
+      messages: [{ role: 'user', content: 'hi' }],
+    })) {
+      events.push(event);
+    }
+
+    expect(events[0]).toEqual({
+      type: 'CUSTOM',
+      name: 'mcp_auth_required',
+      value: { servers },
+    });
+  });
+
+  test('emits no mcp_auth_required event when every user-mode MCP is connected', async () => {
+    const events = [];
+    for await (const event of runAgentAsAguiEvents({
+      agentId: 'agent-1',
+      userId: 'user-1',
+      messages: [{ role: 'user', content: 'hi' }],
+    })) {
+      events.push(event);
+    }
+
+    expect(events.some((e) => e.type === 'CUSTOM' && e.name === 'mcp_auth_required')).toBe(false);
+  });
 });
