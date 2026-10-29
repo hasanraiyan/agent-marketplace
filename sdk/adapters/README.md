@@ -2,7 +2,7 @@
 
 Unified Persona adapter — **one install, three frameworks, one shared core**. Replaces the three separate packages `@personaai/express`, `@personaai/nextjs`, `@personaai/nestjs` with a single dependency and zero duplicated logic.
 
-> **v0.8.0** — Server-side only. Requires Node >=18. `reflect-metadata`/`rxjs` are optional peers for NestJS only.
+> **v0.8.1** — Server-side only. Requires Node >=18. `reflect-metadata`/`rxjs` are optional peers for NestJS only.
 
 ## Install (single dep)
 

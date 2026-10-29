@@ -12,11 +12,11 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
       '@personaai/react':
-        specifier: ^0.18.0
-        version: 0.18.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.18.1
+        version: 0.18.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@personaai/runtime':
-        specifier: ^0.16.0
-        version: 0.16.0(zod@3.25.76)
+        specifier: ^0.16.1
+        version: 0.16.1(zod@3.25.76)
       '@personaai/sdk':
         specifier: ^0.14.1
         version: 0.14.1(zod@3.25.76)
@@ -759,15 +759,15 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/react@0.18.0':
-    resolution: {integrity: sha512-qorpKTxubq6fN6ckk93ln+KwY/ZzyIfq9iDdcGdFRKJnjaefXlbMuol7HQO5GqmxXrRNGT9hLqFrGRxc4R9JdQ==}
+  '@personaai/react@0.18.1':
+    resolution: {integrity: sha512-ifa+djNTGuhG4iBnTtpf1KTci9LszjqytzVHwj+iWye3f2+K4PPJKDnSsXIYzVxALZrttsVYJaONYvcp6DIi3A==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@personaai/runtime@0.16.0':
-    resolution: {integrity: sha512-+Jv7a8HyOKc7EQGdVOxdogUsAMoGOMhENsxSi0OAtPOZRBpE0q64kQwxfRymy4kS1w8JJ5x97G9Njsvj039L3A==}
+  '@personaai/runtime@0.16.1':
+    resolution: {integrity: sha512-CxcJ5oHJYo3laykvOhUlGl3gFCDiGV0jan1zHHW3vCDwsL+ya5tudyZK53xfjetskYGMVn6sl1ipIGVr8zRVMw==}
     engines: {node: '>=18'}
 
   '@personaai/sdk@0.14.1':
@@ -2586,13 +2586,13 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/react@0.18.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@personaai/react@0.18.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@personaai/logger': 0.1.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@personaai/runtime@0.16.0(zod@3.25.76)':
+  '@personaai/runtime@0.16.1(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/sdk': 0.14.1(zod@3.25.76)

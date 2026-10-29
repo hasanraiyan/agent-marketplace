@@ -5,6 +5,19 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-10-29
+
+### Changed
+
+- Bumped `@personaai/runtime` to `^0.16.1` and `@personaai/react` to `^0.18.1` — the current
+  release of each. No adapter code changed; both patches flow through the existing re-exports:
+  `0.16.1` only fixes how `runtime.handle` logs upstream failures (now carrying the upstream
+  `status`/`code`), and `0.18.1` adds `personaError` (`PersonaFailureResponse` /
+  `PersonaHttpFailureInfo`) to non-ok `fetchWithAuth` responses, which surfaces to consumers via
+  `@personaai/adapters/nextjs`'s `export * from '@personaai/react'`. The react range is kept at
+  the latest release for the dedupe reason documented in 0.7.0.
+- `VERSION` in `express`, `nestjs`, `nextjs/client`, and `nextjs/server` is now `'0.8.1'`.
+
 ## [0.8.0] - 2026-10-28
 
 ### Changed
