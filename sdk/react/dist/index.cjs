@@ -1019,6 +1019,13 @@ function useChat(options = {}) {
                       patchAssistant({});
                     }
                   }
+                } else if (event.name === "mcp_auth_required") {
+                  const val = event.value;
+                  const servers = val?.servers ?? [];
+                  if (servers.length > 0) {
+                    chatLogger.info("mcp auth required", { mcpIds: servers.map((s) => s.mcpId) });
+                    options.onMcpAuthRequired?.(servers);
+                  }
                 }
               } else if (event.type === "title") {
                 const title = event.title;
@@ -2959,7 +2966,7 @@ function useMcpConnections(options = {}) {
           throw new Error(`Failed to disconnect MCP: ${res.statusText}`);
         setConnections(
           (prev) => prev.map(
-            (c) => c.mcpId === mcpId ? { ...c, connected: false, authorizeUrl: null } : c
+            (c) => c.mcpId === mcpId ? { ...c, connected: false, status: "not_connected", authorizeUrl: null } : c
           )
         );
         void fetchConnections();
@@ -4452,7 +4459,7 @@ function useWorkflowRuns(workflowId, options) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.18.1";
+var VERSION = "0.19.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ARCHITECT_AGENT_ID,

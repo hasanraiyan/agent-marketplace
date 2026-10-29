@@ -3,6 +3,26 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.19.0
+
+- **New: `onMcpAuthRequired` on `useChat()`** — the backend now emits a `mcp_auth_required`
+  CUSTOM stream event at the start of a run when the Agent has `authMode: 'user'` MCP connectors
+  this end user hasn't connected (or whose grant the provider rejected). Their tools are dropped
+  from the Agent's toolset server-side, so previously they just silently weren't there; the new
+  option receives `PersonaMcpAuthRequiredServer[]` (`{ mcpId, name, description? }`) so you can
+  show a "Connect your account" affordance. Pair it with `useMcpConnections()` to get each
+  server's `authorizeUrl` for the actual consent redirect. `PersonaStreamingEvent` gains the
+  matching `{ type: "CUSTOM", name: "mcp_auth_required", value: { servers } }` member.
+- **`PersonaMcpConnection` now reports why a connector isn't usable**, instead of only a
+  `connected` boolean: new optional `status` (`"connected" | "expired" | "needs_auth" |
+  "not_connected"`), `expiresAt` (ISO string of the stored access token's expiry, when the
+  provider returned one), and `lastError` (the provider's rejection reason when `status` is
+  `"needs_auth"` — never contains tokens). Lets a UI say "Reconnect" rather than "Connect" when
+  the provider revoked the grant. All fields are optional so older backends stay compatible;
+  treat a missing `status` as `connected ? "connected" : "not_connected"`.
+  `disconnect()`'s optimistic update now also sets `status: "not_connected"`.
+- `VERSION` is now `"0.19.0"`.
+
 ## 0.18.1
 
 - **Fixed: non-ok `fetchWithAuth` responses now log their parsed error body.** Previously the

@@ -299,6 +299,11 @@ export type PersonaStreamingEvent =
     }
   | {
       type: "CUSTOM";
+      name: "mcp_auth_required";
+      value: { servers: PersonaMcpAuthRequiredServer[] };
+    }
+  | {
+      type: "CUSTOM";
       name: "workflow_node_started";
       value: {
         nodeId: string;
@@ -337,6 +342,15 @@ export interface UseChatOptions {
   onThreadCreated?: (threadId: string) => void;
   /** Called when the backend auto-generates a thread title (3-4 word LLM summary of first user message). */
   onTitle?: (title: string) => void;
+  /**
+   * Called at the start of a run when the Agent has `authMode: 'user'` MCP
+   * connectors this end user hasn't connected — their tools are dropped from
+   * the toolset server-side, so the model simply can't use them. Use this to
+   * show a "Connect your account" affordance; `useMcpConnections` returns
+   * each server's `authorizeUrl` for the actual consent redirect. Not called
+   * when every user-mode connector is connected.
+   */
+  onMcpAuthRequired?: (servers: PersonaMcpAuthRequiredServer[]) => void;
   /**
    * Pass the object returned by `useVoice()` (sharing the same `threadId`) to have `useChat`
    * merge live voice turns into `messages` automatically — one bubble per utterance, deduped
@@ -1256,6 +1270,18 @@ export interface PersonaMcpOAuthInput {
   clientId: string;
   clientSecret: string;
   scopes?: string[];
+}
+
+/**
+ * One `authType: 'oauth', authMode: 'user'` MCP an Agent has attached whose
+ * tools were dropped for this end user because they haven't connected (or
+ * their grant was revoked/expired). Emitted as the `mcp_auth_required`
+ * CUSTOM stream event at the start of every run; see `onMcpAuthRequired`.
+ */
+export interface PersonaMcpAuthRequiredServer {
+  mcpId: string;
+  name: string;
+  description?: string;
 }
 
 export interface CreatePersonaMcpInput {

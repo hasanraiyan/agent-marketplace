@@ -56,7 +56,11 @@ export const resolveAgentTools = async (
 
   // 1. If it is the Specialized Architect, give it the Builder Toolbox
   if (agentConfig._id?.toString() === ARCHITECT_AGENT_ID) {
-    return { tools: [clarificationTool, ...getBuilderToolbox(userId)], mcpAppMap: {} };
+    return {
+      tools: [clarificationTool, ...getBuilderToolbox(userId)],
+      mcpAppMap: {},
+      mcpAuthRequired: [],
+    };
   }
 
   // 1b. Project Agent Architect (blueprint Phase 11.5) — a dedicated,
@@ -65,7 +69,11 @@ export const resolveAgentTools = async (
   // `ProjectAdminContext` (enforced by the route that resolves this
   // sentinel), not a bare Persona userId.
   if (agentConfig._id?.toString() === PROJECT_ARCHITECT_AGENT_ID) {
-    return { tools: [clarificationTool, ...getProjectBuilderToolbox(context)], mcpAppMap: {} };
+    return {
+      tools: [clarificationTool, ...getProjectBuilderToolbox(context)],
+      mcpAppMap: {},
+      mcpAuthRequired: [],
+    };
   }
 
   // 1c. Developer Platform Architect — reused, unmodified toolbox: both
@@ -75,7 +83,11 @@ export const resolveAgentTools = async (
   // `ProjectRuntimeContext` here works exactly the way a
   // `ProjectAdminContext` already does above — no new toolbox needed.
   if (agentConfig._id?.toString() === DEVELOPER_ARCHITECT_AGENT_ID) {
-    return { tools: [clarificationTool, ...getProjectBuilderToolbox(context)], mcpAppMap: {} };
+    return {
+      tools: [clarificationTool, ...getProjectBuilderToolbox(context)],
+      mcpAppMap: {},
+      mcpAuthRequired: [],
+    };
   }
 
   // Long-term memory is file-based now: the agent persists memories through
@@ -93,7 +105,14 @@ export const resolveAgentTools = async (
   // 3. MCP connector tools (owner-shared or per-user, depending on each
   // attached connector's authMode). mcpAppMap maps a tool name to the MCP App
   // widget (resourceUri + mcpId) the AG-UI stream should render when it's called.
-  const { tools: mcpTools, mcpAppMap } = await resolveMcpTools(agentConfig, userId, context);
+  // mcpAuthRequired lists user-mode connectors whose tools were dropped
+  // because this end user hasn't connected — surfaced on the stream so the
+  // client can offer a "Connect" affordance instead of silently losing tools.
+  const {
+    tools: mcpTools,
+    mcpAppMap,
+    mcpAuthRequired = [],
+  } = await resolveMcpTools(agentConfig, userId, context);
   tools.push(...mcpTools);
 
   // 4. Knowledge Base tools (semantic search + list sources per KB)
@@ -123,7 +142,7 @@ export const resolveAgentTools = async (
     tools.push(...rcpTools);
   }
 
-  return { tools, mcpAppMap };
+  return { tools, mcpAppMap, mcpAuthRequired };
 };
 
 // Also expose generic factory for backend scripts outside of Chat loop

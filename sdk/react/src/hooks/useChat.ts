@@ -5,6 +5,7 @@ import { usePersonaContext } from "../context/PersonaContext.js";
 import { openSSEStream } from "../streaming.js";
 import type {
   PersonaInterrupt,
+  PersonaMcpAuthRequiredServer,
   PersonaMessage,
   PersonaPresentedFile,
   PersonaResumeValue,
@@ -730,6 +731,13 @@ export function useChat(options: UseChatOptions = {}) {
                       existing.mcpApp = { resourceUri: val.resourceUri, mcpId: val.mcpId };
                       patchAssistant({});
                     }
+                  }
+                } else if (event.name === "mcp_auth_required") {
+                  const val = event.value as { servers?: PersonaMcpAuthRequiredServer[] } | undefined;
+                  const servers = val?.servers ?? [];
+                  if (servers.length > 0) {
+                    chatLogger.info("mcp auth required", { mcpIds: servers.map((s) => s.mcpId) });
+                    options.onMcpAuthRequired?.(servers);
                   }
                 }
               } else if ((event as { type: string; title?: string }).type === "title") {

@@ -4,6 +4,22 @@ import { useCallback, useEffect, useState } from "react";
 import { usePersonaContext } from "../context/PersonaContext.js";
 
 /**
+ * Why a user-mode MCP isn't usable, in increasing specificity over the bare
+ * `connected` boolean:
+ * - `connected` — a usable token row exists (may still be refreshed soon).
+ * - `expired` — a row exists but its access token is dead and there's no
+ *   refresh token to renew it; `authorizeUrl` is populated.
+ * - `needs_auth` — the provider rejected the stored grant (revoked or
+ *   expired refresh token); reconnecting is the only fix.
+ * - `not_connected` — this end user has never connected.
+ */
+export type PersonaMcpConnectionStatus =
+  | "connected"
+  | "expired"
+  | "needs_auth"
+  | "not_connected";
+
+/**
  * One `authType: 'oauth', authMode: 'user'` MCP an Agent has attached, and
  * whether the current end user has connected it yet. `authorizeUrl` is only
  * present when `connected` is `false` — navigate the browser there (a
@@ -15,6 +31,17 @@ export interface PersonaMcpConnection {
   name: string;
   description: string;
   connected: boolean;
+  /**
+   * Finer-grained than `connected` — tells "never connected" apart from
+   * "token expired" and "grant revoked", so the UI can say "Connect" vs.
+   * "Reconnect". Absent against backends predating this field; treat
+   * `undefined` as `connected ? "connected" : "not_connected"`.
+   */
+  status?: PersonaMcpConnectionStatus;
+  /** When the stored access token expires (ISO string), if the provider returned one. */
+  expiresAt?: string | null;
+  /** The provider's rejection reason when `status` is `needs_auth` (never contains tokens). */
+  lastError?: string | null;
   authorizeUrl: string | null;
 }
 
@@ -88,7 +115,9 @@ export function useMcpConnections(options: UseMcpConnectionsOptions = {}) {
           throw new Error(`Failed to disconnect MCP: ${res.statusText}`);
         setConnections((prev) =>
           prev.map((c) =>
-            c.mcpId === mcpId ? { ...c, connected: false, authorizeUrl: null } : c,
+            c.mcpId === mcpId
+              ? { ...c, connected: false, status: "not_connected", authorizeUrl: null }
+              : c,
           ),
         );
         // authorizeUrl for the now-disconnected MCP came back null above —
