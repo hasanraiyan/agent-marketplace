@@ -9,7 +9,7 @@ import { personaExecutionContext, isThreadSubject } from './thread.service.js';
 // at module-evaluation time. See agentFactory's own getGlobalStore() for the
 // existing instance of this same pattern.
 import agentFactory from '../agents/agent.factory.js';
-import { describeInterrupt, buildFilesTodosSnapshot } from '../agui/aguiTranslator.js';
+import { describeInterrupt, buildFilesTodosSnapshot, extractReasoningDelta } from '../agui/aguiTranslator.js';
 
 const logger = loggerService.getLogger();
 
@@ -31,6 +31,10 @@ function extractContentText(content) {
 function normalizeMessages(rawMessages) {
   const normalized = [];
   const toolCallById = new Map();
+  // Index of the assistant entry the current turn merges into, or -1 outside
+  // an assistant run. Reasoning entries are spliced in *before* it, so this
+  // cannot be inferred from `normalized[normalized.length - 1]`.
+  let currentAssistantIndex = -1;
 
   for (const msg of rawMessages || []) {
     const type = typeof msg?.getType === 'function' ? msg.getType() : msg?.type;
@@ -57,6 +61,17 @@ function normalizeMessages(rawMessages) {
         })
       : [];
     const content = extractContentText(msg.content);
+    // Thinking is persisted on the AIMessage's additional_kwargs (or content
+    // blocks), not as its own message — surface it as the same
+    // role:"reasoning" entry live streaming emits, so reloads keep it.
+    const reasoning = role === 'assistant' ? extractReasoningDelta(msg) : '';
+    const reasoningEntry = reasoning
+      ? {
+          id: `${msg.id || `ai-${normalized.length}`}-reasoning`,
+          role: 'reasoning',
+          content: reasoning,
+        }
+      : null;
 
     // A single agent turn is routinely MULTIPLE separate AIMessage objects
     // in LangGraph's own history -- one per LLM call within the ReAct loop
@@ -70,19 +85,30 @@ function normalizeMessages(rawMessages) {
     // concatenation (no separator) matches how live streaming itself builds
     // the text -- accumulatedText += delta, with no notion of AIMessage
     // boundaries either.
-    const last = normalized[normalized.length - 1];
-    if (role === 'assistant' && last?.role === 'assistant') {
+    if (
+      role === 'assistant' &&
+      currentAssistantIndex !== -1 &&
+      normalized[currentAssistantIndex]?.role === 'assistant'
+    ) {
+      const last = normalized[currentAssistantIndex];
       if (content) last.content = last.content ? `${last.content}${content}` : content;
       if (toolCalls.length > 0) last.toolCalls = [...(last.toolCalls || []), ...toolCalls];
+      if (reasoningEntry) {
+        normalized.splice(currentAssistantIndex, 0, reasoningEntry);
+        currentAssistantIndex += 1;
+      }
       continue;
     }
 
+    if (role !== 'assistant') currentAssistantIndex = -1;
+    if (reasoningEntry) normalized.push(reasoningEntry);
     normalized.push({
       id: msg.id || `${type}-${normalized.length}`,
       role,
       content,
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
     });
+    if (role === 'assistant') currentAssistantIndex = normalized.length - 1;
   }
 
   return normalized;

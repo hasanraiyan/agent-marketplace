@@ -126,6 +126,61 @@ describe('Checkpoint Service', () => {
       ]);
     });
 
+    test('surfaces persisted reasoning as role:"reasoning" entries before the assistant turn', async () => {
+      checkpointService.checkpointer = { getTuple: mockGetTuple };
+      threadRepository.findById.mockResolvedValue(mockThread);
+      mockGetTuple.mockResolvedValue({
+        checkpoint: {
+          channel_values: {
+            messages: [
+              { id: 'human_1', getType: () => 'human', content: 'why?' },
+              {
+                id: 'ai_1',
+                getType: () => 'ai',
+                content: '',
+                additional_kwargs: { reasoning_content: 'first I think' },
+                tool_calls: [{ id: 'call_1', name: 'lookup', args: {} }],
+              },
+              {
+                getType: () => 'tool',
+                tool_call_id: 'call_1',
+                content: 'ok',
+                status: 'success',
+              },
+              {
+                id: 'ai_2',
+                getType: () => 'ai',
+                content: 'Because.',
+                additional_kwargs: { reasoning_content: 'then I answer' },
+              },
+            ],
+          },
+        },
+      });
+
+      const result = await checkpointService.getMessages('thread_1', 'user_1');
+
+      expect(result.messages).toEqual([
+        { id: 'human_1', role: 'user', content: 'why?' },
+        { id: 'ai_1-reasoning', role: 'reasoning', content: 'first I think' },
+        { id: 'ai_2-reasoning', role: 'reasoning', content: 'then I answer' },
+        {
+          id: 'ai_1',
+          role: 'assistant',
+          content: 'Because.',
+          toolCalls: [
+            {
+              toolCallId: 'call_1',
+              toolName: 'lookup',
+              args: '{}',
+              result: 'ok',
+              isError: false,
+            },
+          ],
+        },
+      ]);
+    });
+
     test('should throw error if thread not found', async () => {
       threadRepository.findById.mockResolvedValue(null);
       await expect(checkpointService.getMessages('thread_1', 'user_1')).rejects.toThrow(

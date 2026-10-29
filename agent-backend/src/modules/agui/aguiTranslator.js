@@ -422,17 +422,51 @@ export function extractTextDelta(content) {
 }
 
 // Reasoning deltas land in different places depending on the provider:
-// OpenAI-compatible APIs (DeepSeek, OpenRouter, ...) use
-// additional_kwargs.reasoning_content / .reasoning; block-content providers
-// emit { type: 'reasoning' | 'thinking' } blocks.
+// OpenAI-compatible APIs (DeepSeek, ...) use
+// additional_kwargs.reasoning_content; OpenRouter uses
+// additional_kwargs.reasoning (plain text) and .reasoning_details
+// (structured blocks); Responses-API-shaped messages carry a
+// { summary: [{ text }] } object; block-content providers emit
+// { type: 'reasoning' | 'thinking' } blocks.
+function reasoningFromDetails(details) {
+  if (!Array.isArray(details)) return '';
+  return details
+    .map((detail) => {
+      if (typeof detail === 'string') return detail;
+      if (typeof detail?.text === 'string') return detail.text;
+      if (typeof detail?.summary === 'string') return detail.summary;
+      return '';
+    })
+    .join('');
+}
+
+function reasoningFromObject(value) {
+  if (!value || typeof value !== 'object') return '';
+  if (typeof value.text === 'string') return value.text;
+  if (typeof value.summary === 'string') return value.summary;
+  if (Array.isArray(value.summary)) {
+    return value.summary
+      .map((part) => (typeof part === 'string' ? part : (part?.text ?? '')))
+      .join('');
+  }
+  return '';
+}
+
 export function extractReasoningDelta(chunk) {
   const kwargs = chunk?.additional_kwargs;
   if (typeof kwargs?.reasoning_content === 'string' && kwargs.reasoning_content) {
     return kwargs.reasoning_content;
   }
+  // OpenRouter sends the same text on both `reasoning` (delta string) and
+  // `reasoning_details` (structured blocks) — prefer the plain string so the
+  // caller never sees the same delta twice.
   if (typeof kwargs?.reasoning === 'string' && kwargs.reasoning) {
     return kwargs.reasoning;
   }
+  const fromObject = reasoningFromObject(kwargs?.reasoning);
+  if (fromObject) return fromObject;
+  const fromDetails = reasoningFromDetails(kwargs?.reasoning_details);
+  if (fromDetails) return fromDetails;
   const content = chunk?.content;
   if (!Array.isArray(content)) return '';
   return content

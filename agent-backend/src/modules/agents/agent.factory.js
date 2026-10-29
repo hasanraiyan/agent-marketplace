@@ -1,5 +1,5 @@
-import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
+import { createReasoningChatOpenAI } from './reasoningChatOpenAI.js';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { ChatDeepSeek } from '@langchain/deepseek';
 import { createMiddleware } from 'langchain';
@@ -451,7 +451,9 @@ class AgentFactory {
       case 'openai':
         // See isOpenAIReasoningModel above: reasoning models + tools break
         // on Chat Completions, so reasoning is disabled outright for now.
-        return new ChatOpenAI({
+        // createReasoningChatOpenAI only widens what reaches the AG-UI
+        // translator (reasoning/reasoning_details passthrough), not this policy.
+        return createReasoningChatOpenAI({
           apiKey: apiKey,
           openAIApiKey: apiKey,
           modelName: modelName,
@@ -467,7 +469,7 @@ class AgentFactory {
         // Same reasoning-off workaround as the 'openai' case above — a
         // custom OpenAI-compatible baseURL can serve the same gpt-5.x/o-
         // series model names and hits the identical tools+reasoning error.
-        return new ChatOpenAI({
+        return createReasoningChatOpenAI({
           apiKey: apiKey,
           openAIApiKey: apiKey,
           modelName: modelName,

@@ -110,6 +110,9 @@ jest.unstable_mockModule('@langchain/openai', () => ({
       return currentScriptedModel;
     }
   },
+  // agent.factory.js loads reasoningChatOpenAI.js, which extends this class at
+  // module-evaluation time — the stub only has to exist.
+  ChatOpenAICompletions: class {},
 }));
 
 let currentScriptedModel;

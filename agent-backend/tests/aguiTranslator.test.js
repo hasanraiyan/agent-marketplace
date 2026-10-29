@@ -531,6 +531,92 @@ describe('reasoning streaming', () => {
     expect(out.find((e) => e.type === 'REASONING_MESSAGE_CONTENT').delta).toBe('deep thought');
     expect(out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK').delta).toBe('Block answer.');
   });
+
+  test('extracts OpenRouter reasoning deltas', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: { chunk: { content: '', additional_kwargs: { reasoning: 'step ' } } },
+      },
+      {
+        event: 'on_chat_model_stream',
+        data: { chunk: { content: '', additional_kwargs: { reasoning: 'two' } } },
+      },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Done.' } } },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    expect(
+      out
+        .filter((e) => e.type === 'REASONING_MESSAGE_CONTENT')
+        .map((e) => e.delta)
+        .join('')
+    ).toBe('step two');
+    expect(out.find((e) => e.type === 'TEXT_MESSAGE_CHUNK').delta).toBe('Done.');
+  });
+
+  test('extracts structured reasoning_details blocks', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: {
+          chunk: {
+            content: '',
+            additional_kwargs: {
+              reasoning_details: [
+                { type: 'reasoning.text', text: 'alpha ' },
+                { type: 'reasoning.summary', summary: 'beta' },
+              ],
+            },
+          },
+        },
+      },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Answer.' } } },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    expect(out.find((e) => e.type === 'REASONING_MESSAGE_CONTENT').delta).toBe('alpha beta');
+  });
+
+  test('does not double count when reasoning and reasoning_details carry the same delta', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: {
+          chunk: {
+            content: '',
+            additional_kwargs: {
+              reasoning: 'only once',
+              reasoning_details: [{ type: 'reasoning.text', text: 'only once' }],
+            },
+          },
+        },
+      },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    const reasoning = out.filter((e) => e.type === 'REASONING_MESSAGE_CONTENT');
+    expect(reasoning).toHaveLength(1);
+    expect(reasoning[0].delta).toBe('only once');
+  });
+
+  test('extracts summary objects from Responses-API-shaped messages', async () => {
+    const events = [
+      {
+        event: 'on_chat_model_stream',
+        data: {
+          chunk: {
+            content: '',
+            additional_kwargs: {
+              reasoning: {
+                type: 'reasoning',
+                summary: [{ type: 'summary_text', text: 'summarized' }],
+              },
+            },
+          },
+        },
+      },
+    ];
+    const out = await collect(translateLangGraphStream(fakeStream(events)));
+    expect(out.find((e) => e.type === 'REASONING_MESSAGE_CONTENT').delta).toBe('summarized');
+  });
 });
 
 describe('nested (subagent) stream filtering', () => {
