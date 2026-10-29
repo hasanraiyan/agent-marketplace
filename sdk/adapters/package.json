@@ -101,9 +101,9 @@
   },
   "dependencies": {
     "@personaai/logger": "^0.1.0",
-    "@personaai/react": "^0.18.1",
-    "@personaai/runtime": "^0.16.1",
-    "@personaai/sdk": "^0.14.1"
+    "@personaai/react": "^0.19.0",
+    "@personaai/runtime": "^0.16.2",
+    "@personaai/sdk": "^0.15.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.19.0",

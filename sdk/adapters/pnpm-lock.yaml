@@ -12,14 +12,14 @@ importers:
         specifier: ^0.1.0
         version: 0.1.0
       '@personaai/react':
-        specifier: ^0.18.1
-        version: 0.18.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^0.19.0
+        version: 0.19.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@personaai/runtime':
-        specifier: ^0.16.1
-        version: 0.16.1(zod@3.25.76)
+        specifier: ^0.16.2
+        version: 0.16.2(zod@3.25.76)
       '@personaai/sdk':
-        specifier: ^0.14.1
-        version: 0.14.1(zod@3.25.76)
+        specifier: ^0.15.0
+        version: 0.15.0(zod@3.25.76)
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -759,19 +759,19 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/react@0.18.1':
-    resolution: {integrity: sha512-ifa+djNTGuhG4iBnTtpf1KTci9LszjqytzVHwj+iWye3f2+K4PPJKDnSsXIYzVxALZrttsVYJaONYvcp6DIi3A==}
+  '@personaai/react@0.19.0':
+    resolution: {integrity: sha512-5lIj/r+7fpxaMq70ZdytFUtqiLjB4Mw0RuIj3EifzVfPRfWGbgkFNLXcK3DOEV2Drw7VXokNWD15EtR/k4sVAA==}
     engines: {node: '>=18'}
     peerDependencies:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@personaai/runtime@0.16.1':
-    resolution: {integrity: sha512-CxcJ5oHJYo3laykvOhUlGl3gFCDiGV0jan1zHHW3vCDwsL+ya5tudyZK53xfjetskYGMVn6sl1ipIGVr8zRVMw==}
+  '@personaai/runtime@0.16.2':
+    resolution: {integrity: sha512-VYzIr2qBpxV6g/f4detKuasreyg6KWdpCJ518ssImHnf4pLrn09hvu8RMs8MoBD8FU0b87hojsGVPboW1u4+5Q==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.14.1':
-    resolution: {integrity: sha512-WP+hYHrAaUa+gGkkI1vpp10irvlAt3FZ2p3E/xHzD3kFN8BaP4qB1e+JqMJHlemPWUVDn+XyOS5umttAZkZijA==}
+  '@personaai/sdk@0.15.0':
+    resolution: {integrity: sha512-qxHBLV6VbpZx0MQKyrIRysKtkbKCyz37zMmJDXf0uDPq7dYKFTkaAg9vt1zpSmv911Q/BP5hIBWc1cIDzreUaw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.23.0 || ^4.0.0
@@ -2586,21 +2586,21 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/react@0.18.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@personaai/react@0.19.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@personaai/logger': 0.1.0
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@personaai/runtime@0.16.1(zod@3.25.76)':
+  '@personaai/runtime@0.16.2(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
-      '@personaai/sdk': 0.14.1(zod@3.25.76)
+      '@personaai/sdk': 0.15.0(zod@3.25.76)
       rcp-sdk: 0.1.1
     transitivePeerDependencies:
       - zod
 
-  '@personaai/sdk@0.14.1(zod@3.25.76)':
+  '@personaai/sdk@0.15.0(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/logger': 0.1.0
