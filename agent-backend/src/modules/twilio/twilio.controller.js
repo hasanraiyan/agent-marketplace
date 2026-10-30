@@ -4,6 +4,7 @@ import { loggerService } from '../../utils/index.js';
 import { successFormatter } from '../../utils/formatters/index.js';
 import BaseError from '../../utils/errors/BaseError.js';
 import { TWILIO_WS_PATH } from './twilioGateway.js';
+import { mintVoiceTicket } from '../voice/voiceTicket.service.js';
 
 const logger = loggerService.getLogger();
 
@@ -42,21 +43,37 @@ class TwilioController {
         : req.protocol === 'https';
       const wsProtocol = isHttps ? 'wss' : 'ws';
       const host = req.get('host');
-      const wsUrl = `${wsProtocol}://${host}${TWILIO_WS_PATH}`;
+
+      // Persona-hosted numbers authenticate the media stream the same way
+      // every other caller does: with a single-use ticket minted here, after
+      // this webhook's own Twilio signature check. Identity is still the
+      // phone number on this path (there is no developer-side user to
+      // assert), so the call continues the phone's existing conversation.
+      const phone = twilioService.normalizePhoneNumber(callerPhone) || callerPhone;
+      const callSid = req.body?.CallSid || null;
+      const threadId = `agui-${projectId}-${agentId}-${phone}`;
+
+      const { ticket } = mintVoiceTicket({
+        principalType: 'ProjectRuntime',
+        audience: 'telephony',
+        domain: projectId,
+        agentId,
+        subjectId: phone,
+        credentialId: 'twilio',
+        threadId,
+        telephony: { channel: 'voice', from: phone, callSid },
+        context: { callerPhone: phone, channel: 'voice', callSid },
+      });
+
+      const wsUrl = `${wsProtocol}://${host}${TWILIO_WS_PATH}?ticket=${encodeURIComponent(ticket)}`;
 
       logger.info('[TwilioController] Generating TwiML for media stream', {
         projectId,
         agentId,
-        callerPhone,
-        wsUrl,
+        callSid,
       });
 
-      const twiml = twilioService.buildConnectStreamTwiML({
-        wsUrl,
-        agentId,
-        projectId,
-        callerPhone,
-      });
+      const twiml = twilioService.buildConnectStreamTwiML({ wsUrl });
 
       res.type('text/xml');
       return res.send(twiml);
@@ -267,6 +284,58 @@ class TwilioController {
       });
 
       return res.json(successFormatter.formatSuccess(result, 'Agent message sent'));
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  /**
+   * Reply-only sibling of {@link sendDeveloperAgentMessage} — runs the Agent
+   * for the asserted external user and returns its text WITHOUT sending
+   * anything. For a developer who keeps their own Twilio number: their
+   * webhook receives the WhatsApp/SMS message, calls this, and delivers the
+   * reply itself (inline TwiML for messages, spoken for calls).
+   */
+  async generateDeveloperAgentReply(req, res, next) {
+    try {
+      const context = req.projectContext;
+
+      if (context?.principalType !== 'ProjectRuntime') {
+        throw new BaseError(
+          'Generating a reply requires an asserted external user (x-persona-external-user-id)',
+          400,
+          'EXTERNAL_USER_REQUIRED'
+        );
+      }
+
+      const { agentId, text, prompt, threadId, displayName } = req.body || {};
+
+      const result = await twilioMessagingService.generateReply({
+        projectId: context.domain,
+        agentId,
+        externalUserId: context.externalUserId,
+        text: text ?? prompt,
+        displayName,
+        threadId: threadId || req.headers['x-thread-id'] || null,
+      });
+
+      if (result.runError) {
+        throw new BaseError(
+          result.runError.message || 'Agent run failed',
+          502,
+          result.runError.code || 'AGENT_RUN_FAILED'
+        );
+      }
+      if (!result.reply) {
+        throw new BaseError('The agent produced an empty reply', 502, 'AGENT_EMPTY_REPLY');
+      }
+
+      return res.json(
+        successFormatter.formatSuccess(
+          { agentId, reply: result.reply, threadId: result.threadId },
+          'Agent reply generated'
+        )
+      );
     } catch (err) {
       next(err);
     }

@@ -87,8 +87,35 @@ jest.unstable_mockModule('../src/modules/twilio/TwilioVoiceTransport.js', () => 
   default: MockTwilioVoiceTransport,
 }));
 
+// Ticket signing needs a secret; `.env.test` doesn't set one, and config is
+// loaded before this module body runs, so set it on the already-loaded
+// config object (the ticket service reads it lazily at sign time).
+const { default: config } = await import('../src/config/index.js');
+config.jwt.secret = process.env.JWT_SECRET || 'test-voice-ticket-secret';
+
 const { attachTwilioGateway, handleTwilioUpgrade, TWILIO_WS_PATH } =
   await import('../src/modules/twilio/twilioGateway.js');
+const { mintVoiceTicket } = await import('../src/modules/voice/voiceTicket.service.js');
+
+/** Mints a telephony ticket the way developerVoice.controller.js does. */
+function mintTicket(overrides = {}) {
+  return mintVoiceTicket({
+    principalType: 'ProjectRuntime',
+    audience: 'telephony',
+    domain: 'proj_test',
+    agentId: 'agent_123',
+    subjectId: '+15551234567',
+    credentialId: 'cred_active_1',
+    threadId: 'agui-proj_test-agent_123-+15551234567',
+    telephony: { channel: 'voice', from: '+15551234567', callSid: 'CA_CALL_1' },
+    context: { callerPhone: '+15551234567', channel: 'voice' },
+    ...overrides,
+  }).ticket;
+}
+
+function upgradeUrl(ticket) {
+  return `${TWILIO_WS_PATH}?ticket=${encodeURIComponent(ticket)}`;
+}
 
 describe('Twilio Gateway Unit Tests', () => {
   let mockWss;
@@ -143,7 +170,35 @@ describe('Twilio Gateway Unit Tests', () => {
     expect(mockWss.handleUpgrade).not.toHaveBeenCalled();
   });
 
-  test('handleTwilioUpgrade initiates voice session when stream starts with valid parameters', async () => {
+  test('rejects an upgrade with no ticket — query params are never trusted', async () => {
+    const req = { url: `${TWILIO_WS_PATH}?projectId=proj_test&agentId=agent_123` };
+    const url = new URL(req.url, 'http://localhost');
+
+    await expect(handleTwilioUpgrade(req, mockSocket, mockHead, url, mockWss)).rejects.toThrow(
+      /Missing ticket/
+    );
+    expect(mockWss.handleUpgrade).not.toHaveBeenCalled();
+  });
+
+  test('rejects a browser ticket on the telephony path', async () => {
+    const browserTicket = mintVoiceTicket({
+      principalType: 'ProjectRuntime',
+      audience: 'browser',
+      domain: 'proj_test',
+      agentId: 'agent_123',
+      subjectId: 'user_1',
+      credentialId: 'cred_active_1',
+      threadId: 'agui-proj_test-agent_123-user_1',
+    }).ticket;
+    const url = new URL(upgradeUrl(browserTicket), 'http://localhost');
+
+    await expect(
+      handleTwilioUpgrade({ url: url.pathname + url.search }, mockSocket, mockHead, url, mockWss)
+    ).rejects.toThrow(/not valid for telephony/);
+    expect(mockWss.handleUpgrade).not.toHaveBeenCalled();
+  });
+
+  test('handleTwilioUpgrade initiates a voice session from ticket claims', async () => {
     const mockAgent = {
       _id: 'agent_123',
       name: 'Support Agent',
@@ -151,25 +206,18 @@ describe('Twilio Gateway Unit Tests', () => {
     };
     mockAgentRepository.findById.mockResolvedValue(mockAgent);
 
-    const req = { url: `${TWILIO_WS_PATH}?projectId=proj_test&agentId=agent_123` };
+    const req = { url: upgradeUrl(mintTicket()) };
     const url = new URL(req.url, 'http://localhost');
 
     await handleTwilioUpgrade(req, mockSocket, mockHead, url, mockWss);
     expect(mockWss.handleUpgrade).toHaveBeenCalled();
     expect(lastTransportInstance).toBeDefined();
 
-    // Emit stream_started on transport
     lastTransportInstance.emit('stream_started', {
       streamSid: 'MZ_STREAM_1',
       callSid: 'CA_CALL_1',
-      customParameters: {
-        agentId: 'agent_123',
-        projectId: 'proj_test',
-        callerPhone: '+15551234567',
-      },
     });
 
-    // Wait microtasks for async startVoiceSessionForTwilio
     await new Promise((resolve) => setImmediate(resolve));
 
     expect(mockAgentRepository.findById).toHaveBeenCalledWith('agent_123');
@@ -182,44 +230,79 @@ describe('Twilio Gateway Unit Tests', () => {
       'restApiToolSources',
       'rcpSources',
     ]);
+    // Identity is the asserted external user id, never the phone number.
     expect(mockExternalUserService.resolveOrCreate).toHaveBeenCalledWith(
       'proj_test',
       '+15551234567'
     );
     expect(mockVoiceSessionConstructor).toHaveBeenCalled();
+
+    const params = lastVoiceSessionInstance.params;
+    expect(params.claims.subjectId).toBe('+15551234567');
+    expect(params.claims.threadId).toBe('agui-proj_test-agent_123-+15551234567');
+    expect(params.initialContext.callerPhone).toBe('+15551234567');
+    expect(params.initialContext.callSid).toBe('CA_CALL_1');
     expect(lastVoiceSessionInstance.start).toHaveBeenCalled();
 
     // Verify thread seeding appended to systemInstruction
-    const passedLiveConfig = lastVoiceSessionInstance.params.liveConfig;
-    expect(passedLiveConfig.systemInstruction).toContain('Prior call summary...');
+    expect(params.liveConfig.systemInstruction).toContain('Prior call summary...');
 
     // Verify on close flushes transcript sink
     lastTransportInstance.emit('close');
     expect(lastSinkInstance.flush).toHaveBeenCalled();
   });
 
-  test('closes transport with 1008 if agentId or projectId is missing', async () => {
-    const req = { url: TWILIO_WS_PATH };
+  test('uses an explicitly asserted user id as the conversation identity', async () => {
+    mockAgentRepository.findById.mockResolvedValue({
+      _id: 'agent_123',
+      populate: jest.fn().mockResolvedValue(true),
+    });
+
+    const req = {
+      url: upgradeUrl(
+        mintTicket({
+          subjectId: 'user_2ab',
+          threadId: 'agui-proj_test-agent_123-user_2ab',
+          telephony: { channel: 'voice', from: '+15559990000', callSid: null },
+        })
+      ),
+    };
     const url = new URL(req.url, 'http://localhost');
 
     await handleTwilioUpgrade(req, mockSocket, mockHead, url, mockWss);
-
-    // Stream started without agentId / projectId
-    lastTransportInstance.emit('stream_started', {
-      streamSid: 'MZ_STREAM_MISSING',
-      callSid: 'CA_CALL_MISSING',
-      customParameters: {},
-    });
-
+    lastTransportInstance.emit('stream_started', { streamSid: 'MZ_1', callSid: 'CA_9' });
     await new Promise((resolve) => setImmediate(resolve));
-    expect(lastTransportInstance.close).toHaveBeenCalledWith(
-      1008,
-      'Missing agent or project configuration'
-    );
+
+    expect(mockExternalUserService.resolveOrCreate).toHaveBeenCalledWith('proj_test', 'user_2ab');
+    expect(lastVoiceSessionInstance.params.claims.subjectId).toBe('user_2ab');
+    expect(lastVoiceSessionInstance.params.initialContext.callerPhone).toBe('+15559990000');
+  });
+
+  test('a ticket is single-use — a replay is rejected', async () => {
+    mockAgentRepository.findById.mockResolvedValue({
+      _id: 'agent_123',
+      populate: jest.fn().mockResolvedValue(true),
+    });
+    const ticket = mintTicket();
+    const url = new URL(upgradeUrl(ticket), 'http://localhost');
+    const req = { url: upgradeUrl(ticket) };
+
+    await handleTwilioUpgrade(req, mockSocket, mockHead, url, mockWss);
+
+    const replayUrl = new URL(upgradeUrl(ticket), 'http://localhost');
+    await expect(
+      handleTwilioUpgrade(
+        { url: upgradeUrl(ticket) },
+        mockSocket,
+        mockHead,
+        replayUrl,
+        mockWss
+      )
+    ).rejects.toThrow(/already used/);
   });
 
   test('closes transport with 1011 if agentId is ARCHITECT_AGENT_ID', async () => {
-    const req = { url: `${TWILIO_WS_PATH}?projectId=proj_test&agentId=${ARCHITECT_AGENT_ID}` };
+    const req = { url: upgradeUrl(mintTicket({ agentId: ARCHITECT_AGENT_ID })) };
     const url = new URL(req.url, 'http://localhost');
 
     await handleTwilioUpgrade(req, mockSocket, mockHead, url, mockWss);
@@ -227,10 +310,6 @@ describe('Twilio Gateway Unit Tests', () => {
     lastTransportInstance.emit('stream_started', {
       streamSid: 'MZ_ARCHITECT',
       callSid: 'CA_ARCHITECT',
-      customParameters: {
-        agentId: ARCHITECT_AGENT_ID,
-        projectId: 'proj_test',
-      },
     });
 
     await new Promise((resolve) => setImmediate(resolve));
@@ -243,7 +322,7 @@ describe('Twilio Gateway Unit Tests', () => {
   test('closes transport with 1011 if agent cannot be found in repository', async () => {
     mockAgentRepository.findById.mockResolvedValue(null);
 
-    const req = { url: `${TWILIO_WS_PATH}?projectId=proj_test&agentId=agent_not_found` };
+    const req = { url: upgradeUrl(mintTicket({ agentId: 'agent_not_found' })) };
     const url = new URL(req.url, 'http://localhost');
 
     await handleTwilioUpgrade(req, mockSocket, mockHead, url, mockWss);
@@ -251,10 +330,6 @@ describe('Twilio Gateway Unit Tests', () => {
     lastTransportInstance.emit('stream_started', {
       streamSid: 'MZ_NOT_FOUND',
       callSid: 'CA_NOT_FOUND',
-      customParameters: {
-        agentId: 'agent_not_found',
-        projectId: 'proj_test',
-      },
     });
 
     await new Promise((resolve) => setImmediate(resolve));
@@ -272,7 +347,7 @@ describe('Twilio Gateway Unit Tests', () => {
     mockAgentRepository.findById.mockResolvedValue(mockAgent);
     mockVoiceThreadService.buildSeedSuffix.mockRejectedValue(new Error('MongoDB timeout'));
 
-    const req = { url: `${TWILIO_WS_PATH}?projectId=proj_test&agentId=agent_resilient` };
+    const req = { url: upgradeUrl(mintTicket({ agentId: 'agent_resilient' })) };
     const url = new URL(req.url, 'http://localhost');
 
     await handleTwilioUpgrade(req, mockSocket, mockHead, url, mockWss);
@@ -280,11 +355,6 @@ describe('Twilio Gateway Unit Tests', () => {
     lastTransportInstance.emit('stream_started', {
       streamSid: 'MZ_FAILOVER',
       callSid: 'CA_FAILOVER',
-      customParameters: {
-        agentId: 'agent_resilient',
-        projectId: 'proj_test',
-        callerPhone: '+19998887777',
-      },
     });
 
     await new Promise((resolve) => setImmediate(resolve));

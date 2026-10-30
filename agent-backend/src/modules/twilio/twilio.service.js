@@ -151,10 +151,15 @@ class TwilioService {
     const response = new VoiceResponse();
 
     const connect = response.connect();
+    // `wsUrl` already carries a single-use ticket in its query string — that
+    // ticket is the only thing the media-stream gateway trusts, so no
+    // agent/project/phone parameters are passed to the stream anymore.
     const stream = connect.stream({ url: wsUrl });
 
-    stream.parameter({ name: 'agentId', value: agentId });
-    stream.parameter({ name: 'projectId', value: projectId });
+    // Kept only for callers that still build TwiML by hand; the webhook
+    // handler no longer supplies these.
+    if (agentId) stream.parameter({ name: 'agentId', value: agentId });
+    if (projectId) stream.parameter({ name: 'projectId', value: projectId });
     if (callerPhone) {
       stream.parameter({ name: 'callerPhone', value: callerPhone });
     }

@@ -272,19 +272,87 @@ class TwilioMessagingService {
 
   /**
    * Runs one agent turn on the caller's shared conversation thread and
-   * collects the assistant's text. Tool activity, reasoning, and state
-   * snapshots are intentionally ignored — only final text is deliverable
-   * over SMS/WhatsApp.
+   * collects the assistant's text, without sending anything. Identity is
+   * the phone number — the Persona-hosted convention shared by SMS,
+   * WhatsApp and voice.
    */
   async generateAgentReply({ projectId, agentId, phone, text, displayName = null }) {
+    const { reply, runError } = await this.generateReply({
+      projectId,
+      agentId,
+      externalUserId: phone,
+      text,
+      displayName,
+    });
+    return { reply, runError };
+  }
+
+  /**
+   * Runs one agent turn for a caller-resolved external user and returns the
+   * reply **without delivering it** — the bring-your-own-Twilio flow, where
+   * the developer's own webhook returns the text as TwiML `<Message>` (or
+   * reads it aloud) instead of Persona sending through its own account.
+   *
+   * `externalUserId` is asserted by the Project credential (never the phone
+   * number), so a WhatsApp message here continues the same thread as that
+   * user's web chat and phone calls. Tool activity, reasoning, and state
+   * snapshots are ignored — only final text is channel-deliverable.
+   */
+  async generateReply({
+    projectId,
+    agentId,
+    externalUserId,
+    text,
+    displayName = null,
+    threadId = null,
+  }) {
+    const subject = String(externalUserId || '').trim();
+    if (!subject) {
+      const err = new Error('An external user id is required');
+      err.statusCode = 400;
+      err.code = 'EXTERNAL_USER_REQUIRED';
+      throw err;
+    }
+    if (!agentId) {
+      const err = new Error('Agent ID is required');
+      err.statusCode = 400;
+      err.code = 'AGENT_ID_REQUIRED';
+      throw err;
+    }
+
+    const body = String(text ?? '')
+      .trim()
+      .slice(0, MAX_INBOUND_BODY_LENGTH);
+    if (!body) {
+      const err = new Error('A message text is required');
+      err.statusCode = 400;
+      err.code = 'MESSAGE_TEXT_REQUIRED';
+      throw err;
+    }
+
+    const agent = await this.resolveChannelAgent(projectId, agentId);
+    if (!agent) {
+      const err = new Error('Agent not found');
+      err.statusCode = 404;
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
+    assertNoGuardedTools(agent);
+
     const credentialId = await this.resolveCredentialId(projectId);
     const executionContext = createProjectRuntimeContext({
       domain: projectId,
       credentialId,
-      externalUserId: phone,
+      externalUserId: subject,
     });
 
-    await externalUserService.resolveOrCreate(projectId, phone, displayName ? { displayName } : {});
+    await externalUserService.resolveOrCreate(
+      projectId,
+      subject,
+      displayName ? { displayName } : {}
+    );
+
+    const langGraphThreadId = threadId || this.buildThreadId(projectId, agentId, subject);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), AGENT_TURN_TIMEOUT_MS);
@@ -295,9 +363,9 @@ class TwilioMessagingService {
     try {
       for await (const event of runAgentAsAguiEvents({
         agentId,
-        userId: phone,
-        langGraphThreadId: this.buildThreadId(projectId, agentId, phone),
-        messages: [{ role: 'user', content: text }],
+        userId: subject,
+        langGraphThreadId,
+        messages: [{ role: 'user', content: body }],
         signal: controller.signal,
         executionContext,
         // The Project owner deliberately exposed this Agent on their own
@@ -319,7 +387,7 @@ class TwilioMessagingService {
       clearTimeout(timeout);
     }
 
-    return { reply: reply.trim(), runError };
+    return { reply: reply.trim(), threadId: langGraphThreadId, runError };
   }
 
   /**

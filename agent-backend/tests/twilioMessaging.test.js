@@ -39,11 +39,15 @@ jest.unstable_mockModule('../src/modules/projects/projectMembership.repository.j
 
 jest.unstable_mockModule('../src/modules/auth/developerMachineAuth.middleware.js', () => ({
   default: (req, res, next) => {
-    req.projectContext = {
-      principalType: 'ProjectMachine',
-      domain: 'proj-1',
-      credentialId: 'cred-1',
-    };
+    const externalUserId = req.headers['x-persona-external-user-id'];
+    req.projectContext = externalUserId
+      ? {
+          principalType: 'ProjectRuntime',
+          domain: 'proj-1',
+          credentialId: 'cred-1',
+          externalUserId,
+        }
+      : { principalType: 'ProjectMachine', domain: 'proj-1', credentialId: 'cred-1' };
     next();
   },
 }));
@@ -505,6 +509,105 @@ describe('TwilioMessagingService.sendAgentMessage', () => {
   });
 });
 
+describe('TwilioMessagingService.generateReply', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    twilioMessagingService.resetForTests();
+    agentRepository.findById.mockResolvedValue({
+      _id: 'agent-1',
+      domain: 'proj-1',
+      isActive: true,
+      interruptOn: {},
+    });
+    projectCredentialRepository.findByProject.mockResolvedValue([
+      { _id: 'cred-1', status: 'ACTIVE' },
+    ]);
+    externalUserService.resolveOrCreate.mockResolvedValue({});
+    assertNoGuardedTools.mockImplementation(() => {});
+    setAgentEvents([
+      { type: 'TEXT_MESSAGE_CHUNK', delta: 'Your order ' },
+      { type: 'TEXT_MESSAGE_CHUNK', delta: 'shipped.' },
+    ]);
+    jest.spyOn(twilioService, 'sendMessage').mockResolvedValue({ messageSids: ['SM_1'] });
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  test('runs the turn as the asserted external user and never sends', async () => {
+    const result = await twilioMessagingService.generateReply({
+      projectId: 'proj-1',
+      agentId: 'agent-1',
+      externalUserId: 'user_2ab',
+      text: 'Where is my order?',
+      displayName: 'Raiyan',
+    });
+
+    expect(result).toEqual({
+      reply: 'Your order shipped.',
+      threadId: 'agui-proj-1-agent-1-user_2ab',
+      runError: null,
+    });
+    expect(externalUserService.resolveOrCreate).toHaveBeenCalledWith('proj-1', 'user_2ab', {
+      displayName: 'Raiyan',
+    });
+    expect(runAgentAsAguiEvents).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'user_2ab',
+        langGraphThreadId: 'agui-proj-1-agent-1-user_2ab',
+        messages: [{ role: 'user', content: 'Where is my order?' }],
+        executionContext: expect.objectContaining({
+          principalType: 'ProjectRuntime',
+          externalUserId: 'user_2ab',
+        }),
+      })
+    );
+    expect(twilioService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('continues an explicitly chosen thread', async () => {
+    const result = await twilioMessagingService.generateReply({
+      projectId: 'proj-1',
+      agentId: 'agent-1',
+      externalUserId: 'user_2ab',
+      text: 'Hi',
+      threadId: 'agui-proj-1-agent-1-user_2ab',
+    });
+
+    expect(result.threadId).toBe('agui-proj-1-agent-1-user_2ab');
+    expect(runAgentAsAguiEvents).toHaveBeenCalledWith(
+      expect.objectContaining({ langGraphThreadId: 'agui-proj-1-agent-1-user_2ab' })
+    );
+  });
+
+  test('requires an external user id', async () => {
+    await expect(
+      twilioMessagingService.generateReply({
+        projectId: 'proj-1',
+        agentId: 'agent-1',
+        externalUserId: '  ',
+        text: 'Hi',
+      })
+    ).rejects.toMatchObject({ code: 'EXTERNAL_USER_REQUIRED', statusCode: 400 });
+    expect(runAgentAsAguiEvents).not.toHaveBeenCalled();
+  });
+
+  test('returns a run error instead of throwing so callers can fall back', async () => {
+    setAgentEvents([{ type: 'RUN_ERROR', code: 'PROVIDER_ERROR', message: 'upstream 500' }]);
+
+    const result = await twilioMessagingService.generateReply({
+      projectId: 'proj-1',
+      agentId: 'agent-1',
+      externalUserId: 'user_2ab',
+      text: 'Hi',
+    });
+
+    expect(result.reply).toBe('');
+    expect(result.runError).toMatchObject({ code: 'PROVIDER_ERROR' });
+  });
+});
+
 describe('Twilio messaging webhook routes', () => {
   const app = express();
   app.use(express.urlencoded({ extended: false }));
@@ -608,6 +711,10 @@ describe('Project Twilio messaging routes', () => {
       channel: 'sms',
       messageSids: ['SM_OUT_2'],
     });
+    jest.spyOn(twilioMessagingService, 'generateReply').mockResolvedValue({
+      reply: 'It shipped yesterday.',
+      threadId: 'agui-proj-1-agent-1-user_2ab',
+    });
   });
 
   afterEach(() => {
@@ -687,6 +794,10 @@ describe('Developer Twilio messaging routes', () => {
       channel: 'sms',
       messageSids: ['SM_OUT_2'],
     });
+    jest.spyOn(twilioMessagingService, 'generateReply').mockResolvedValue({
+      reply: 'It shipped yesterday.',
+      threadId: 'agui-proj-1-agent-1-user_2ab',
+    });
   });
 
   afterEach(() => {
@@ -743,5 +854,55 @@ describe('Developer Twilio messaging routes', () => {
         prompt: 'Follow up',
       })
     );
+  });
+
+  test('generates a reply for the asserted user without sending it', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/messages/agent/reply')
+      .set('x-persona-external-user-id', 'user_2ab')
+      .send({ agentId: 'agent-1', text: 'Where is my order?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      agentId: 'agent-1',
+      reply: 'It shipped yesterday.',
+      threadId: 'agui-proj-1-agent-1-user_2ab',
+    });
+    expect(twilioMessagingService.generateReply).toHaveBeenCalledWith({
+      projectId: 'proj-1',
+      agentId: 'agent-1',
+      externalUserId: 'user_2ab',
+      text: 'Where is my order?',
+      displayName: undefined,
+      threadId: null,
+    });
+    // Never sends through this Project's Twilio number on this path.
+    expect(twilioService.sendMessage).not.toHaveBeenCalled();
+  });
+
+  test('requires an asserted external user for a reply', async () => {
+    const res = await request(app)
+      .post('/api/v1/developer/messages/agent/reply')
+      .send({ agentId: 'agent-1', text: 'Hi' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('EXTERNAL_USER_REQUIRED');
+    expect(twilioMessagingService.generateReply).not.toHaveBeenCalled();
+  });
+
+  test('returns 502 when the agent run failed', async () => {
+    twilioMessagingService.generateReply.mockResolvedValue({
+      reply: '',
+      threadId: 'agui-proj-1-agent-1-user_2ab',
+      runError: { code: 'PROVIDER_ERROR', message: 'upstream 500' },
+    });
+
+    const res = await request(app)
+      .post('/api/v1/developer/messages/agent/reply')
+      .set('x-persona-external-user-id', 'user_2ab')
+      .send({ agentId: 'agent-1', text: 'Hi' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.code).toBe('PROVIDER_ERROR');
   });
 });

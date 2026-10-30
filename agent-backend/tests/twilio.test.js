@@ -6,6 +6,11 @@ import { twilioWebhookRouter, outboundCallRouter } from '../src/modules/twilio/i
 import twilioService from '../src/modules/twilio/twilio.service.js';
 import TwilioVoiceTransport from '../src/modules/twilio/TwilioVoiceTransport.js';
 import errorHandler from '../src/middlewares/errorHandler.js';
+import config from '../src/config/index.js';
+
+// The hosted voice webhook now mints a telephony ticket before returning
+// TwiML, which needs a signing secret. `.env.test` doesn't set one.
+config.jwt.secret = process.env.JWT_SECRET || 'test-voice-ticket-secret';
 
 const app = express();
 app.use(express.urlencoded({ extended: true }));
@@ -36,9 +41,12 @@ describe('Twilio Webhooks and Voice Bridge', () => {
       expect(res.text).toContain('<Connect>');
       expect(res.text).toContain('<Stream url=');
       expect(res.text).toContain('/api/v1/twilio/media-stream');
-      expect(res.text).toContain('name="agentId" value="agent-456"');
-      expect(res.text).toContain('name="projectId" value="proj-123"');
-      expect(res.text).toContain('name="callerPhone" value="+919876543210"');
+      // The stream URL carries a single-use ticket — nothing else the gateway
+      // would have to trust (no agent/project/phone stream parameters).
+      expect(res.text).toContain('?ticket=');
+      expect(res.text).not.toContain('name="agentId"');
+      expect(res.text).not.toContain('name="projectId"');
+      expect(res.text).not.toContain('name="callerPhone"');
     });
   });
 

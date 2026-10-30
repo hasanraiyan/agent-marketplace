@@ -80,6 +80,12 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
   // from the outside (voice-agent-plan.md Section 7).
   const claims = redeemVoiceTicket(ticket);
 
+  // Tickets are bound to the path they were minted for — a telephony ticket
+  // must never open a browser session (and vice versa, see twilioGateway.js).
+  if (claims.audience && claims.audience !== 'browser') {
+    throw new Error('Ticket is not valid for a browser voice session');
+  }
+
   let context;
   let agent;
 

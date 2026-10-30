@@ -160,4 +160,83 @@ router.post('/', messageLimiter, twilioController.sendDeveloperMessage);
  */
 router.post('/agent', messageLimiter, twilioController.sendDeveloperAgentMessage);
 
+/**
+ * @openapi
+ * /api/v1/developer/messages/agent/reply:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Generate an Agent reply without sending it (Project credential)
+ *     description: >
+ *       Runs the Agent for the asserted external user and returns its reply
+ *       text. Nothing is delivered — this is the bring-your-own-Twilio-number
+ *       path: your webhook receives the WhatsApp/SMS message from your own
+ *       number, calls this endpoint, and returns the reply itself (for
+ *       example as TwiML `<Response><Message>`).
+ *
+ *       The conversation identity is `x-persona-external-user-id`, NOT the
+ *       phone number, so the same user's web chat, WhatsApp messages and
+ *       phone calls share one thread. Include the phone number only as the
+ *       `from` field for your own records.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: x-persona-external-user-id
+ *         in: header
+ *         required: true
+ *         schema: { type: string }
+ *       - name: x-thread-id
+ *         in: header
+ *         required: false
+ *         schema: { type: string }
+ *         description: Attach this turn to an existing Thread instead of the per-user default.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [agentId, text]
+ *             properties:
+ *               agentId: { type: string }
+ *               text:
+ *                 type: string
+ *                 description: The inbound message the Agent responds to
+ *               displayName:
+ *                 type: string
+ *                 description: Optional display name recorded for a new external user
+ *               threadId:
+ *                 type: string
+ *                 description: Optional Thread to continue (alternative to the x-thread-id header)
+ *     responses:
+ *       200:
+ *         description: Reply generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 message: { type: string }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     agentId: { type: string }
+ *                     reply: { type: string }
+ *                     threadId:
+ *                       type: string
+ *                       description: The conversation thread this turn was written to
+ *       400:
+ *         description: Missing agentId or text, or the credential has no asserted external user
+ *       401:
+ *         description: Missing or invalid Project credential
+ *       403:
+ *         description: Project is not currently ACTIVE
+ *       404:
+ *         description: Agent not found (or not owned by this Project)
+ *       422:
+ *         description: The Agent has guarded tools, which have no confirmation flow on text channels
+ *       502:
+ *         description: Agent run failed or produced no reply
+ */
+router.post('/agent/reply', messageLimiter, twilioController.generateDeveloperAgentReply);
+
 export default router;

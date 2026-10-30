@@ -27,6 +27,20 @@ const logger = loggerService.getLogger();
 const CONTEXT_OVERRIDE_MAX_LENGTH = 4000;
 
 /**
+ * Channel metadata only — a telephony `from`/`to` is never an identity on
+ * this path (the Project credential asserts the external user id), so this
+ * just strips a `whatsapp:` prefix for stability and rejects anything
+ * implausibly long before it is signed into a ticket.
+ */
+function normalizePhone(value) {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().replace(/^whatsapp:/i, '');
+  if (!trimmed || trimmed.length > 32) return null;
+  return trimmed;
+}
+
+
+/**
  * Developer Platform machine voice route (voice-agent-plan.md §7 route (a),
  * §18 Phase 2) — mints a voice session ticket for an external app running
  * a Project Agent, authenticated by Project credential
@@ -46,6 +60,26 @@ const CONTEXT_OVERRIDE_MAX_LENGTH = 4000;
  */
 class DeveloperVoiceController {
   async createSession(req, res, next) {
+    return this._createSession(req, res, next, { audience: 'browser' });
+  }
+
+  /**
+   * Telephony variant (SDK-owned Twilio numbers): the developer's own Twilio
+   * webhook has already answered the call and now needs a media-stream URL
+   * for it. Same ticket machinery as `createSession`, but bound to the
+   * telephony gateway path (`audience: 'telephony'`) and to the developer's
+   * OWN user id — never the phone number — so a call, a WhatsApp message and
+   * a web chat session all land on the same thread.
+   *
+   * The audio still goes Twilio → Persona directly; the developer's webhook
+   * only resolves identity and returns TwiML, which keeps voice working on
+   * serverless hosts.
+   */
+  async createTelephonySession(req, res, next) {
+    return this._createSession(req, res, next, { audience: 'telephony' });
+  }
+
+  async _createSession(req, res, next, { audience = 'browser' } = {}) {
     const context = req.projectContext;
 
     if (context?.principalType !== 'ProjectRuntime') {
@@ -121,25 +155,33 @@ class DeveloperVoiceController {
         ]);
       }
 
-      let provider;
-      try {
-        provider = await resolveVoiceProvider(agent, domain);
-      } catch (err) {
-        if (err.code === 'VOICE_PROVIDER_REQUIRED') {
-          throw new BaseError(err.message, 422, 'VOICE_PROVIDER_REQUIRED');
-        }
-        throw err;
-      }
+      // Browser sessions report model/voice in the mint response, so both
+      // are resolved here. A telephony ticket is redeemed by the media-stream
+      // gateway instead (which re-resolves the provider and fails the
+      // upgrade) — minting must stay a fast HTTP round-trip for Twilio's
+      // webhook timeout, so neither is resolved on this path.
+      let provider = null;
+      let model = null;
+      let voiceName = null;
 
-      let model;
-      let voiceName;
-      try {
-        ({ model, voiceName } = await buildVoiceLiveConfig(agent, domain, context));
-      } catch (err) {
-        if (err.code === 'VOICE_INTERRUPT_ON_UNSUPPORTED') {
-          throw new BaseError(err.message, 422, err.code);
+      if (audience === 'browser') {
+        try {
+          provider = await resolveVoiceProvider(agent, domain);
+        } catch (err) {
+          if (err.code === 'VOICE_PROVIDER_REQUIRED') {
+            throw new BaseError(err.message, 422, 'VOICE_PROVIDER_REQUIRED');
+          }
+          throw err;
         }
-        throw err;
+
+        try {
+          ({ model, voiceName } = await buildVoiceLiveConfig(agent, domain, context));
+        } catch (err) {
+          if (err.code === 'VOICE_INTERRUPT_ON_UNSUPPORTED') {
+            throw new BaseError(err.message, 422, err.code);
+          }
+          throw err;
+        }
       }
 
       // Phase 4 (voice-agent-plan.md §4.1): thread resolution happens HERE,
@@ -172,15 +214,39 @@ class DeveloperVoiceController {
         await threadRepository.touchLastMessageAt(thread._id);
       }
 
+      // Telephony-only metadata: never an identity, only channel context an
+      // RCP resolver can read (turnContext) or Persona can log. Normalized to
+      // a bare E.164 number so the same caller is stable across calls.
+      const telephony =
+        audience === 'telephony'
+          ? {
+              channel: 'voice',
+              from: normalizePhone(req.body?.from || req.body?.callerPhone || '') || null,
+              to: normalizePhone(req.body?.to || '') || null,
+              callSid: typeof req.body?.callSid === 'string' ? req.body.callSid : null,
+            }
+          : null;
+
+      const ticketContext = telephony
+        ? {
+            ...(validatedTurnContext || {}),
+            callerPhone: telephony.from,
+            channel: 'voice',
+            callSid: telephony.callSid,
+          }
+        : validatedTurnContext;
+
       const { ticket, expiresAt } = mintVoiceTicket({
         principalType: 'ProjectRuntime',
+        audience,
         domain,
         agentId: String(agent._id),
         subjectId: externalUserId,
         credentialId: context.credentialId,
         threadId: langGraphThreadId,
         contextOverride,
-        context: validatedTurnContext,
+        context: ticketContext,
+        ...(telephony ? { telephony } : {}),
       });
 
       // req.protocol only reports 'https' when Express's `trust proxy` is
@@ -191,28 +257,40 @@ class DeveloperVoiceController {
         ? forwardedProto.split(',')[0].trim() === 'https'
         : req.protocol === 'https';
       const protocol = isHttps ? 'wss' : 'ws';
-      const wsUrl = `${protocol}://${req.get('host')}/api/v1/developer/voice?ticket=${encodeURIComponent(ticket)}`;
+      const ticketQuery = `ticket=${encodeURIComponent(ticket)}`;
+      const wsUrl =
+        audience === 'telephony'
+          ? `${protocol}://${req.get('host')}/api/v1/twilio/media-stream?${ticketQuery}`
+          : `${protocol}://${req.get('host')}/api/v1/developer/voice?${ticketQuery}`;
 
       logger.info('[Voice] machine session ticket minted', {
         domain,
         agentId: String(agent._id),
-        providerId: provider.id,
+        audience,
+        ...(provider?.id ? { providerId: provider.id } : {}),
       });
 
       res.json(
         successFormatter.formatSuccess(
-          {
-            ticket,
-            wsUrl,
-            expiresAt,
-            session: {
-              model,
-              voice: voiceName,
-              inputSampleRate: INPUT_SAMPLE_RATE,
-              outputSampleRate: OUTPUT_SAMPLE_RATE,
-              maxDurationMs: DEFAULT_MAX_DURATION_MS,
-            },
-          },
+          audience === 'telephony'
+            ? {
+                ticket,
+                streamUrl: wsUrl,
+                wsUrl,
+                expiresAt,
+              }
+            : {
+                ticket,
+                wsUrl,
+                expiresAt,
+                session: {
+                  model,
+                  voice: voiceName,
+                  inputSampleRate: INPUT_SAMPLE_RATE,
+                  outputSampleRate: OUTPUT_SAMPLE_RATE,
+                  maxDurationMs: DEFAULT_MAX_DURATION_MS,
+                },
+              },
           'Voice session ticket issued'
         )
       );

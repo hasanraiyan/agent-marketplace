@@ -110,4 +110,97 @@ router.post(
   developerVoiceController.createSession
 );
 
+/**
+ * @openapi
+ * /api/v1/developer/voice/telephony/sessions:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Mint a telephony voice session ticket (bring your own Twilio number)
+ *     description: >
+ *       For a Project that keeps its OWN Twilio number and webhook: call this
+ *       from your Twilio voice webhook after resolving the caller to one of
+ *       your users, then return TwiML that connects the call to `streamUrl`.
+ *       Audio flows Twilio → Persona directly, so the webhook stays a fast
+ *       HTTP round-trip and works on serverless hosts.
+ *
+ *       The asserted `x-persona-external-user-id` — not the phone number —
+ *       becomes the conversation identity, so this call joins the same thread
+ *       as that user's web chat and WhatsApp messages. The phone number is
+ *       kept only as channel metadata (`turnContext.callerPhone`).
+ *
+ *       The returned ticket is single-use, valid for 60 seconds, and only
+ *       redeemable on the telephony media-stream path.
+ *     security: [{ projectCredential: [] }]
+ *     parameters:
+ *       - name: x-agent-id
+ *         in: header
+ *         required: true
+ *         schema: { type: string }
+ *       - name: x-persona-external-user-id
+ *         in: header
+ *         required: true
+ *         schema: { type: string }
+ *       - name: x-thread-id
+ *         in: header
+ *         required: false
+ *         schema: { type: string }
+ *         description: Attach the call to an existing Thread of this Subject (404 if it isn't theirs).
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               from:
+ *                 type: string
+ *                 description: Caller number (E.164, `whatsapp:` prefix tolerated) — metadata only
+ *               to:
+ *                 type: string
+ *                 description: The Project's Twilio number that received the call — metadata only
+ *               callSid:
+ *                 type: string
+ *                 description: Twilio CallSid, logged only
+ *               context:
+ *                 type: object
+ *                 additionalProperties:
+ *                   type: [string, number, boolean]
+ *                 description: >
+ *                   Same at-connect turnContext seed as POST /api/v1/developer/voice/sessions.
+ *     responses:
+ *       200:
+ *         description: Telephony ticket issued
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 message: { type: string }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     ticket: { type: string }
+ *                     streamUrl:
+ *                       type: string
+ *                       description: "`wss://` media-stream URL with the ticket embedded — use as TwiML <Stream url>"
+ *                     wsUrl:
+ *                       type: string
+ *                       description: Alias of streamUrl, kept so both SDK shapes work
+ *                     expiresAt: { type: string, format: date-time }
+ *       400:
+ *         description: Missing x-agent-id, or credential has no asserted external user
+ *       401:
+ *         description: Missing or invalid Project credential
+ *       403:
+ *         description: Project is not currently ACTIVE
+ *       404:
+ *         description: Agent not found (or not executable by this Domain)
+ */
+router.post(
+  '/telephony/sessions',
+  rateLimiter('voice-session', RATE_LIMITS.CHAT),
+  developerVoiceController.createTelephonySession
+);
+
 export default router;
