@@ -75,29 +75,50 @@ export function attachTwilioGateway(server) {
  * @param {import('ws').WebSocketServer} wss
  */
 export async function handleTwilioUpgrade(req, socket, head, url, wss) {
-  const ticket = url.searchParams.get('ticket');
-  if (!ticket) {
+  const urlTicket = url.searchParams.get('ticket');
+
+  if (!urlTicket && (url.searchParams.has('projectId') || url.searchParams.has('agentId'))) {
     throw new Error('Missing ticket query parameter');
   }
 
-  // Throws on bad signature, expiry, or replay — identical rejection either
-  // way, so a forged ticket and a replayed real one look the same.
-  const claims = redeemVoiceTicket(ticket);
-
-  if (claims.audience !== TELEPHONY_TICKET_AUDIENCE || claims.principalType !== 'ProjectRuntime') {
-    throw new Error('Ticket is not valid for telephony');
+  let preClaims = null;
+  if (urlTicket) {
+    preClaims = redeemVoiceTicket(urlTicket);
+    if (preClaims.audience !== TELEPHONY_TICKET_AUDIENCE || preClaims.principalType !== 'ProjectRuntime') {
+      throw new Error('Ticket is not valid for telephony');
+    }
   }
-
-  const projectId = claims.domain;
-  const agentId = claims.agentId;
 
   wss.handleUpgrade(req, socket, head, (twilioWs) => {
     const transport = new TwilioVoiceTransport({ twilioWs });
 
-    // Twilio sends the stream's own identifiers in the 'start' event; the
-    // identity/agent configuration comes from the ticket alone, never from
-    // these parameters.
-    transport.once('stream_started', async ({ callSid }) => {
+    transport.once('stream_started', async ({ callSid, customParameters }) => {
+      let claims = preClaims;
+      if (!claims) {
+        const ticket = customParameters?.ticket;
+        if (!ticket) {
+          logger.warn('[TwilioGateway] Stream rejected: missing ticket parameter', { callSid });
+          transport.close(1008, 'Missing ticket');
+          return;
+        }
+
+        try {
+          claims = redeemVoiceTicket(ticket);
+        } catch (err) {
+          logger.warn('[TwilioGateway] Stream rejected: invalid ticket', { err: err?.message, callSid });
+          transport.close(1008, 'Invalid ticket');
+          return;
+        }
+
+        if (claims.audience !== TELEPHONY_TICKET_AUDIENCE || claims.principalType !== 'ProjectRuntime') {
+          logger.warn('[TwilioGateway] Stream rejected: ticket not valid for telephony', { callSid });
+          transport.close(1008, 'Ticket not valid for telephony');
+          return;
+        }
+      }
+
+      const projectId = claims.domain;
+      const agentId = claims.agentId;
       const resolvedCallSid = claims.telephony?.callSid || callSid || null;
 
       logger.info('[TwilioGateway] Starting voice session for phone call', {
