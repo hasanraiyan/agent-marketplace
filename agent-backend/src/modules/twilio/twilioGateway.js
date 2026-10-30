@@ -211,6 +211,12 @@ async function startVoiceSessionForTwilio({ transport, claims, projectId, agentI
     projectId,
     context
   );
+  logger.info('[TwilioGateway] 📞 Tools loaded for phone call', {
+    callSid,
+    agentId,
+    toolsCount: toolsByName.size,
+    toolNames: Array.from(toolsByName.keys()),
+  });
 
   if (claims.contextOverride) {
     liveConfig.systemInstruction =

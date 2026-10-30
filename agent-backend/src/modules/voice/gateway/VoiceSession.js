@@ -507,6 +507,11 @@ export class VoiceSession {
    * @returns {Promise<{id: string, name: string, cancelled: boolean, response: {output?: *, error?: string}}>}
    */
   async _invokeToolCallWithTimeout(fc) {
+    logger.info('[Voice] 🛠️ Tool invoked during voice call', {
+      toolName: fc.name,
+      toolCallId: fc.id,
+      args: fc.args,
+    });
     const controller = new AbortController();
     const entry = { controller, cancelled: false };
     this.pendingToolCalls.set(fc.id, entry);
@@ -561,6 +566,11 @@ export class VoiceSession {
         }),
         timeoutPromise,
       ]);
+      logger.info('[Voice] ✅ Tool execution succeeded', {
+        toolName: fc.name,
+        toolCallId: fc.id,
+        resultPreview: typeof result === 'string' ? result.slice(0, 150) : JSON.stringify(result)?.slice(0, 150),
+      });
 
       const safeOutput = result !== undefined ? result : { status: 'ok' };
       return {
