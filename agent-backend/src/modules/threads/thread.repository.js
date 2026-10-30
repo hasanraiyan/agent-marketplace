@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Conversation from './thread.model.js';
 import Agent from '../agents/agent.model.js';
 import { ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
@@ -14,6 +15,7 @@ function idLooksLikeObjectId(id) {
 
 class ThreadRepository {
   async create(data) {
+    if (mongoose.connection.readyState !== 1) return null;
     const thread = new Conversation(data);
     const savedThread = await thread.save();
     if (data.agentId) {
@@ -56,12 +58,25 @@ class ThreadRepository {
       .populate('agentId', 'name avatar slug sandboxEnabled');
   }
 
+  async findLatestBySubjectAndAgent(subjectFilter, agentId) {
+    if (mongoose.connection.readyState !== 1) return null;
+    if (!idLooksLikeObjectId(agentId)) return null;
+    return await Conversation.findOne({
+      ...subjectFilter,
+      agentId,
+      isArchived: false,
+    })
+      .sort({ lastMessageAt: -1 })
+      .populate('agentId', 'name avatar slug sandboxEnabled');
+  }
+
   async update(id, updateData) {
     const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
     return await Conversation.findOneAndUpdate(query, updateData, { returnDocument: 'after' });
   }
 
   async touchLastMessageAt(id) {
+    if (mongoose.connection.readyState !== 1) return null;
     const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
     return await Conversation.findOneAndUpdate(
       query,

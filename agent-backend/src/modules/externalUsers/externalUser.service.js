@@ -27,6 +27,15 @@ class ExternalUserService {
   async findByProjectAndExternalUserId(project, externalUserId) {
     return await externalUserRepository.findByProjectAndExternalUserId(project, externalUserId);
   }
+
+  async findByPhoneNumber(project, phoneNumber) {
+    if (!project || !phoneNumber) return null;
+    return await externalUserRepository.findByProjectAndPhoneNumber(project, phoneNumber);
+  }
+
+  async updateUser(project, externalUserId, metadata = {}) {
+    return await this.resolveOrCreate(project, externalUserId, metadata);
+  }
 }
 
 export default new ExternalUserService();

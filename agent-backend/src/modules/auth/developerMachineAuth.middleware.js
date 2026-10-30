@@ -55,6 +55,9 @@ import BaseError from '../../utils/errors/BaseError.js';
  */
 
 const EXTERNAL_USER_HEADER = 'x-persona-external-user-id';
+const EXTERNAL_USER_PHONE_HEADER = 'x-persona-external-user-phone';
+const EXTERNAL_USER_NAME_HEADER = 'x-persona-external-user-name';
+const EXTERNAL_USER_EMAIL_HEADER = 'x-persona-external-user-email';
 
 /**
  * @param {string|undefined} authorizationHeader
@@ -105,7 +108,17 @@ export default async function developerMachineAuthMiddleware(req, res, next) {
     const externalUserId = req.headers[EXTERNAL_USER_HEADER];
 
     if (externalUserId) {
-      await externalUserService.resolveOrCreate(domain, externalUserId);
+      const metadata = {};
+      if (req.headers[EXTERNAL_USER_PHONE_HEADER]) {
+        metadata.phoneNumber = req.headers[EXTERNAL_USER_PHONE_HEADER];
+      }
+      if (req.headers[EXTERNAL_USER_NAME_HEADER]) {
+        metadata.displayName = req.headers[EXTERNAL_USER_NAME_HEADER];
+      }
+      if (req.headers[EXTERNAL_USER_EMAIL_HEADER]) {
+        metadata.email = req.headers[EXTERNAL_USER_EMAIL_HEADER];
+      }
+      await externalUserService.resolveOrCreate(domain, externalUserId, metadata);
       req.projectContext = createProjectRuntimeContext({ domain, credentialId, externalUserId });
     } else {
       req.projectContext = createProjectMachineContext({ domain, credentialId });

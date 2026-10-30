@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+import mongoose from 'mongoose';
 import { EventType } from '@ag-ui/core';
 import { LRUCache } from 'lru-cache';
 import twilioService from './twilio.service.js';
@@ -8,6 +10,7 @@ import {
   DEVELOPER_ARCHITECT_AGENT_ID,
 } from '../agents/architectConstants.js';
 import externalUserService from '../externalUsers/externalUser.service.js';
+import threadRepository from '../threads/thread.repository.js';
 import projectCredentialRepository from '../projects/projectCredential.repository.js';
 import { createProjectRuntimeContext } from '../auth/projectPrincipalContext.js';
 import { assertNoGuardedTools } from '../voice/voice.service.js';
@@ -26,6 +29,7 @@ const ARCHITECT_AGENT_IDS = new Set([
 // turns (MCP/RCP/knowledge) can still take a while. Bound it so a stuck
 // run never holds the conversation queue forever.
 const AGENT_TURN_TIMEOUT_MS = 120_000;
+const SESSION_INACTIVITY_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 // Twilio retries webhooks on non-2xx / timeout, often with the same
 // MessageSid. An hour is far longer than any retry window and keeps the
@@ -143,6 +147,89 @@ class TwilioMessagingService {
         messageSid,
       });
 
+      // 1. Resolve whether this phone number belongs to a known external user
+      let subject = phone;
+      if (typeof externalUserService?.findByPhoneNumber === 'function') {
+        try {
+          const mappedUser = await externalUserService.findByPhoneNumber(projectId, phone);
+          if (mappedUser?.externalUserId) {
+            subject = mappedUser.externalUserId;
+          }
+        } catch {
+          // Ignore lookup error
+        }
+      }
+
+      // 2. Handle session rolling window and /new commands (like ChatGPT/Perplexity on WhatsApp)
+      const isNewChatCmd = /^\s*(\/new|\/reset|new chat)\b/i.test(text);
+      const promptText = text.replace(/^\s*(\/new|\/reset|new chat)\s*/i, '').trim();
+
+      // If user just sent "/new" with no other prompt:
+      if (isNewChatCmd && !promptText) {
+        if (typeof threadRepository?.create === 'function') {
+          const channelLabel =
+            channel === 'whatsapp' ? 'WhatsApp' : channel === 'sms' ? 'SMS' : 'Phone';
+          await threadRepository.create({
+            domain: projectId,
+            subjectType: 'ExternalUser',
+            externalUserId: subject,
+            agentId,
+            threadId: crypto.randomUUID(),
+            title: `${channelLabel} Chat`,
+            lastMessageAt: new Date(),
+          });
+        }
+        await this.reply({
+          projectId,
+          phone,
+          channel,
+          text: 'Started a new conversation! How can I help you today?',
+        });
+        return { handled: true, replied: true };
+      }
+
+      // 3. Find or create an active Thread document so turns are visible in the web chat UI
+      let thread = null;
+      if (
+        mongoose.connection.readyState === 1 &&
+        typeof threadRepository?.findLatestBySubjectAndAgent === 'function'
+      ) {
+        try {
+          const subjectFilter = {
+            domain: projectId,
+            subjectType: 'ExternalUser',
+            externalUserId: subject,
+          };
+          const latest = await threadRepository.findLatestBySubjectAndAgent(subjectFilter, agentId);
+          const isSessionRecent =
+            !isNewChatCmd &&
+            latest?.lastMessageAt &&
+            Date.now() - new Date(latest.lastMessageAt).getTime() < SESSION_INACTIVITY_TIMEOUT_MS;
+
+          if (latest && isSessionRecent) {
+            thread = latest;
+            await threadRepository.touchLastMessageAt(thread._id);
+          } else if (typeof threadRepository?.create === 'function') {
+            const channelLabel =
+              channel === 'whatsapp' ? 'WhatsApp' : channel === 'sms' ? 'SMS' : 'Phone';
+            thread = await threadRepository.create({
+              domain: projectId,
+              subjectType: 'ExternalUser',
+              externalUserId: subject,
+              agentId,
+              threadId: crypto.randomUUID(),
+              title: `${channelLabel} Chat`,
+              lastMessageAt: new Date(),
+            });
+          }
+        } catch (err) {
+          logger.warn(
+            '[TwilioMessaging] Failed to resolve or touch thread, falling back to deterministic thread id',
+            { err: err?.message }
+          );
+        }
+      }
+
       const agent = await this.resolveChannelAgent(projectId, agentId);
       if (!agent) {
         logger.warn('[TwilioMessaging] Agent unavailable for inbound conversation', {
@@ -167,13 +254,19 @@ class TwilioMessagingService {
       }
 
       try {
-        const { reply, runError } = await this.generateAgentReply({
+        const { reply, runError } = await this.generateReply({
           projectId,
           agentId,
-          phone,
+          externalUserId: subject,
           text,
           displayName: profileName,
+          threadId: thread?.threadId || null,
+          channel,
         });
+
+        if (thread?._id) {
+          await threadRepository.touchLastMessageAt(thread._id).catch(() => {});
+        }
 
         const outgoing = reply || (runError ? FALLBACK_ERROR : FALLBACK_EMPTY);
 
@@ -305,6 +398,7 @@ class TwilioMessagingService {
     text,
     displayName = null,
     threadId = null,
+    channel = null,
   }) {
     const subject = String(externalUserId || '').trim();
     if (!subject) {
@@ -354,6 +448,36 @@ class TwilioMessagingService {
 
     const langGraphThreadId = threadId || this.buildThreadId(projectId, agentId, subject);
 
+    // Ensure a Thread document exists in conversations collection so it appears in the web chat UI
+    if (
+      mongoose.connection.readyState === 1 &&
+      typeof threadRepository?.findById === 'function' &&
+      typeof threadRepository?.create === 'function'
+    ) {
+      try {
+        let existingThread = await threadRepository.findById(langGraphThreadId);
+        if (!existingThread) {
+          const channelLabel =
+            channel === 'whatsapp' ? 'WhatsApp' : channel === 'sms' ? 'SMS' : 'Chat';
+          await threadRepository.create({
+            domain: projectId,
+            subjectType: 'ExternalUser',
+            externalUserId: subject,
+            agentId,
+            threadId: langGraphThreadId,
+            title: `${channelLabel} Chat`,
+            lastMessageAt: new Date(),
+          });
+        } else if (existingThread?._id && typeof threadRepository?.touchLastMessageAt === 'function') {
+          await threadRepository.touchLastMessageAt(existingThread._id).catch(() => {});
+        }
+      } catch (err) {
+        logger.warn('[TwilioMessaging] Failed to create or touch Thread document in generateReply', {
+          err: err?.message,
+        });
+      }
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), AGENT_TURN_TIMEOUT_MS);
 
@@ -365,9 +489,10 @@ class TwilioMessagingService {
         agentId,
         userId: subject,
         langGraphThreadId,
-        messages: [{ role: 'user', content: body }],
+        messages: [{ role: 'user', content: body, ...(channel ? { channel } : {}) }],
         signal: controller.signal,
         executionContext,
+        turnContext: channel ? { channel } : undefined,
         // The Project owner deliberately exposed this Agent on their own
         // Twilio number, so default-private Agents must be runnable here —
         // the same reasoning as the voice bridge. Domain ownership is

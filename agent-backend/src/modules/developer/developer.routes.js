@@ -40,4 +40,36 @@ router.use(developerMachineAuthMiddleware);
  */
 router.get('/whoami', developerController.whoami);
 
+/**
+ * @openapi
+ * /api/v1/developer/users/sync:
+ *   post:
+ *     tags: [Developer]
+ *     summary: Sync or update external user profile metadata
+ *     security: [{ projectCredential: [] }]
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               externalUserId:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *               displayName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: External user synchronized
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/users/sync', developerController.syncUser);
+
 export default router;

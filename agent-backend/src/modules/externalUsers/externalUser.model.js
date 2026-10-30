@@ -55,6 +55,12 @@ const externalUserSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: '',
+      index: true,
+    },
     lastSeenAt: {
       type: Date,
       default: null,

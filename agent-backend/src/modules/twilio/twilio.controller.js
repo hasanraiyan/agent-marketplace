@@ -4,7 +4,10 @@ import { loggerService } from '../../utils/index.js';
 import { successFormatter } from '../../utils/formatters/index.js';
 import BaseError from '../../utils/errors/BaseError.js';
 import { TWILIO_WS_PATH } from './twilioGateway.js';
+import crypto from 'crypto';
 import { mintVoiceTicket } from '../voice/voiceTicket.service.js';
+import externalUserService from '../externalUsers/externalUser.service.js';
+import threadRepository from '../threads/thread.repository.js';
 
 const logger = loggerService.getLogger();
 
@@ -51,14 +54,46 @@ class TwilioController {
       // assert), so the call continues the phone's existing conversation.
       const phone = twilioService.normalizePhoneNumber(callerPhone) || callerPhone;
       const callSid = req.body?.CallSid || null;
-      const threadId = `agui-${projectId}-${agentId}-${phone}`;
+      let subjectId = phone;
+      const mappedUser = await externalUserService.findByPhoneNumber(projectId, phone);
+      if (mappedUser?.externalUserId) {
+        subjectId = mappedUser.externalUserId;
+      }
+
+      let threadId = `agui-${projectId}-${agentId}-${phone}`;
+      try {
+        const subjectFilter = {
+          domain: projectId,
+          subjectType: 'ExternalUser',
+          externalUserId: subjectId,
+        };
+        let thread = await threadRepository.findLatestBySubjectAndAgent(subjectFilter, agentId);
+        if (!thread) {
+          thread = await threadRepository.create({
+            domain: projectId,
+            subjectType: 'ExternalUser',
+            externalUserId: subjectId,
+            agentId,
+            threadId: crypto.randomUUID(),
+            title: 'Phone Call',
+            lastMessageAt: new Date(),
+          });
+        } else {
+          await threadRepository.touchLastMessageAt(thread._id);
+        }
+        if (thread?.threadId) {
+          threadId = thread.threadId;
+        }
+      } catch (e) {
+        logger.warn('[TwilioController] Failed to resolve thread for voice call', { err: e?.message });
+      }
 
       const { ticket } = mintVoiceTicket({
         principalType: 'ProjectRuntime',
         audience: 'telephony',
         domain: projectId,
         agentId,
-        subjectId: phone,
+        subjectId,
         credentialId: 'twilio',
         threadId,
         telephony: { channel: 'voice', from: phone, callSid },
@@ -308,7 +343,7 @@ class TwilioController {
         );
       }
 
-      const { agentId, text, prompt, threadId, displayName } = req.body || {};
+      const { agentId, text, prompt, threadId, displayName, channel } = req.body || {};
 
       const result = await twilioMessagingService.generateReply({
         projectId: context.domain,
@@ -317,6 +352,7 @@ class TwilioController {
         text: text ?? prompt,
         displayName,
         threadId: threadId || req.headers['x-thread-id'] || null,
+        ...(channel || req.headers['x-channel'] ? { channel: channel || req.headers['x-channel'] } : {}),
       });
 
       if (result.runError) {

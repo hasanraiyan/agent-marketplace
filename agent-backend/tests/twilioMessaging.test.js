@@ -11,7 +11,7 @@ jest.unstable_mockModule('../src/modules/agents/agent.repository.js', () => ({
 }));
 
 jest.unstable_mockModule('../src/modules/externalUsers/externalUser.service.js', () => ({
-  default: { resolveOrCreate: jest.fn() },
+  default: { resolveOrCreate: jest.fn(), findByPhoneNumber: jest.fn().mockResolvedValue(null) },
 }));
 
 jest.unstable_mockModule('../src/modules/projects/projectCredential.repository.js', () => ({
