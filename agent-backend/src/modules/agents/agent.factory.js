@@ -784,7 +784,19 @@ class AgentFactory {
         ? Object.fromEntries(agent.interruptOn)
         : agent.interruptOn || {};
 
-    const personalizedPrompt = `${agent.systemPrompt}
+    const kbNames = (agent.knowledgeBases || [])
+      .map((kb) => (typeof kb === 'object' && kb ? kb.name : null))
+      .filter(Boolean);
+
+    const knowledgeBaseSection =
+      kbNames.length > 0
+        ? `\n\n### KNOWLEDGE BASE USAGE RULES\n- You have access to the following attached knowledge bases: ${kbNames
+            .map((n) => `"${n}"`)
+            .join(', ')}.\n- When the user's question could be answered by information stored in these knowledge bases, call the \`search_knowledge_base\` tool with the appropriate \`knowledgeBaseName\` and a concise query BEFORE answering.\n- Use \`list_knowledge_base_sources\` to see which documents are available in a specific knowledge base.\n- Always cite the source file (shown as \`[Source: ...]\`) when you use retrieved information.\n- If the search returns no relevant information, say so honestly instead of guessing or hallucinating.`
+        : '';
+
+
+    const personalizedPrompt = `${agent.systemPrompt}${knowledgeBaseSection}
 
 ### PRESENT FILE RULES
 - When you want to showcase or highlight a file to the user, call the \`present_file\` tool.
