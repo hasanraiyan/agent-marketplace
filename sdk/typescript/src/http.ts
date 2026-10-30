@@ -27,6 +27,13 @@ export interface RequestOptions {
   /** A plain object is JSON-serialized; a FormData instance is sent as-is (multipart). */
   body?: unknown;
   headers?: Record<string, string>;
+  /**
+   * Assert a specific end user for THIS request, overriding the
+   * `externalUserId` this client was constructed with (or supplying one
+   * when it was built without). Needed when one server process handles
+   * many users — e.g. a webhook that resolves the caller per request.
+   */
+  externalUserId?: string;
   /** Externally-provided AbortSignal (e.g. for streaming/cancellable calls). */
   signal?: AbortSignal;
 }
@@ -155,7 +162,8 @@ export class HttpClient {
       Accept: 'application/json',
       ...options.headers,
     };
-    if (this.externalUserId) headers['x-persona-external-user-id'] = this.externalUserId;
+    const assertedExternalUserId = options.externalUserId ?? this.externalUserId;
+    if (assertedExternalUserId) headers['x-persona-external-user-id'] = assertedExternalUserId;
     if (hasJsonBody) headers['Content-Type'] = 'application/json';
     return headers;
   }

@@ -3,6 +3,23 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.16.0
+
+- **Telephony sessions & reply-only messaging (`voice.createTelephonySession`, `messages.generateReply`).**
+  Adds support for bring-your-own-Twilio workflows where the developer's server receives webhooks and
+  authenticates callers before bridging to Persona:
+  - `voice.createTelephonySession()` mints a single-use telephony session ticket bound to an
+    asserted `externalUserId` (and optional `threadId`, `from`, `to`, `callSid`, `context`), returning
+    a `streamUrl` (`wss://.../media-stream?ticket=...`) for Twilio's `<Connect><Stream>` TwiML. Audio
+    streams directly between Twilio and Persona without proxying through the developer's server.
+  - `messages.generateReply()` executes an Agent turn for an asserted `externalUserId` and returns the
+    reply text and `threadId` without dispatching via Twilio, allowing inline TwiML reply delivery
+    (`<Response><Message>...</Message></Response>`) from the developer's own Twilio number without sharing Twilio credentials.
+  - `HttpClient` and all request methods now support `externalUserId` on per-request options to override
+    or supply the user identity on multi-tenant server endpoints.
+  - New types exported: `CreateTelephonySessionOptions`, `TelephonySessionTicket`, `GenerateReplyInput`,
+    `GeneratedReply`.
+
 ## 0.15.0
 
 - **`McpConnection` and `McpUserConnectionStatus` now report why a user-mode MCP isn't usable**,

@@ -121,4 +121,65 @@ describe('MessagesResource', () => {
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect((init.headers as Record<string, string>)['x-persona-external-user-id']).toBeUndefined();
   });
+
+  it('generateReply() returns the agent text without sending, for the asserted user', async () => {
+    const reply = { agentId: 'agent_1', reply: 'It shipped yesterday.', threadId: 'agui-t' };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: reply })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    const result = await client.messages.generateReply({
+      agentId: 'agent_1',
+      externalUserId: 'user_2ab',
+      text: 'Where is my order?',
+      displayName: 'Raiyan',
+    });
+
+    expect(result).toEqual(reply);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('https://api.example.com/api/v1/developer/messages/agent/reply');
+    expect(init.method).toBe('POST');
+    expect((init.headers as Record<string, string>)['x-persona-external-user-id']).toBe('user_2ab');
+    // externalUserId is asserted via the header, never duplicated into the body.
+    expect(JSON.parse(init.body as string)).toEqual({
+      agentId: 'agent_1',
+      text: 'Where is my order?',
+      displayName: 'Raiyan',
+    });
+  });
+
+  it('generateReply() defaults to the client-bound external user', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: { agentId: 'a', reply: 'hi', threadId: 't' } })
+    );
+    const client = new PersonaClient({
+      baseUrl: 'https://api.example.com',
+      credential: 'key.secret',
+      externalUserId: 'user_bound',
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    await client.messages.generateReply({ agentId: 'a', text: 'hi' });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect((init.headers as Record<string, string>)['x-persona-external-user-id']).toBe(
+      'user_bound'
+    );
+  });
+
+  it('generateReply() propagates EXTERNAL_USER_REQUIRED as a typed API error', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse(
+        { success: false, message: 'An external user id is required', code: 'EXTERNAL_USER_REQUIRED' },
+        400
+      )
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+
+    await expect(client.messages.generateReply({ agentId: 'a', text: 'hi' })).rejects.toMatchObject({
+      code: 'EXTERNAL_USER_REQUIRED',
+      statusCode: 400,
+    });
+  });
 });

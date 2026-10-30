@@ -1,5 +1,9 @@
 import type { HttpClient } from '../http.js';
-import type { VoiceSessionTicket } from '../types/voice.js';
+import type {
+  CreateTelephonySessionOptions,
+  TelephonySessionTicket,
+  VoiceSessionTicket,
+} from '../types/voice.js';
 
 /**
  * Options for {@link VoiceResource.createSession}.
@@ -105,6 +109,70 @@ export class VoiceResource {
                 ...(options.context !== undefined ? { context: options.context } : {}),
               }
             : undefined,
+      }
+    );
+  }
+
+  /**
+   * Mints a ticket for a call that arrived on YOUR OWN Twilio number.
+   *
+   * Call this from your Twilio voice webhook after you have resolved the
+   * caller to one of your users, then answer Twilio with
+   * `<Response><Connect><Stream url="${result.streamUrl}"/></Connect></Response>`.
+   * Twilio then streams the audio to Persona directly; your server only
+   * handles the one fast HTTP request, so this works on serverless hosts.
+   *
+   * `externalUserId` is what makes the cross-channel conversation work: the
+   * call joins the same thread as that user's web chat and WhatsApp messages,
+   * because both are keyed by your user id. The phone number is kept only as
+   * channel metadata (`callerPhone` in the Agent's turn context).
+   *
+   * Your Twilio signature must be verified on your own server with your own
+   * auth token — Persona never sees it, and doesn't need to: the ticket
+   * proves the request came from your Project credential.
+   *
+   * @param options - The Agent, the resolved `externalUserId`, and optional
+   *   call metadata (`from`, `to`, `callSid`, `threadId`, `context`).
+   * @returns `{ ticket, streamUrl, wsUrl, expiresAt }` — use `streamUrl` in TwiML.
+   * @throws {@link PersonaApiError} with code `EXTERNAL_USER_REQUIRED` when
+   *   the client has no asserted user, 404 when the Agent isn't yours, and
+   *   422 at call time if no Gemini provider is configured (the media-stream
+   *   gateway refuses the upgrade rather than mid-call).
+   * @example
+   * ```ts
+   * // In your Twilio voice webhook, after verifyTwilioSignature(...) and
+   * // const user = await db.user.findByPhone(req.body.From):
+   * const session = await client.voice.createTelephonySession({
+   *   agentId,
+   *   externalUserId: user.id,
+   *   from: req.body.From,
+   *   to: req.body.To,
+   *   callSid: req.body.CallSid,
+   * });
+   * res.type('text/xml').send(
+   *   `<Response><Connect><Stream url="${session.streamUrl}"/></Connect></Response>`
+   * );
+   * ```
+   */
+  async createTelephonySession(
+    options: CreateTelephonySessionOptions
+  ): Promise<TelephonySessionTicket> {
+    const headers: Record<string, string> = { 'x-agent-id': options.agentId };
+    if (options.threadId) headers['x-thread-id'] = options.threadId;
+
+    const body: Record<string, unknown> = {};
+    if (options.from !== undefined) body.from = options.from;
+    if (options.to !== undefined) body.to = options.to;
+    if (options.callSid !== undefined) body.callSid = options.callSid;
+    if (options.context !== undefined) body.context = options.context;
+
+    return this.http.request<TelephonySessionTicket>(
+      'POST',
+      '/api/v1/developer/voice/telephony/sessions',
+      {
+        headers,
+        externalUserId: options.externalUserId,
+        ...(Object.keys(body).length > 0 ? { body } : {}),
       }
     );
   }

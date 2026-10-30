@@ -175,4 +175,56 @@ describe('VoiceResource', () => {
       statusCode: 422,
     });
   });
+
+  it('createTelephonySession() posts the call metadata and the resolved user', async () => {
+    const ticket = {
+      ticket: 'payload.signature',
+      streamUrl:
+        'wss://api.example.com/api/v1/twilio/media-stream?ticket=payload.signature',
+      wsUrl: 'wss://api.example.com/api/v1/twilio/media-stream?ticket=payload.signature',
+      expiresAt: '2026-01-01T00:01:00.000Z',
+    };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: ticket })
+    );
+    // Client bound to a DIFFERENT user: the per-call id must win.
+    const client = makeClient(fetchMock as unknown as typeof fetch, 'someone-else');
+
+    const result = await client.voice.createTelephonySession({
+      agentId: 'agent_1',
+      externalUserId: 'user_2ab',
+      from: '+919876543210',
+      to: '+14155238886',
+      callSid: 'CA123',
+      threadId: 'agui-p-agent_1-user_2ab',
+    });
+
+    expect(result).toEqual(ticket);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      'https://api.example.com/api/v1/developer/voice/telephony/sessions'
+    );
+    expect(init.method).toBe('POST');
+    const headers = init.headers as Record<string, string>;
+    expect(headers['x-agent-id']).toBe('agent_1');
+    expect(headers['x-thread-id']).toBe('agui-p-agent_1-user_2ab');
+    expect(headers['x-persona-external-user-id']).toBe('user_2ab');
+    expect(JSON.parse(init.body as string)).toEqual({
+      from: '+919876543210',
+      to: '+14155238886',
+      callSid: 'CA123',
+    });
+  });
+
+  it('createTelephonySession() omits an empty body', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      jsonResponse({ success: true, data: { ticket: 't', streamUrl: 'wss://x', wsUrl: 'wss://x', expiresAt: 'x' } })
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch, 'user_2ab');
+
+    await client.voice.createTelephonySession({ agentId: 'agent_1', externalUserId: 'user_2ab' });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.body).toBeUndefined();
+  });
 });

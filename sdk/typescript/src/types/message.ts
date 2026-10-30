@@ -65,3 +65,35 @@ export interface SendAgentMessageInput {
 export interface AgentMessageDelivery extends MessageDelivery {
   agentId: string;
 }
+
+/**
+ * Input for {@link MessagesResource.generateReply} — run the Agent and get
+ * its text back, without Persona sending anything.
+ */
+export interface GenerateReplyInput {
+  /** The Agent that composes the reply. Must belong to this Project. */
+  agentId: string;
+  /** The inbound message the Agent responds to. */
+  text: string;
+  /**
+   * Your own user id for the sender. This — not the phone number — is the
+   * conversation identity, so the reply continues the same thread as that
+   * user's web chat and phone calls. Defaults to the client's
+   * `externalUserId` when omitted.
+   */
+  externalUserId?: string;
+  /** Optional display name recorded for a new external user (e.g. a WhatsApp profile name). */
+  displayName?: string;
+  /** Continue an existing Thread instead of the per-user default. */
+  threadId?: string;
+}
+
+/** Result of {@link MessagesResource.generateReply}. */
+export interface GeneratedReply {
+  /** The Agent that produced the reply. */
+  agentId: string;
+  /** The reply text — nothing was sent; deliver it yourself. */
+  reply: string;
+  /** The conversation thread this turn was written to. */
+  threadId: string;
+}

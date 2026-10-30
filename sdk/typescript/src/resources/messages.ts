@@ -1,6 +1,8 @@
 import type { HttpClient } from '../http.js';
 import type {
   AgentMessageDelivery,
+  GenerateReplyInput,
+  GeneratedReply,
   MessageDelivery,
   SendAgentMessageInput,
   SendMessageInput,
@@ -17,10 +19,15 @@ import type {
  * (Project, Agent, number) — so a reply to the same user continues the same
  * conversation your inbound webhook and voice calls already use.
  *
- * This SDK only sends. Inbound messages are delivered by Twilio to your
- * backend's configured webhook, which Persona handles end-to-end (the
- * Agent's reply goes back out over the same channel) — nothing to wire up
- * here beyond pointing the Project's Twilio number at Persona.
+ * Two ways to use this, depending on whose Twilio number it is:
+ *
+ * - **Persona-hosted number:** inbound messages are delivered to Persona's
+ *   webhook and answered end-to-end — nothing to wire up beyond pointing the
+ *   number at Persona. Use `send` / `sendFromAgent` for outbound.
+ * - **Your own number:** your webhook receives the message, calls
+ *   {@link MessagesResource.generateReply} to get the Agent's text, and
+ *   delivers it itself (inline TwiML). Persona never sends on this path, so
+ *   it never needs your Twilio credentials.
  */
 export class MessagesResource {
   constructor(private readonly http: HttpClient) {}
@@ -79,6 +86,48 @@ export class MessagesResource {
   async sendFromAgent(input: SendAgentMessageInput): Promise<AgentMessageDelivery> {
     return this.http.request<AgentMessageDelivery>('POST', '/api/v1/developer/messages/agent', {
       body: input,
+    });
+  }
+
+  /**
+   * Runs the Agent for one of your users and returns its reply **without
+   * delivering it** — for a WhatsApp/SMS message that arrived on YOUR OWN
+   * Twilio number.
+   *
+   * Call this from your Twilio messaging webhook after you have resolved the
+   * sender to one of your users, then answer Twilio with the reply, e.g.
+   * `<Response><Message>${reply}</Message></Response>`. Nothing is charged to
+   * Persona's Twilio account and your credentials stay on your side.
+   *
+   * The conversation is keyed by `externalUserId`, so the same user's web
+   * chat, WhatsApp messages and phone calls share one thread.
+   *
+   * @param input - `agentId`, the inbound `text`, and (optionally)
+   *   `externalUserId` when the client isn't already bound to that user.
+   * @returns The reply text plus the `threadId` it was written to.
+   * @throws {@link PersonaApiError} with code `EXTERNAL_USER_REQUIRED` when no
+   *   user is asserted, `AGENT_RUN_FAILED` / `AGENT_EMPTY_REPLY` (502) when the
+   *   run errored or produced no text, 404 when the Agent isn't yours, and 422
+   *   when the Agent has guarded (`interruptOn`) tools — same restriction as
+   *   voice.
+   * @example
+   * ```ts
+   * // In your Twilio messaging webhook, after verifying the signature:
+   * const user = await db.user.findByPhone(req.body.From);
+   * const { reply } = await client.messages.generateReply({
+   *   agentId,
+   *   externalUserId: user.id,
+   *   text: req.body.Body,
+   *   displayName: req.body.ProfileName,
+   * });
+   * res.type('text/xml').send(`<Response><Message>${escapeXml(reply)}</Message></Response>`);
+   * ```
+   */
+  async generateReply(input: GenerateReplyInput): Promise<GeneratedReply> {
+    const { externalUserId, ...body } = input;
+    return this.http.request<GeneratedReply>('POST', '/api/v1/developer/messages/agent/reply', {
+      body,
+      ...(externalUserId ? { externalUserId } : {}),
     });
   }
 }
