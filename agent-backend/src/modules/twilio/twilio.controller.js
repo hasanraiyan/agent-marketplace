@@ -382,7 +382,8 @@ class TwilioController {
    */
   async triggerOutboundCall(req, res, next) {
     try {
-      const { to, projectId, agentId } = req.body || {};
+      const { to, projectId: bodyProjectId, agentId } = req.body || {};
+      const projectId = req.projectContext?.domain || bodyProjectId;
 
       if (!to) {
         throw new BaseError(
