@@ -108,7 +108,7 @@ class TwilioController {
         callSid,
       });
 
-      const twiml = twilioService.buildConnectStreamTwiML({ wsUrl, ticket, agentId, projectId, callerPhone: phone });
+      const twiml = twilioService.buildConnectStreamTwiML({ wsUrl, ticket });
 
       res.type('text/xml');
       return res.send(twiml);
