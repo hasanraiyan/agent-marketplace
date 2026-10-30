@@ -8,6 +8,7 @@ import {
   DatabaseIcon,
   FingerprintIcon,
   InfoIcon,
+  PlusIcon,
   TrashIcon,
   WarningCircleIcon,
 } from "@phosphor-icons/react";
@@ -33,6 +34,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+
+
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -54,7 +70,11 @@ import {
 import {
   deleteProjectStore,
   getProjectStores,
+  listProjectStoreFiles,
+  getProjectStoreFile,
   updateProjectStore,
+  writeProjectStoreFile,
+  deleteProjectStoreFile,
 } from "@/lib/api/projects";
 
 interface Store {
@@ -94,7 +114,19 @@ export default function EditStorePage() {
   const [saving, setSaving] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
 
+  const [files, setFiles] = React.useState<{ path: string; content?: string; updatedAt?: string }[]>([]);
+  const [filesLoading, setFilesLoading] = React.useState(false);
+  const [filesError, setFilesError] = React.useState<string | null>(null);
+
+  const [fileDialogOpen, setFileDialogOpen] = React.useState(false);
+  const [filePath, setFilePath] = React.useState("");
+  const [fileContent, setFileContent] = React.useState("");
+  const [savingFile, setSavingFile] = React.useState(false);
+  const [fileSaveError, setFileSaveError] = React.useState<string | null>(null);
+
+  const [deleteFileTarget, setDeleteFileTarget] = React.useState<string | null>(null);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deletingFile, setDeletingFile] = React.useState(false);
   const [deleting, setDeleting] = React.useState(false);
   const [deleteError, setDeleteError] = React.useState<string | null>(null);
 
@@ -162,6 +194,81 @@ export default function EditStorePage() {
     }
   };
 
+  const loadFiles = React.useCallback(async () => {
+    if (storeId === "new") return;
+    setFilesLoading(true);
+    setFilesError(null);
+    try {
+      const res = await listProjectStoreFiles(projectId, storeId);
+      const list = res.data?.data?.files ?? res.data?.files ?? [];
+      setFiles(list);
+    } catch (err) {
+      setFilesError(errorMessage(err, "Failed to load files."));
+    } finally {
+      setFilesLoading(false);
+    }
+  }, [projectId, storeId]);
+
+  React.useEffect(() => {
+    if (storeId !== "new") void loadFiles();
+  }, [storeId, loadFiles]);
+
+  const openNewFileDialog = () => {
+    setFilePath("");
+    setFileContent("");
+    setFileSaveError(null);
+    setFileDialogOpen(true);
+  };
+
+  const openEditFileDialog = async (path: string) => {
+    setFilePath(path);
+    setFileContent("");
+    setFileSaveError(null);
+    setFileDialogOpen(true);
+    try {
+      const res = await getProjectStoreFile(projectId, storeId, path);
+      setFileContent(res.data?.data?.content ?? res.data?.content ?? "");
+    } catch (err) {
+      setFileSaveError(errorMessage(err, "Failed to load file."));
+    }
+  };
+
+  const handleSaveFile = async () => {
+    if (!filePath.trim()) {
+      setFileSaveError("Path is required.");
+      return;
+    }
+    setSavingFile(true);
+    setFileSaveError(null);
+    try {
+      await writeProjectStoreFile(projectId, storeId, {
+        path: filePath.trim(),
+        content: fileContent,
+      });
+      setFileDialogOpen(false);
+      await loadFiles();
+    } catch (err) {
+      setFileSaveError(errorMessage(err, "Failed to save file."));
+    } finally {
+      setSavingFile(false);
+    }
+  };
+
+  const handleDeleteFile = async () => {
+    if (!deleteFileTarget) return;
+    setDeletingFile(true);
+    try {
+      await deleteProjectStoreFile(projectId, storeId, deleteFileTarget);
+      setDeleteFileTarget(null);
+      await loadFiles();
+    } catch (err) {
+      setFilesError(errorMessage(err, "Failed to delete file."));
+      setDeleteFileTarget(null);
+    } finally {
+      setDeletingFile(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex w-full flex-col gap-4 overflow-y-auto p-4 sm:p-6">
@@ -174,6 +281,7 @@ export default function EditStorePage() {
       </div>
     );
   }
+
 
   if (loadError || !store) {
     return (
@@ -416,7 +524,138 @@ export default function EditStorePage() {
         </div>
       </div>
 
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Files</CardTitle>
+            <CardDescription>
+              Content stored in this Store. Add, edit, or remove files (text/markdown).
+            </CardDescription>
+          </div>
+          <Button type="button" size="sm" onClick={openNewFileDialog}>
+            <PlusIcon data-icon="inline-start" />
+            Add file
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {filesError && (
+            <p className="mb-3 text-xs text-destructive">{filesError}</p>
+          )}
+          {filesLoading ? (
+            <Skeleton className="h-20 w-full" />
+          ) : files.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No files yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Path</TableHead>
+                  <TableHead className="hidden md:table-cell">Updated</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {files.map((f) => (
+                  <TableRow key={f.path}>
+                    <TableCell className="font-mono text-xs">{f.path}</TableCell>
+                    <TableCell className="hidden md:table-cell text-xs text-muted-foreground">
+                      {f.updatedAt ? new Date(f.updatedAt).toLocaleString() : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => void openEditFileDialog(f.path)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setDeleteFileTarget(f.path)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={fileDialogOpen} onOpenChange={setFileDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{filePath && files.some((f) => f.path === filePath) ? "Edit file" : "Add file"}</DialogTitle>
+            <DialogDescription>
+              Path (e.g. /notes/intro.md) and content.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <Input
+              value={filePath}
+              onChange={(e) => setFilePath(e.target.value)}
+              placeholder="/path/to/file.md"
+              disabled={savingFile}
+            />
+            <Textarea
+              value={fileContent}
+              onChange={(e) => setFileContent(e.target.value)}
+              rows={10}
+              disabled={savingFile}
+            />
+            {fileSaveError && (
+              <p className="text-xs text-destructive">{fileSaveError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setFileDialogOpen(false)}
+              disabled={savingFile}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void handleSaveFile()} disabled={savingFile}>
+              {savingFile ? "Saving…" : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteFileTarget} onOpenChange={(open) => !open && setDeleteFileTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete file?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteFileTarget} will be permanently removed from this Store.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingFile}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                void handleDeleteFile();
+              }}
+              disabled={deletingFile}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingFile ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete store “{store.name}”?</AlertDialogTitle>

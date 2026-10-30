@@ -119,6 +119,28 @@ export const updateProjectStore = (projectId: string, storeId: string, data: unk
 export const deleteProjectStore = (projectId: string, storeId: string) =>
   api.delete(`/projects/${projectId}/stores/${storeId}`);
 
+
+export const listProjectStoreFiles = (projectId: string, storeId: string) =>
+  api.get(`/projects/${projectId}/stores/${storeId}/files`);
+
+export const getProjectStoreFile = (
+  projectId: string,
+  storeId: string,
+  path: string
+) => api.get(`/projects/${projectId}/stores/${storeId}/file`, { params: { path } });
+
+export const writeProjectStoreFile = (
+  projectId: string,
+  storeId: string,
+  data: { path: string; content: string }
+) => api.put(`/projects/${projectId}/stores/${storeId}/file`, data);
+
+export const deleteProjectStoreFile = (
+  projectId: string,
+  storeId: string,
+  path: string
+) => api.delete(`/projects/${projectId}/stores/${storeId}/file`, { params: { path } });
+
 // Knowledge Base full CRUD + document management. No single-item GET
 // route.
 export const createProjectKnowledge = (projectId: string, data: unknown) =>

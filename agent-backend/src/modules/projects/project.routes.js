@@ -651,6 +651,11 @@ adminRouter.patch(
   projectController.updateStore
 );
 adminRouter.delete('/stores/:storeId', mutateLimiter, projectController.deleteStore);
+adminRouter.get('/stores/:storeId/files', projectController.listStoreFiles);
+adminRouter.get('/stores/:storeId/file', projectController.getStoreFile);
+adminRouter.put('/stores/:storeId/file', mutateLimiter, projectController.writeStoreFile);
+adminRouter.delete('/stores/:storeId/file', mutateLimiter, projectController.deleteStoreFile);
+
 
 adminRouter.post(
   '/knowledge',

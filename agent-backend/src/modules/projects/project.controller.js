@@ -595,6 +595,97 @@ class ProjectController {
       next(error);
     }
   }
+  async listStoreFiles(req, res, next) {
+    try {
+      const files = await storeService.listStoreFiles(
+        req.projectAdminContext.domain,
+        req.params.storeId,
+        undefined
+      );
+      res.json({ success: true, data: { files } });
+    } catch (error) {
+      if (error.message === 'Store not found' || error.message === 'Store file not found') {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      if (error.message === 'This store requires an asserted external user (x-persona-external-user-id)') {
+        return res.status(400).json({ success: false, message: error.message, code: 'EXTERNAL_USER_REQUIRED' });
+      }
+      next(error);
+    }
+  }
+
+  async getStoreFile(req, res, next) {
+    try {
+      const { path } = req.query;
+      if (!path) {
+        return res.status(400).json({ success: false, message: 'path query parameter is required' });
+      }
+      const file = await storeService.getStoreFile(
+        req.projectAdminContext.domain,
+        req.params.storeId,
+        undefined,
+        path
+      );
+      res.json({ success: true, data: file });
+    } catch (error) {
+      if (error.message === 'Store not found' || error.message === 'Store file not found') {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      if (error.message === 'This store requires an asserted external user (x-persona-external-user-id)') {
+        return res.status(400).json({ success: false, message: error.message, code: 'EXTERNAL_USER_REQUIRED' });
+      }
+      next(error);
+    }
+  }
+
+  async writeStoreFile(req, res, next) {
+    try {
+      const { path, content } = req.body;
+      if (!path || content === undefined) {
+        return res.status(400).json({ success: false, message: 'path and content are required' });
+      }
+      const file = await storeService.writeStoreFile(
+        req.projectAdminContext.domain,
+        req.params.storeId,
+        undefined,
+        { path, content }
+      );
+      res.status(201).json({ success: true, data: file });
+    } catch (error) {
+      if (error.message === 'Store not found' || error.message === 'Store file not found') {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      if (error.message === 'This store requires an asserted external user (x-persona-external-user-id)') {
+        return res.status(400).json({ success: false, message: error.message, code: 'EXTERNAL_USER_REQUIRED' });
+      }
+      next(error);
+    }
+  }
+
+  async deleteStoreFile(req, res, next) {
+    try {
+      const { path } = req.query;
+      if (!path) {
+        return res.status(400).json({ success: false, message: 'path query parameter is required' });
+      }
+      await storeService.deleteStoreFile(
+        req.projectAdminContext.domain,
+        req.params.storeId,
+        undefined,
+        path
+      );
+      res.status(204).send();
+    } catch (error) {
+      if (error.message === 'Store not found' || error.message === 'Store file not found') {
+        return res.status(404).json({ success: false, message: error.message });
+      }
+      if (error.message === 'This store requires an asserted external user (x-persona-external-user-id)') {
+        return res.status(400).json({ success: false, message: error.message, code: 'EXTERNAL_USER_REQUIRED' });
+      }
+      next(error);
+    }
+  }
+
 
   async createKnowledge(req, res, next) {
     try {
