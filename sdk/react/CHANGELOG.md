@@ -3,6 +3,20 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.20.0
+
+- **Channel Continuity & Message Badging (`PersonaMessage.channel`, `getChannelBadgeLabel`).**
+  Adds first-class support for multi-channel threads across web chat, voice calls, WhatsApp, and SMS:
+  - `PersonaMessage` gains `channel?: PersonaChannel` (`"web" | "voice" | "whatsapp" | "sms"`)
+    and optional `metadata?: Record<string, unknown>` to identify where each conversation turn
+    originated.
+  - Exported `getChannelBadgeLabel(channel)` helper function returning human-friendly badge strings
+    (e.g. `"Transcribed from phone call"`, `"via WhatsApp"`, `"via SMS"`, `"Web Chat"`).
+  - `useChat` and `useArchitectChat` automatically tag sent web turns as `channel: "web"`, live
+    voice transcript insertions as `channel: "voice"`, and preserve persisted channel origins from
+    thread history so consumer UIs can render channel badges effortlessly.
+- `VERSION` is now `"0.20.0"`.
+
 ## 0.19.0
 
 - **New: `onMcpAuthRequired` on `useChat()`** — the backend now emits a `mcp_auth_required`

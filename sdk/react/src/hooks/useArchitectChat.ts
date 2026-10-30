@@ -270,6 +270,7 @@ export function useArchitectChat(options: UseArchitectChatOptions = {}) {
         role: "user",
         content: prompt,
         createdAt: new Date(),
+        channel: "web",
       };
 
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -280,6 +281,7 @@ export function useArchitectChat(options: UseArchitectChatOptions = {}) {
         createdAt: new Date(),
         isStreaming: true,
         toolCalls: [],
+        channel: "web",
       };
 
       const nextMessages = [...baseMessages, userMessage];
@@ -370,7 +372,7 @@ export function useArchitectChat(options: UseArchitectChatOptions = {}) {
         };
 
         const insertReasoningMessage = (id: string, seq: number) => {
-          const msg: PersonaMessage = { id, role: "reasoning", content: "", createdAt: new Date(), isStreaming: true, seq };
+          const msg: PersonaMessage = { id, role: "reasoning", content: "", createdAt: new Date(), isStreaming: true, seq, channel: "web" };
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === assistantMessageId);
             if (idx === -1) return [...prev, msg];
@@ -516,6 +518,7 @@ export function useArchitectChat(options: UseArchitectChatOptions = {}) {
           createdAt: new Date(),
           isStreaming: false,
           toolCalls: Array.from(toolCallsMap.values()),
+          channel: "web",
         };
         setMessages((prev) => prev.map((msg) => (msg.id === assistantMessageId ? finalMessage : msg)));
         chatLogger.info("sendMessage succeeded", { textLength: accumulatedText.length, toolCallCount: toolCallsMap.size });

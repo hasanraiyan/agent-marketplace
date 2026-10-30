@@ -38,6 +38,30 @@ export interface PersonaToolCall {
   mcpApp?: { resourceUri: string; mcpId: string };
 }
 
+/**
+ * Channel where a conversation turn originated.
+ * - `web`: sent or received via the web chat UI
+ * - `voice`: spoken in a real-time voice call (browser or telephony)
+ * - `whatsapp`: inbound WhatsApp message or outbound WhatsApp reply
+ * - `sms`: inbound SMS message or outbound SMS reply
+ */
+export type PersonaChannel = "web" | "voice" | "whatsapp" | "sms";
+
+/** Helper to get a human-friendly badge label for a conversation channel. */
+export function getChannelBadgeLabel(channel?: PersonaChannel | string): string {
+  switch (channel) {
+    case "voice":
+      return "Transcribed from phone call";
+    case "whatsapp":
+      return "via WhatsApp";
+    case "sms":
+      return "via SMS";
+    case "web":
+    default:
+      return "Web Chat";
+  }
+}
+
 export interface PersonaMessage {
   id: string;
   role: PersonaRole;
@@ -51,6 +75,13 @@ export interface PersonaMessage {
    * phase in its chronological spot relative to the tool calls that bracket it.
    */
   seq?: number;
+  /**
+   * The conversation channel where this message originated.
+   * Useful for rendering badges ("Transcribed from phone call", "via WhatsApp", etc.).
+   */
+  channel?: PersonaChannel;
+  /** Channel-specific metadata (e.g. caller phone number, callSid, messageSid). */
+  metadata?: Record<string, unknown>;
   /**
    * @deprecated Model reasoning now streams as its own `role: 'reasoning'`
    * messages (one per phase, never merged). These fields are retained for
@@ -1336,7 +1367,7 @@ export interface UseMcpAdminOptions {
 // ---- Messaging (useMessages) ---------------------------------------------
 
 /** `sms`, or `whatsapp` (also inferred from a `whatsapp:` prefix on `to`). */
-export type PersonaMessageChannel = "sms" | "whatsapp";
+export type PersonaMessageChannel = "sms" | "whatsapp" | "voice" | "web";
 
 export interface SendPersonaMessageInput {
   /** Recipient's E.164 number, e.g. `"+919876543210"`. */

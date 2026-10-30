@@ -25,6 +25,7 @@ __export(index_exports, {
   VERSION: () => VERSION,
   createLogger: () => import_logger2.createLogger,
   createNoopLogger: () => import_logger2.createNoopLogger,
+  getChannelBadgeLabel: () => getChannelBadgeLabel,
   getLogLevel: () => import_logger2.getLogLevel,
   isLevelEnabled: () => import_logger2.isLevelEnabled,
   openSSEStream: () => openSSEStream,
@@ -53,6 +54,21 @@ __export(index_exports, {
   useWorkspaceFiles: () => useWorkspaceFiles
 });
 module.exports = __toCommonJS(index_exports);
+
+// src/types.ts
+function getChannelBadgeLabel(channel) {
+  switch (channel) {
+    case "voice":
+      return "Transcribed from phone call";
+    case "whatsapp":
+      return "via WhatsApp";
+    case "sms":
+      return "via SMS";
+    case "web":
+    default:
+      return "Web Chat";
+  }
+}
 
 // src/context/PersonaContext.tsx
 var import_react = require("react");
@@ -593,6 +609,8 @@ function useChat(options = {}) {
           role: m.role,
           content: m.content,
           createdAt: /* @__PURE__ */ new Date(),
+          channel: m.channel ?? (m.id?.startsWith("voice-") ? "voice" : "web"),
+          ...m.metadata ? { metadata: m.metadata } : {},
           toolCalls: m.toolCalls?.map((tc) => {
             const trace = subagentTraces[tc.toolCallId];
             return Array.isArray(trace) && trace.length > 0 ? {
@@ -689,7 +707,7 @@ function useChat(options = {}) {
               const merged = text.startsWith(last.content) ? text : `${last.content} ${text}`.trim();
               return [...prev.slice(0, -1), { ...last, content: merged, isStreaming: false }];
             }
-            return [...prev, { id: voiceId, role, content: text, createdAt: /* @__PURE__ */ new Date() }];
+            return [...prev, { id: voiceId, role, content: text, createdAt: /* @__PURE__ */ new Date(), channel: "voice" }];
           });
         }
       } else {
@@ -742,11 +760,11 @@ function useChat(options = {}) {
         const last = prev[prev.length - 1];
         if (last?.id.startsWith("voice-") && last.role === "assistant") {
           voiceStreamingIdRef.current = last.id;
-          return [...prev.slice(0, -1), { ...last, content: agentPartialText, isStreaming: true }];
+          return [...prev.slice(0, -1), { ...last, content: agentPartialText, isStreaming: true, channel: "voice" }];
         }
         const id = voiceStreamingIdRef.current || `voice-partial-${Date.now()}`;
         voiceStreamingIdRef.current = id;
-        return [...prev, { id, role: "assistant", content: agentPartialText, isStreaming: true, createdAt: /* @__PURE__ */ new Date() }];
+        return [...prev, { id, role: "assistant", content: agentPartialText, isStreaming: true, createdAt: /* @__PURE__ */ new Date(), channel: "voice" }];
       });
     } else if (userPartialText) {
       if (voiceStreamingIdRef.current) {
@@ -758,11 +776,11 @@ function useChat(options = {}) {
         const last = prev[prev.length - 1];
         if (last?.id.startsWith("voice-") && last.role === "user" && last.isStreaming) {
           voiceUserPartialIdRef.current = last.id;
-          return [...prev.slice(0, -1), { ...last, content: userPartialText, isStreaming: true }];
+          return [...prev.slice(0, -1), { ...last, content: userPartialText, isStreaming: true, channel: "voice" }];
         }
         const id = voiceUserPartialIdRef.current || `voice-partial-user-${Date.now()}`;
         voiceUserPartialIdRef.current = id;
-        return [...prev, { id, role: "user", content: userPartialText, isStreaming: true, createdAt: /* @__PURE__ */ new Date() }];
+        return [...prev, { id, role: "user", content: userPartialText, isStreaming: true, createdAt: /* @__PURE__ */ new Date(), channel: "voice" }];
       });
     } else {
       if (voiceStreamingIdRef.current && voice.state !== "speaking") {
@@ -806,7 +824,8 @@ function useChat(options = {}) {
         id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         role: "user",
         content: prompt,
-        createdAt: /* @__PURE__ */ new Date()
+        createdAt: /* @__PURE__ */ new Date(),
+        channel: "web"
       };
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const placeholderAssistant = {
@@ -815,7 +834,8 @@ function useChat(options = {}) {
         content: "",
         createdAt: /* @__PURE__ */ new Date(),
         isStreaming: true,
-        toolCalls: []
+        toolCalls: [],
+        channel: "web"
       };
       const nextMessages = [...baseMessages, userMessage];
       setMessages([...nextMessages, placeholderAssistant]);
@@ -902,7 +922,7 @@ function useChat(options = {}) {
           );
         };
         const insertReasoningMessage = (id, seq) => {
-          const msg = { id, role: "reasoning", content: "", createdAt: /* @__PURE__ */ new Date(), isStreaming: true, seq };
+          const msg = { id, role: "reasoning", content: "", createdAt: /* @__PURE__ */ new Date(), isStreaming: true, seq, channel: "web" };
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === assistantMessageId);
             if (idx === -1) return [...prev, msg];
@@ -1052,7 +1072,8 @@ function useChat(options = {}) {
           content: accumulatedText,
           createdAt: /* @__PURE__ */ new Date(),
           isStreaming: false,
-          toolCalls: Array.from(toolCallsMap.values())
+          toolCalls: Array.from(toolCallsMap.values()),
+          channel: "web"
         };
         setMessages((prev) => prev.map((msg) => msg.id === assistantMessageId ? finalMessage : msg));
         chatLogger.info("sendMessage succeeded", { agentId: targetAgentId, textLength: accumulatedText.length, toolCallCount: toolCallsMap.size });
@@ -1374,7 +1395,8 @@ function useArchitectChat(options = {}) {
         id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         role: "user",
         content: prompt,
-        createdAt: /* @__PURE__ */ new Date()
+        createdAt: /* @__PURE__ */ new Date(),
+        channel: "web"
       };
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const placeholderAssistant = {
@@ -1383,7 +1405,8 @@ function useArchitectChat(options = {}) {
         content: "",
         createdAt: /* @__PURE__ */ new Date(),
         isStreaming: true,
-        toolCalls: []
+        toolCalls: [],
+        channel: "web"
       };
       const nextMessages = [...baseMessages, userMessage];
       setMessages([...nextMessages, placeholderAssistant]);
@@ -1462,7 +1485,7 @@ function useArchitectChat(options = {}) {
           );
         };
         const insertReasoningMessage = (id, seq) => {
-          const msg = { id, role: "reasoning", content: "", createdAt: /* @__PURE__ */ new Date(), isStreaming: true, seq };
+          const msg = { id, role: "reasoning", content: "", createdAt: /* @__PURE__ */ new Date(), isStreaming: true, seq, channel: "web" };
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === assistantMessageId);
             if (idx === -1) return [...prev, msg];
@@ -1605,7 +1628,8 @@ function useArchitectChat(options = {}) {
           content: accumulatedText,
           createdAt: /* @__PURE__ */ new Date(),
           isStreaming: false,
-          toolCalls: Array.from(toolCallsMap.values())
+          toolCalls: Array.from(toolCallsMap.values()),
+          channel: "web"
         };
         setMessages((prev) => prev.map((msg) => msg.id === assistantMessageId ? finalMessage : msg));
         chatLogger.info("sendMessage succeeded", { textLength: accumulatedText.length, toolCallCount: toolCallsMap.size });
@@ -4459,7 +4483,7 @@ function useWorkflowRuns(workflowId, options) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.19.0";
+var VERSION = "0.20.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ARCHITECT_AGENT_ID,
@@ -4467,6 +4491,7 @@ var VERSION = "0.19.0";
   VERSION,
   createLogger,
   createNoopLogger,
+  getChannelBadgeLabel,
   getLogLevel,
   isLevelEnabled,
   openSSEStream,

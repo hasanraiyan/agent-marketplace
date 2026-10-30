@@ -221,6 +221,8 @@ export function useChat(options: UseChatOptions = {}) {
           role: PersonaMessage["role"];
           content: string;
           toolCalls?: PersonaToolCall[];
+          channel?: PersonaMessage["channel"];
+          metadata?: Record<string, unknown>;
         }>;
         const subagentTraces = (data?.subagentTraces ?? {}) as Record<
           string,
@@ -231,6 +233,8 @@ export function useChat(options: UseChatOptions = {}) {
           role: m.role,
           content: m.content,
           createdAt: new Date(),
+          channel: m.channel ?? (m.id?.startsWith("voice-") ? "voice" : "web"),
+          ...(m.metadata ? { metadata: m.metadata } : {}),
           toolCalls: m.toolCalls?.map((tc) => {
             const trace = subagentTraces[tc.toolCallId];
             return Array.isArray(trace) && trace.length > 0
@@ -362,7 +366,7 @@ export function useChat(options: UseChatOptions = {}) {
               const merged = text.startsWith(last.content) ? text : `${last.content} ${text}`.trim();
               return [...prev.slice(0, -1), { ...last, content: merged, isStreaming: false }];
             }
-            return [...prev, { id: voiceId, role, content: text, createdAt: new Date() }];
+            return [...prev, { id: voiceId, role, content: text, createdAt: new Date(), channel: "voice" }];
           });
         }
       } else {
@@ -431,11 +435,11 @@ export function useChat(options: UseChatOptions = {}) {
         const last = prev[prev.length - 1];
         if (last?.id.startsWith("voice-") && last.role === "assistant") {
           voiceStreamingIdRef.current = last.id;
-          return [...prev.slice(0, -1), { ...last, content: agentPartialText, isStreaming: true }];
+          return [...prev.slice(0, -1), { ...last, content: agentPartialText, isStreaming: true, channel: "voice" }];
         }
         const id = voiceStreamingIdRef.current || `voice-partial-${Date.now()}`;
         voiceStreamingIdRef.current = id;
-        return [...prev, { id, role: "assistant", content: agentPartialText, isStreaming: true, createdAt: new Date() }];
+        return [...prev, { id, role: "assistant", content: agentPartialText, isStreaming: true, createdAt: new Date(), channel: "voice" }];
       });
     } else if (userPartialText) {
       if (voiceStreamingIdRef.current) {
@@ -447,11 +451,11 @@ export function useChat(options: UseChatOptions = {}) {
         const last = prev[prev.length - 1];
         if (last?.id.startsWith("voice-") && last.role === "user" && last.isStreaming) {
           voiceUserPartialIdRef.current = last.id;
-          return [...prev.slice(0, -1), { ...last, content: userPartialText, isStreaming: true }];
+          return [...prev.slice(0, -1), { ...last, content: userPartialText, isStreaming: true, channel: "voice" }];
         }
         const id = voiceUserPartialIdRef.current || `voice-partial-user-${Date.now()}`;
         voiceUserPartialIdRef.current = id;
-        return [...prev, { id, role: "user", content: userPartialText, isStreaming: true, createdAt: new Date() }];
+        return [...prev, { id, role: "user", content: userPartialText, isStreaming: true, createdAt: new Date(), channel: "voice" }];
       });
     } else {
       if (voiceStreamingIdRef.current && voice.state !== "speaking") {
@@ -506,6 +510,7 @@ export function useChat(options: UseChatOptions = {}) {
         role: "user",
         content: prompt,
         createdAt: new Date(),
+        channel: "web",
       };
 
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -516,6 +521,7 @@ export function useChat(options: UseChatOptions = {}) {
         createdAt: new Date(),
         isStreaming: true,
         toolCalls: [],
+        channel: "web",
       };
 
       const nextMessages = [...baseMessages, userMessage];
@@ -614,7 +620,7 @@ export function useChat(options: UseChatOptions = {}) {
         };
 
         const insertReasoningMessage = (id: string, seq: number) => {
-          const msg: PersonaMessage = { id, role: "reasoning", content: "", createdAt: new Date(), isStreaming: true, seq };
+          const msg: PersonaMessage = { id, role: "reasoning", content: "", createdAt: new Date(), isStreaming: true, seq, channel: "web" };
           setMessages((prev) => {
             const idx = prev.findIndex((m) => m.id === assistantMessageId);
             if (idx === -1) return [...prev, msg];
@@ -767,6 +773,7 @@ export function useChat(options: UseChatOptions = {}) {
           createdAt: new Date(),
           isStreaming: false,
           toolCalls: Array.from(toolCallsMap.values()),
+          channel: "web",
         };
         setMessages((prev) => prev.map((msg) => (msg.id === assistantMessageId ? finalMessage : msg)));
         chatLogger.info("sendMessage succeeded", { agentId: targetAgentId, textLength: accumulatedText.length, toolCallCount: toolCallsMap.size });
