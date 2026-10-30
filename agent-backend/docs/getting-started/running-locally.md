@@ -30,9 +30,31 @@ net start MongoDB
 Only needed if using knowledge base features:
 
 ```bash
-# Using Docker
-docker run -p 6333:6333 qdrant/qdrant
+# Local Qdrant with persistent storage (no API key by default)
+docker run -d --name persona-qdrant \
+  -p 6333:6333 -p 6334:6334 \
+  -v persona_qdrant_storage:/qdrant/storage \
+  qdrant/qdrant
 ```
+
+Dashboard: <http://localhost:6333/dashboard>
+
+Then set `QDRANT_URL=http://localhost:6333` and leave `QDRANT_API_KEY` empty
+in `.env`. (`QDRANT_API_KEY` is only required for Qdrant Cloud or a cluster
+started with `QDRANT__SERVICE__API_KEY`.)
+
+### Optional: local embeddings with Ollama
+
+Instead of paying for OpenAI embeddings, run a local model:
+
+```bash
+ollama pull embeddinggemma-2
+```
+
+Then create a provider with `type: ollama` (preset Base URL
+`http://localhost:11434/v1`), `defaultModel: embeddinggemma-2`, and leave the
+API key empty. New knowledge bases using that provider are indexed at 768
+dimensions (or 128/256/512 via `embeddingDimensions`).
 
 ## Step 3: Configure Environment
 

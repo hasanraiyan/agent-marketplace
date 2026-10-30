@@ -39,8 +39,8 @@ flowchart TD
     subgraph Ingestion["Document Ingestion"]
         A["Upload Documents<br/>(PDF, TXT, MD, CSV, JSON)"] --> B["Extract Text"]
         B --> C["Split into Chunks<br/>(800 chars, 100 overlap)"]
-        C --> D["Generate Embeddings<br/>(text-embedding-3-small)"]
-        D --> E["Store in Qdrant<br/>(vector collection)"]
+        C --> D["Generate Embeddings<br/>(provider's embedding model)"]
+        D --> E["Store in Qdrant<br/>(vector size = resolved dims)"]
         D --> F["Store in MongoDB<br/>(chunk metadata)"]
     end
 
@@ -72,6 +72,8 @@ flowchart TD
 | `qdrantCollectionName` | String (unique)       | Qdrant collection identifier |
 | `documents`            | [Document]            | Document manifest            |
 | `embeddingModel`       | String                | Embedding model name         |
+| `embeddingDimensions`  | Number                | Resolved vector size (probed)|
+| `providerId`           | ObjectId (Provider)   | Embedding provider           |
 | `chunkSize`            | Number (default: 800) | Chunk size in characters     |
 | `chunkOverlap`         | Number (default: 100) | Chunk overlap                |
 | `topK`                 | Number (default: 5)   | Results per search           |
@@ -95,6 +97,64 @@ flowchart TD
 | Markdown | `.md`     | `text/markdown`    |
 | CSV      | `.csv`    | `text/csv`         |
 | JSON     | `.json`   | `application/json` |
+
+## Embedding Providers
+
+Embeddings are generated through the Knowledge Base's `providerId`. Every
+supported provider speaks the OpenAI `/v1/embeddings` shape, so one client
+(`OpenAIEmbeddings`) covers all of them — only the Base URL and key differ.
+
+| Provider type | Embeddings | Notes |
+| ------------- | ---------- | ----- |
+| `openai` | Yes | `text-embedding-3-small` (1536), `text-embedding-3-large` (3072), `text-embedding-ada-002` (1536) |
+| `deepseek` | Yes | Any OpenAI-compatible embedding model exposed by the account |
+| `ollama` | Yes | Local; preset Base URL `http://localhost:11434/v1`. `apiKey` is optional and defaults to the placeholder `ollama` |
+| `custom` | Yes | Any OpenAI-compatible host (LM Studio, vLLM, LocalAI, …) |
+| `anthropic` | **No** | Rejected at creation with `UNSUPPORTED_EMBEDDING_PROVIDER` |
+| `gemini` | **No** | Rejected at creation with `UNSUPPORTED_EMBEDDING_PROVIDER` |
+
+### Dimensionality
+
+`embeddingDimensions` is resolved at creation time by probing the provider
+with a one-token `embedQuery('dimension probe')`, and that exact number
+becomes the Qdrant collection's `size`. The probe is authoritative — it
+catches a model name that the provider does not actually serve, an
+unreachable host, and MRL truncation that the provider silently ignores.
+
+Static fallbacks live in `knowledge.constants.js`
+(`EMBEDDING_MODEL_DIMENSIONS`), used when a legacy Knowledge Base has no
+stored dimensions or when the probe fails during an update.
+
+Matryoshka (MRL) models can be truncated by sending an explicit
+`embeddingDimensions` — e.g. `embeddinggemma-2` at `512` instead of its
+native `768`:
+
+| Model | Native | Supported MRL values |
+| ----- | ------ | -------------------- |
+| `text-embedding-3-small` | 1536 | 256 / 512 / 1024 / 1536 |
+| `text-embedding-3-large` | 3072 | 256 / 512 / 1024 / 3072 |
+| `embeddinggemma-2` | 768 | 128 / 256 / 512 / 768 |
+
+`embeddingModel`, `providerId` and `embeddingDimensions` are fixed once a
+Knowledge Base has indexed documents (HTTP 409
+`KB_EMBEDDING_CONFIG_IMMUTABLE`). On an empty Knowledge Base they can still
+be changed, and the (empty) collection is recreated with the new size.
+
+### Local Qdrant
+
+`QDRANT_API_KEY` is optional — a self-hosted Qdrant has no auth by default:
+
+```bash
+docker run -d --name persona-qdrant \
+  -p 6333:6333 -p 6334:6334 \
+  -v persona_qdrant_storage:/qdrant/storage \
+  qdrant/qdrant
+```
+
+```env
+QDRANT_URL=http://localhost:6333
+QDRANT_API_KEY=
+```
 
 ## Public API
 
@@ -122,8 +182,9 @@ When an agent has knowledge bases attached, two tools are provided:
 | Dependency  | Type     | Purpose                   |
 | ----------- | -------- | ------------------------- |
 | Auth module | Internal | Authentication middleware |
+| Providers module | Internal | Embedding provider + key resolution |
 | Qdrant      | External | Vector storage and search |
-| OpenAI      | External | Text embeddings           |
+| Embeddings provider | External | Text embeddings (OpenAI / DeepSeek / Ollama / custom, OpenAI-compatible) |
 | Multer      | External | File upload handling      |
 | PDF-Parse   | External | PDF text extraction       |
 
@@ -134,13 +195,27 @@ When an agent has knowledge bases attached, two tools are provided:
 1. Files are uploaded via multer (in-memory storage, 20MB limit, max 10 files)
 2. Text is extracted from each file type
 3. Text is split into chunks (configurable size/overlap, default 800/100)
-4. Each chunk is embedded using `text-embedding-3-small`
+4. Each chunk is embedded with the Knowledge Base's `embeddingModel` through its `providerId`
 5. Embeddings stored in Qdrant, metadata in MongoDB
+6. Chunk metadata is only persisted **after** the Qdrant upsert succeeds
+
+### Creation Order
+
+1. Resolve the provider and validate it exposes embeddings
+2. Resolve `embeddingModel` (request → provider default for Ollama → `KNOWLEDGE_EMBEDDING_MODEL`)
+3. Probe the provider for the effective dimensionality
+4. Insert the Mongo record (placeholder collection name)
+5. Create the Qdrant collection with that exact size
+6. Persist the real collection name and delete the temp collection
+
+A failure in step 3 never leaves an orphaned Knowledge Base row; a failure
+in step 5 deletes the placeholder row it just created.
 
 ### Search Parameters
 
 - `topK`: Number of chunks to return (configurable per KB, default 5)
-- Results include source document name, chunk content, and relevance score
+- Results include source document name, chunk content, and the Qdrant similarity score
+  (`similaritySearchWithScore`, so callers can threshold on relevance)
 
 ### Cleanup
 

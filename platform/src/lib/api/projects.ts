@@ -94,7 +94,7 @@ export const bulkDeleteProjectProviders = (projectId: string, ids: string[]) =>
 // Pre-save credential test — proxies to POST /providers/test-connection (persona scope, no project needed).
 // Mirrors frontend/src/lib/api/providers.js testProviderCredentials used by developer provider editor.
 export const testProviderCredentials = (type: string, baseURL: string | undefined, apiKey: string) =>
-  api.post("/providers/test-connection", { type, baseURL, apiKey });
+  api.post("/providers/test-connection", { type, baseURL, apiKey: apiKey || "ollama" });
 
 // Skill full CRUD. No single-item GET route — same find-by-id-from-list
 // convention as Providers above.

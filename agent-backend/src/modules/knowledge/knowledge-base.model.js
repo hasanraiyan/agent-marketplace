@@ -75,6 +75,17 @@ const knowledgeBaseSchema = new mongoose.Schema(
       type: String,
       default: 'text-embedding-3-small',
     },
+    // Effective output dimensionality of `embeddingModel` as used by THIS
+    // knowledge base. Persisted at creation (probed from the provider) so
+    // the Qdrant collection size and every later query embedding agree.
+    // Optional on the schema purely for backward compatibility with rows
+    // created before this field existed — those are backfilled lazily from
+    // the static model table (knowledge.constants.js).
+    embeddingDimensions: {
+      type: Number,
+      default: null,
+      min: 1,
+    },
     providerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Provider',

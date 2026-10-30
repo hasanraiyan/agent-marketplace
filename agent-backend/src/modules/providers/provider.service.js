@@ -4,7 +4,7 @@ import agentFactory from '../agents/agent.factory.js';
 import encryption from '../../utils/encryption.js';
 import { ARCHITECT_AGENT_ID } from '../tools/index.js';
 import { personaExecutionContext } from '../agents/agent.service.js';
-import { PROVIDER_TYPE_PRESETS } from './provider.constants.js';
+import { PROVIDER_TYPE_PRESETS, OLLAMA_DEFAULT_API_KEY } from './provider.constants.js';
 import {
   isResourceOwner,
   ownerFilterForContext,
@@ -87,8 +87,17 @@ class ProviderService {
 
     const { apiKey, ...rest } = this._fillPresetBaseUrl(providerData);
 
+    // Ollama doesn't authenticate, but both the OpenAI SDK and the OpenAI
+    // embeddings client require a non-empty key. Fill the well-known
+    // placeholder so callers can create a local provider without inventing
+    // a fake secret.
+    const effectiveApiKey = apiKey || (rest.type === 'ollama' ? OLLAMA_DEFAULT_API_KEY : null);
+    if (!effectiveApiKey) {
+      throw new Error('API Key is required');
+    }
+
     // Encrypt the API key
-    const apiKeyEncrypted = encryption.encrypt(apiKey);
+    const apiKeyEncrypted = encryption.encrypt(effectiveApiKey);
 
     const provider = await providerRepository.create({
       ...rest,
@@ -358,6 +367,10 @@ class ProviderService {
         return this.fetchAnthropicModels(baseURL, apiKey);
       case 'gemini':
         return this.fetchGeminiModels(baseURL, apiKey);
+      case 'ollama':
+        // Ollama serves an OpenAI-shaped GET {baseURL}/models, and ignores
+        // the bearer token — the placeholder key is harmless here.
+        return this.fetchModelsFromApi(baseURL, apiKey || OLLAMA_DEFAULT_API_KEY);
       case 'openai':
       case 'deepseek':
       case 'custom':
@@ -369,7 +382,13 @@ class ProviderService {
   async testConnectionWithCredentials(type, baseURL, apiKey) {
     const resolvedType = type || 'custom';
     const resolvedBaseUrl = baseURL || PROVIDER_TYPE_PRESETS[resolvedType];
-    const models = await this.getModelsForProviderType(resolvedType, resolvedBaseUrl, apiKey);
+    const resolvedApiKey =
+      apiKey || (resolvedType === 'ollama' ? OLLAMA_DEFAULT_API_KEY : apiKey);
+    const models = await this.getModelsForProviderType(
+      resolvedType,
+      resolvedBaseUrl,
+      resolvedApiKey
+    );
     return { success: true, models };
   }
 

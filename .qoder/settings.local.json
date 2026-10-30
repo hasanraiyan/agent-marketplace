@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls frontend/src/app/ && echo \"---\" && ls frontend/src/app/developer/projects/[id]/knowledge/new)"
+    ]
+  }
+}

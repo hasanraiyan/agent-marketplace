@@ -1,14 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, ArrowLeft } from "lucide-react";
-import {
-  createProjectKnowledge,
-  getProjectProviders,
-} from "@/lib/api/projects";
+import { createProjectKnowledge } from "@/lib/api/projects";
 import { developerRoutes } from "@/lib/developer-routes";
 import { useDashboardHeader } from "@/components/dashboard-header-context";
 import {
@@ -23,14 +20,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
-import {
   Field,
   FieldGroup,
   FieldLabel,
-  FieldDescription,
 } from "@/components/ui/field";
 
 export default function NewProjectKnowledgePage({ params: paramsPromise }) {
@@ -38,15 +30,9 @@ export default function NewProjectKnowledgePage({ params: paramsPromise }) {
   const projectId = params.id;
   const router = useRouter();
 
-  const [providers, setProviders] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    providerId: "",
-    embeddingModel: "text-embedding-3-small",
-    chunkSize: "",
-    chunkOverlap: "",
-    topK: "",
   });
   const [saving, setSaving] = useState(false);
 
@@ -64,22 +50,6 @@ export default function NewProjectKnowledgePage({ params: paramsPromise }) {
     ),
   });
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await getProjectProviders(projectId);
-        const list = res.data?.data || [];
-        setProviders(list);
-        const defaultProvider = list.find((p) => p.isDefault) || list[0];
-        if (defaultProvider) {
-          setFormData((prev) => ({ ...prev, providerId: defaultProvider.id }));
-        }
-      } catch (err) {
-        toast.error(err.response?.data?.message || "Failed to load Providers.");
-      }
-    })();
-  }, [projectId]);
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -87,20 +57,10 @@ export default function NewProjectKnowledgePage({ params: paramsPromise }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.providerId) {
-      toast.error("Add a Provider first — a Knowledge Base needs one.");
-      return;
-    }
     setSaving(true);
     try {
-      const dataToSubmit = { ...formData };
-      if (!dataToSubmit.description) delete dataToSubmit.description;
-      if (!dataToSubmit.chunkSize) delete dataToSubmit.chunkSize;
-      else dataToSubmit.chunkSize = Number(dataToSubmit.chunkSize);
-      if (!dataToSubmit.chunkOverlap) delete dataToSubmit.chunkOverlap;
-      else dataToSubmit.chunkOverlap = Number(dataToSubmit.chunkOverlap);
-      if (!dataToSubmit.topK) delete dataToSubmit.topK;
-      else dataToSubmit.topK = Number(dataToSubmit.topK);
+      const dataToSubmit = { name: formData.name };
+      if (formData.description) dataToSubmit.description = formData.description;
 
       const res = await createProjectKnowledge(projectId, dataToSubmit);
       const kb = res.data?.data;
@@ -122,10 +82,10 @@ export default function NewProjectKnowledgePage({ params: paramsPromise }) {
       <form onSubmit={handleSubmit}>
         <Card className="max-w-2xl">
           <CardHeader>
-            <CardTitle>Knowledge Base Configuration</CardTitle>
+            <CardTitle>New Knowledge Base</CardTitle>
             <CardDescription>
-              Documents are uploaded after creation, from the Knowledge
-              Base&apos;s own page.
+              Upload documents after creation from the Knowledge Base&apos;s
+              own page. Embeddings use local Ollama (embeddinggemma-2).
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -144,7 +104,12 @@ export default function NewProjectKnowledgePage({ params: paramsPromise }) {
               </Field>
 
               <Field>
-                <FieldLabel htmlFor="description">Description</FieldLabel>
+                <FieldLabel htmlFor="description">
+                  Description{" "}
+                  <span className="text-muted-foreground font-normal">
+                    (optional)
+                  </span>
+                </FieldLabel>
                 <Textarea
                   id="description"
                   name="description"
@@ -155,98 +120,6 @@ export default function NewProjectKnowledgePage({ params: paramsPromise }) {
                   rows={2}
                 />
               </Field>
-
-              <Field>
-                <FieldLabel htmlFor="providerId">Provider</FieldLabel>
-                <NativeSelect
-                  id="providerId"
-                  name="providerId"
-                  value={formData.providerId}
-                  onChange={handleChange}
-                  required
-                  className="w-full"
-                >
-                  <NativeSelectOption value="" disabled>
-                    {providers.length > 0
-                      ? "Select a Provider"
-                      : "No Providers yet — add one first"}
-                  </NativeSelectOption>
-                  {providers.map((p) => (
-                    <NativeSelectOption key={p.id} value={p.id}>
-                      {p.label}
-                      {p.isDefault ? " (Default)" : ""}
-                    </NativeSelectOption>
-                  ))}
-                </NativeSelect>
-                <FieldDescription>
-                  Used to generate embeddings for uploaded documents.
-                </FieldDescription>
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="embeddingModel">
-                  Embedding Model
-                </FieldLabel>
-                <NativeSelect
-                  id="embeddingModel"
-                  name="embeddingModel"
-                  value={formData.embeddingModel}
-                  onChange={handleChange}
-                  className="w-full"
-                >
-                  <NativeSelectOption value="text-embedding-3-small">
-                    text-embedding-3-small (1536 dim — Recommended)
-                  </NativeSelectOption>
-                  <NativeSelectOption value="text-embedding-3-large">
-                    text-embedding-3-large (3072 dim)
-                  </NativeSelectOption>
-                  <NativeSelectOption value="text-embedding-ada-002">
-                    text-embedding-ada-002 (1536 dim)
-                  </NativeSelectOption>
-                </NativeSelect>
-              </Field>
-
-              <div className="grid grid-cols-3 gap-3">
-                <Field>
-                  <FieldLabel htmlFor="chunkSize">Chunk Size</FieldLabel>
-                  <Input
-                    id="chunkSize"
-                    name="chunkSize"
-                    type="number"
-                    min={1}
-                    placeholder="1000"
-                    value={formData.chunkSize}
-                    onChange={handleChange}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="chunkOverlap">Chunk Overlap</FieldLabel>
-                  <Input
-                    id="chunkOverlap"
-                    name="chunkOverlap"
-                    type="number"
-                    min={0}
-                    placeholder="200"
-                    value={formData.chunkOverlap}
-                    onChange={handleChange}
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="topK">Top K</FieldLabel>
-                  <Input
-                    id="topK"
-                    name="topK"
-                    type="number"
-                    min={1}
-                    placeholder="5"
-                    value={formData.topK}
-                    onChange={handleChange}
-                  />
-                </Field>
-              </div>
-              <FieldDescription>
-                Leave the advanced settings blank to use their defaults.
-              </FieldDescription>
             </FieldGroup>
           </CardContent>
           <CardFooter className="flex justify-between border-t p-6">

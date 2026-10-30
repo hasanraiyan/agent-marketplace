@@ -67,16 +67,17 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 
 ## Knowledge Base / Vector Store
 
-| Variable                    | Required  | Default                                | Description                          |
-| --------------------------- | --------- | -------------------------------------- | ------------------------------------ |
-| `QDRANT_URL`                | **Yes\*** | `https://your-cluster.cloud.qdrant.io` | Qdrant cluster URL                   |
-| `QDRANT_API_KEY`            | **Yes\*** | —                                      | Qdrant API key                       |
-| `KNOWLEDGE_EMBEDDING_MODEL` | No        | `text-embedding-3-small`               | Embedding model for document vectors |
-| `KNOWLEDGE_CHUNK_SIZE`      | No        | `800`                                  | Document chunk size (characters)     |
-| `KNOWLEDGE_CHUNK_OVERLAP`   | No        | `100`                                  | Chunk overlap (characters)           |
-| `KNOWLEDGE_TOP_K`           | No        | `5`                                    | Default search result count          |
+| Variable                    | Required | Default                                | Description                          |
+| --------------------------- | -------- | -------------------------------------- | ------------------------------------ |
+| `QDRANT_URL`                | **Yes\*** | `https://your-cluster.cloud.qdrant.io` | Qdrant URL (local Docker: `http://localhost:6333`) |
+| `QDRANT_API_KEY`            | No       | —                                      | Only for Qdrant Cloud / secured clusters. Leave empty for a default local Docker Qdrant |
+| `KNOWLEDGE_EMBEDDING_MODEL` | No       | `text-embedding-3-small`               | Default embedding model for **new** knowledge bases (each KB stores its own model + dimensions) |
+| `KNOWLEDGE_CHUNK_SIZE`      | No       | `800`                                  | Document chunk size (characters)     |
+| `KNOWLEDGE_CHUNK_OVERLAP`   | No       | `100`                                  | Chunk overlap (characters)           |
+| `KNOWLEDGE_TOP_K`           | No       | `5`                                    | Default search result count          |
 
 > - Required if using knowledge base features
+> - Embeddings themselves come from the Knowledge Base's `providerId`, not from env vars. Any OpenAI-compatible provider works, including a local Ollama provider (`http://localhost:11434/v1`) serving `embeddinggemma-2`.
 
 ## Email
 

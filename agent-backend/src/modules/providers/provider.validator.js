@@ -13,16 +13,33 @@ const requireBaseUrlForCustom = (data, ctx) => {
   }
 };
 
+// Ollama ignores bearer auth, so requiring a real key there is pure
+// friction — provider.service.js fills in a placeholder instead. Every
+// other type still needs a usable key before it can be saved.
+const requireApiKeyUnlessOllama = (data, ctx) => {
+  if (data.type === 'ollama') return;
+  if (!data.apiKey) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'API Key is required',
+      path: ['apiKey'],
+    });
+  }
+};
+
 export const createProviderSchema = z
   .object({
     label: z.string().min(1, 'Label is required').max(100),
     type: z.enum(PROVIDER_TYPES).default('custom'),
     baseURL: z.string().url('Must be a valid URL').optional(),
-    apiKey: z.string().min(1, 'API Key is required'), // plain text coming in, encrypted before save
+    apiKey: z.string().min(1, 'API Key is required').optional(), // plain text coming in, encrypted before save
     defaultModel: z.string().min(1, 'Default Model is required'),
     isDefault: z.boolean().default(false),
   })
-  .superRefine(requireBaseUrlForCustom);
+  .superRefine((data, ctx) => {
+    requireBaseUrlForCustom(data, ctx);
+    requireApiKeyUnlessOllama(data, ctx);
+  });
 
 export const updateProviderSchema = z
   .object({
@@ -44,6 +61,9 @@ export const testConnectionSchema = z
   .object({
     type: z.enum(PROVIDER_TYPES).default('custom'),
     baseURL: z.string().url('Must be a valid URL').optional(),
-    apiKey: z.string().min(1, 'API Key is required'),
+    apiKey: z.string().min(1, 'API Key is required').optional(),
   })
-  .superRefine(requireBaseUrlForCustom);
+  .superRefine((data, ctx) => {
+    requireBaseUrlForCustom(data, ctx);
+    requireApiKeyUnlessOllama(data, ctx);
+  });

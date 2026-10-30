@@ -28,6 +28,7 @@ const PROVIDER_TYPES = [
   { value: "anthropic", label: "Anthropic (Claude)" },
   { value: "gemini", label: "Gemini" },
   { value: "deepseek", label: "DeepSeek" },
+  { value: "ollama", label: "Ollama (local)" },
   { value: "custom", label: "Custom" },
 ];
 
@@ -65,11 +66,12 @@ export default function NewProviderPage() {
         return;
       }
       const needsBaseUrl = formData.type === "custom";
-      if (!formData.apiKey || (needsBaseUrl && !formData.baseURL)) {
+      const needsApiKey = formData.type !== "ollama";
+      if ((needsApiKey && !formData.apiKey) || (needsBaseUrl && !formData.baseURL)) {
         setError(needsBaseUrl ? "Please provide both Base URL and API Key to fetch models." : "Please provide an API Key to fetch models.");
         return;
       }
-      const res = await testProviderCredentials(formData.type, needsBaseUrl ? formData.baseURL : undefined, formData.apiKey);
+      const res = await testProviderCredentials(formData.type, needsBaseUrl ? formData.baseURL : undefined, formData.apiKey || undefined);
       const fetched = res.data?.data?.models || res.data?.data || [];
       setModels(Array.isArray(fetched) ? fetched : []);
     } catch (err) {

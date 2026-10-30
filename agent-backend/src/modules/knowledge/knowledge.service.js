@@ -7,10 +7,18 @@ import knowledgeRepository from './knowledge.repository.js';
 import providerRepository from '../providers/provider.repository.js';
 import agentRepository from '../agents/agent.repository.js';
 import encryption from '../../utils/encryption.js';
+import BaseError from '../../utils/errors/BaseError.js';
 import { loggerService } from '../../utils/index.js';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 import { isResourceOwner, ownerFieldsForContext } from '../../utils/resourceOwnership.js';
 import { scopedFilter } from '../../utils/domainQuery.js';
+import {
+  OPENAI_COMPATIBLE_EMBEDDING_PROVIDER_TYPES,
+  DEFAULT_EMBEDDING_DIMENSIONS,
+  knownEmbeddingDimensions,
+  normalizeEmbeddingModelName,
+  supportsTruncatedDimensions,
+} from './knowledge.constants.js';
 
 /**
  * Deliberately NOT imported from `agent.service.js` — that module's
@@ -33,34 +41,68 @@ class KnowledgeService {
   }
 
   /**
-   * Lazy-initializes the OpenAI embedding instance using the platform's
-   * global OPENAI_API_KEY (not the user's personal provider key).
+   * Lazy-initializes the embedding client for a provider.
+   *
+   * Every supported provider speaks the OpenAI `/v1/embeddings` shape, so
+   * one client covers OpenAI, DeepSeek, Ollama and any custom
+   * OpenAI-compatible host (LM Studio, vLLM, LocalAI, …). Only the base URL
+   * and the (possibly placeholder) key change. Anthropic/Gemini have no
+   * drop-in embeddings endpoint and are rejected earlier with an actionable
+   * message instead of a confusing 404 mid-ingestion.
+   *
+   * `dimensions` is the MRL truncation target; it MUST be identical for
+   * ingestion and query-time embedding, so it is part of the cache key.
    */
-  _getEmbeddings(modelName = 'text-embedding-3-small', provider = null) {
+  _getEmbeddings(modelName = config.knowledge.embeddingModel, provider = null, dimensions = null) {
     const providerIdStr = provider?._id?.toString() || 'default';
-    const cacheKey = `${providerIdStr}:${modelName}`;
+    const effectiveDimensions = Number.isInteger(dimensions) ? dimensions : null;
+    const cacheKey = `${providerIdStr}:${modelName}:${effectiveDimensions ?? 'native'}`;
 
     if (!this._embeddingsMap[cacheKey]) {
       let apiKey = null;
       let baseURL = null;
 
       if (provider) {
-        try {
-          apiKey = encryption.decrypt(provider.apiKeyEncrypted);
+        // Synthetic providers (auto-resolved local Ollama) have no encrypted key
+        if (provider.apiKeyEncrypted) {
+          try {
+            apiKey = encryption.decrypt(provider.apiKeyEncrypted);
+            baseURL = provider.baseURL;
+          } catch (err) {
+            logger.warn('[KnowledgeService] Failed to decrypt provider API key:', err.message);
+          }
+        } else if (provider.baseURL) {
+          // Synthetic / key-less Ollama — baseURL is set directly, key is a placeholder
           baseURL = provider.baseURL;
-        } catch (err) {
-          logger.warn('[KnowledgeService] Failed to decrypt provider API key:', err.message);
+          apiKey = 'ollama'; // Ollama ignores the key; any non-empty string satisfies the SDK
         }
       }
 
-      // If no provider or decryption failed, fallback to global config env keys for compatibility
+      // If no provider or decryption failed, fallback to global config env keys for compatibility.
+      // For Ollama providers the key was already set to a placeholder above.
       if (!apiKey) {
         apiKey = config.ai.openAiApiKey;
       }
 
       if (!apiKey) {
+        // Last resort: if the provider is Ollama (no real key needed), use a placeholder
+        const providerTypeForKey = provider ? provider.type || 'custom' : null;
+        if (providerTypeForKey === 'ollama') {
+          apiKey = 'ollama';
+        } else {
+          throw new Error(
+            'API key is not configured. It is required for generating knowledge base embeddings.'
+          );
+        }
+      }
+
+      const providerType = provider ? provider.type || 'custom' : null;
+
+      if (provider && !OPENAI_COMPATIBLE_EMBEDDING_PROVIDER_TYPES.includes(providerType)) {
         throw new Error(
-          'API key is not configured. It is required for generating knowledge base embeddings.'
+          `Provider "${provider.label}" (type "${providerType}") does not expose an embeddings endpoint. ` +
+            'Knowledge bases require an OpenAI-compatible provider — OpenAI, DeepSeek, Ollama, or a custom ' +
+            'OpenAI-compatible Base URL.'
         );
       }
 
@@ -69,10 +111,22 @@ class KnowledgeService {
         model: modelName,
       };
 
+      if (effectiveDimensions) {
+        options.dimensions = effectiveDimensions;
+      }
+
       if (baseURL) {
         options.configuration = {
           baseURL,
         };
+
+        // OpenAI's SDK defaults to base64-encoded floats, which third-party
+        // OpenAI-compatible servers (Ollama in particular) do not reliably
+        // implement. Requesting floats costs nothing against OpenAI itself
+        // and removes a whole class of "invalid embedding response" errors.
+        if (provider && providerType !== 'openai') {
+          options.encodingFormat = 'float';
+        }
       }
 
       this._embeddingsMap[cacheKey] = new OpenAIEmbeddings(options);
@@ -81,28 +135,177 @@ class KnowledgeService {
   }
 
   /**
+   * Loads the full provider document for an embedding call.
+   *
+   * `knowledgeRepository.findKbById` populates `providerId` with only
+   * `label`/`defaultModel` for display, which is not enough to build a
+   * client — the encrypted key and base URL live on the full row.
+   */
+  async _resolveProvider(providerRef) {
+    if (!providerRef) return null;
+    if (typeof providerRef === 'object' && providerRef.apiKeyEncrypted) {
+      return providerRef;
+    }
+    const providerId = typeof providerRef === 'object' ? providerRef._id : providerRef;
+    if (!providerId) return null;
+    return await providerRepository.findById(providerId);
+  }
+
+  /**
+   * Probes the provider for the actual vector length of `modelName`.
+   *
+   * This is the single source of truth for a collection's vector size: it
+   * catches model/provider mismatches (a `text-embedding-3-small` name sent
+   * to an Ollama host), unsupported `dimensions` values, and unreachable
+   * providers *before* a Qdrant collection is created.
+   */
+  async _probeEmbeddingDimensions(embeddingModel, provider, dimensions = null) {
+    const embeddings = this._getEmbeddings(embeddingModel, provider, dimensions);
+
+    if (typeof embeddings.embedQuery !== 'function') {
+      throw new Error(
+        `Embedding model "${embeddingModel}" cannot be probed — the client does not support embedQuery().`
+      );
+    }
+
+    let vector;
+    try {
+      vector = await embeddings.embedQuery('dimension probe');
+    } catch (err) {
+      throw new Error(
+        `Failed to generate a test embedding with model "${embeddingModel}": ${err.message}`
+      );
+    }
+
+    if (!Array.isArray(vector) || vector.length === 0) {
+      throw new Error(
+        `Embedding model "${embeddingModel}" returned an invalid vector. Check the provider configuration.`
+      );
+    }
+
+    return vector.length;
+  }
+
+  /**
+   * Resolves the effective dimensionality for a Knowledge Base and rejects
+   * requests that the model/provider cannot honour.
+   *
+   * @param {string} embeddingModel
+   * @param {object} provider full provider document
+   * @param {number|null} requestedDimensions optional MRL truncation target
+   * @returns {Promise<number>}
+   */
+  async _resolveEmbeddingDimensions(embeddingModel, provider, requestedDimensions = null) {
+    const nativeDimensions = knownEmbeddingDimensions(embeddingModel);
+
+    if (requestedDimensions !== null && requestedDimensions !== undefined) {
+      if (!Number.isInteger(requestedDimensions) || requestedDimensions < 1) {
+        throw new BaseError(
+          'embeddingDimensions must be a positive integer.',
+          400,
+          'INVALID_EMBEDDING_DIMENSIONS'
+        );
+      }
+
+      if (
+        nativeDimensions &&
+        requestedDimensions > nativeDimensions &&
+        !supportsTruncatedDimensions(embeddingModel)
+      ) {
+        throw new BaseError(
+          `Model "${embeddingModel}" outputs ${nativeDimensions} dimensions; ${requestedDimensions} is too large.`,
+          400,
+          'INVALID_EMBEDDING_DIMENSIONS'
+        );
+      }
+
+      // Probe with the requested value — this is what actually proves the
+      // provider honours MRL truncation (OpenAI does, Ollama only for
+      // models that support it).
+      const probed = await this._probeEmbeddingDimensions(
+        embeddingModel,
+        provider,
+        requestedDimensions
+      );
+
+      if (probed !== requestedDimensions) {
+        throw new BaseError(
+          `Model "${embeddingModel}" ignored the requested ${requestedDimensions} dimensions and returned ${probed}. ` +
+            'Use the model\'s native dimensionality or a supported MRL value.',
+          400,
+          'INVALID_EMBEDDING_DIMENSIONS'
+        );
+      }
+
+      return probed;
+    }
+
+    // Native dimensionality: probe is authoritative, the static table is
+    // only a fallback for hosts that are unreachable at creation time.
+    try {
+      return await this._probeEmbeddingDimensions(embeddingModel, provider, null);
+    } catch (err) {
+      if (nativeDimensions) {
+        logger.warn(
+          `[KnowledgeService] Could not probe "${embeddingModel}" (${err.message}); ` +
+            `falling back to the known dimensionality (${nativeDimensions}).`
+        );
+        return nativeDimensions;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Effective dimensionality of an existing Knowledge Base.
+   *
+   * Legacy rows predate `embeddingDimensions`. They are backfilled lazily
+   * from the static table (never by probing, so an unrelated search keeps
+   * working even while the provider is down), and persisted so every later
+   * call agrees.
+   */
+  async _ensureKbDimensions(kb) {
+    if (Number.isInteger(kb.embeddingDimensions) && kb.embeddingDimensions > 0) {
+      return kb.embeddingDimensions;
+    }
+
+    const known = knownEmbeddingDimensions(kb.embeddingModel) || DEFAULT_EMBEDDING_DIMENSIONS;
+    logger.warn(
+      `[KnowledgeService] Knowledge base ${kb._id} has no stored embeddingDimensions; ` +
+        `backfilling ${known} for model "${kb.embeddingModel}".`
+    );
+
+    await knowledgeRepository
+      .updateKb(kb._id, { embeddingDimensions: known })
+      .catch((err) =>
+        logger.warn('[KnowledgeService] Failed to backfill embeddingDimensions:', err.message)
+      );
+
+    return known;
+  }
+
+  /**
    * Lazy-initializes the Qdrant REST client (singleton promise).
+   *
+   * `QDRANT_API_KEY` is optional: self-hosted Qdrant (the documented
+   * `docker run -p 6333:6333 qdrant/qdrant` setup) has no auth by default.
+   * Qdrant Cloud and any secured deployment still pass the key.
    */
   async _getQdrantClient() {
     if (!this._qdrantClientPromise) {
       this._qdrantClientPromise = (async () => {
         const { QdrantClient } = await import('@qdrant/js-client-rest');
-        const apiKey = config.knowledge.qdrantApiKey;
-        if (!apiKey) {
-          throw new Error(
-            'QDRANT_API_KEY is not configured. Set it in your environment variables.'
-          );
+        const clientOptions = { url: config.knowledge.qdrantUrl };
+        if (config.knowledge.qdrantApiKey) {
+          clientOptions.apiKey = config.knowledge.qdrantApiKey;
         }
-        return new QdrantClient({
-          url: config.knowledge.qdrantUrl,
-          apiKey,
-        });
+        return new QdrantClient(clientOptions);
       })();
       // Constructing the client above never actually connects (it's just
-      // config), so this only rejects on a config error (missing API key).
-      // Still: don't leave a permanently-rejected promise cached — every
-      // later call would replay the same failure forever, requiring a
-      // process restart to recover even after the config/env is fixed.
+      // config), so this only rejects on a config error. Still: don't leave
+      // a permanently-rejected promise cached — every later call would
+      // replay the same failure forever, requiring a process restart to
+      // recover even after the config/env is fixed.
       this._qdrantClientPromise.catch(() => {
         this._qdrantClientPromise = null;
       });
@@ -121,34 +324,37 @@ class KnowledgeService {
 
   /**
    * Returns a QdrantVectorStore referencing an existing collection.
+   *
+   * `dimensions` must match the value used at ingestion time — for MRL
+   * models that is the truncated size, not the native one.
    */
-  async _getVectorStore(collectionName, embeddingModel, providerId) {
-    const apiKey = config.knowledge.qdrantApiKey;
-    if (!apiKey) {
-      throw new Error('QDRANT_API_KEY is not configured. Set it in your environment variables.');
-    }
-    let provider = null;
-    if (providerId) {
-      if (typeof providerId === 'object' && providerId.apiKeyEncrypted) {
-        provider = providerId;
-      } else {
-        provider = await providerRepository.findById(providerId?._id || providerId);
-      }
-    }
-    const embeddings = this._getEmbeddings(embeddingModel, provider);
-    return await QdrantVectorStore.fromExistingCollection(embeddings, {
+  async _getVectorStore(collectionName, embeddingModel, providerRef, dimensions = null) {
+    const provider = await this._resolveProvider(providerRef);
+    const embeddings = this._getEmbeddings(embeddingModel, provider, dimensions);
+    const vectorStoreOptions = {
       url: config.knowledge.qdrantUrl,
-      apiKey,
       collectionName,
-    });
+    };
+    if (config.knowledge.qdrantApiKey) {
+      vectorStoreOptions.apiKey = config.knowledge.qdrantApiKey;
+    }
+    return await QdrantVectorStore.fromExistingCollection(embeddings, vectorStoreOptions);
   }
 
   /**
-   * Creates a new Qdrant collection via the REST API with the proper
-   * vector configuration for the chosen embedding model.
+   * Creates a new Qdrant collection via the REST API with the exact vector
+   * size of the embedding model that will fill it.
    */
-  async _createQdrantCollection(collectionName, embeddingModel = 'text-embedding-3-small') {
+  async _createQdrantCollection(collectionName, vectorSize) {
     const client = await this._getQdrantClient();
+    const size = Number.isInteger(vectorSize) && vectorSize > 0 ? vectorSize : null;
+
+    if (!size) {
+      throw new Error(
+        'Cannot create a Qdrant collection without an embedding dimensionality. ' +
+          'Knowledge bases must store the resolved embedding size.'
+      );
+    }
 
     let collections;
     try {
@@ -161,16 +367,12 @@ class KnowledgeService {
       // Name the configured target explicitly so this is actionable.
       throw new Error(
         `Cannot reach the vector database (Qdrant) at ${config.knowledge.qdrantUrl}. ` +
-          `Check QDRANT_URL/QDRANT_API_KEY and that the server is reachable. Original error: ${err.message}`
+          `Check QDRANT_URL (and QDRANT_API_KEY for secured clusters) and that the server is reachable. ` +
+          `Original error: ${err.message}`
       );
     }
     const exists = collections.collections?.some((c) => c.name === collectionName);
     if (exists) return; // Already exists — safe to reuse
-
-    let size = 1536; // OpenAI text-embedding-3-small dimension
-    if (embeddingModel && embeddingModel.includes('3-large')) {
-      size = 3072;
-    }
 
     await client.createCollection(collectionName, {
       vectors: {
@@ -257,37 +459,112 @@ class KnowledgeService {
    */
   /**
    * `context` defaults to `personaExecutionContext(userId)` — zero
-   * behavior change for the existing Persona caller. The "find my
-   * default Provider" auto-resolution (when `providerId` is omitted) is
-   * Persona-specific — a Project/ExternalUser context has no equivalent
-   * "my default provider" concept defined yet (AD-06 §11's Project
-   * default Provider isn't built), so an explicit `providerId` is
-   * required for those contexts rather than silently guessing.
+   * behavior change for the existing Persona caller. For a Developer/Project
+   * context, `providerId` is now **optional**: the service auto-resolves the
+   * project's Ollama provider (preferring the one marked default, then any
+   * Ollama provider, then the project default). If no provider record exists,
+   * it synthesizes a key-less local Ollama provider from `OLLAMA_BASE_URL`
+   * (default: `http://localhost:11434/v1`). The embedding model defaults to
+   * `embeddinggemma-2` in all cases where none is explicitly provided.
    */
   async createKnowledgeBase(
     userId,
-    { name, description, isPublic, embeddingModel, providerId, chunkSize, chunkOverlap, topK },
+    {
+      name,
+      description,
+      isPublic,
+      embeddingModel,
+      embeddingDimensions,
+      providerId,
+      chunkSize,
+      chunkOverlap,
+      topK,
+    },
     context = personaExecutionContext(userId)
   ) {
     let resolvedProviderId = providerId;
     if (!resolvedProviderId) {
-      if (context.principalType !== 'PersonaUser') {
-        throw new Error(
-          'providerId is required when creating a Knowledge Base via the Developer API'
-        );
-      }
-      const userProviders = await providerRepository.findByUser(userId);
-      const defaultProvider = userProviders.find((p) => p.isDefault) || userProviders[0];
-      if (defaultProvider) {
-        resolvedProviderId = defaultProvider._id;
+      if (context.principalType === 'PersonaUser') {
+        // Persona: find the user's default provider
+        const userProviders = await providerRepository.findByUser(userId);
+        const defaultProvider = userProviders.find((p) => p.isDefault) || userProviders[0];
+        if (defaultProvider) {
+          resolvedProviderId = defaultProvider._id;
+        }
+      } else {
+        // Developer / Project context: auto-resolve the project's Ollama provider
+        // (prefer default, then any Ollama, then any provider) so the form
+        // doesn't need to ask for one — the platform always defaults to Ollama
+        // + embeddinggemma-2 for local debugging.
+        const domain = context.domain;
+        const projectProviders = domain
+          ? await providerRepository.findByDomain(domain)
+          : [];
+        const ollamaDefault = projectProviders.find((p) => p.type === 'ollama' && p.isDefault);
+        const anyOllama = projectProviders.find((p) => p.type === 'ollama');
+        const anyDefault = projectProviders.find((p) => p.isDefault);
+        const fallback = ollamaDefault || anyOllama || anyDefault || projectProviders[0] || null;
+        if (fallback) {
+          resolvedProviderId = fallback._id;
+        }
       }
     }
 
+    // If still no provider, synthesize a virtual Ollama provider using the
+    // configured base URL — this covers the local-dev case where no provider
+    // record has been created yet.
+    let syntheticOllamaProvider = null;
     if (!resolvedProviderId) {
-      throw new Error(
-        'No AI provider found. Please configure a provider in settings before creating a knowledge base.'
+      if (config.knowledge.ollamaBaseUrl) {
+        syntheticOllamaProvider = {
+          _id: null,
+          label: 'Local Ollama (auto)',
+          type: 'ollama',
+          baseURL: config.knowledge.ollamaBaseUrl,
+          apiKeyEncrypted: null,
+          defaultModel: config.knowledge.embeddingModel || 'embeddinggemma-2',
+        };
+      } else {
+        throw new Error(
+          'No AI provider found. Add an Ollama provider to this project or set OLLAMA_BASE_URL.'
+        );
+      }
+    }
+
+    // 0. Resolve the embedding provider BEFORE touching Mongo/Qdrant, so a
+    //    misconfigured provider fails without leaving an orphaned record.
+    const provider = syntheticOllamaProvider
+      ? syntheticOllamaProvider
+      : await providerRepository.findById(resolvedProviderId);
+    if (!provider) {
+      throw new Error('Provider not found. Please configure an AI provider first.');
+    }
+
+    const providerType = provider.type || 'custom';
+    if (!OPENAI_COMPATIBLE_EMBEDDING_PROVIDER_TYPES.includes(providerType)) {
+      throw new BaseError(
+        `Provider "${provider.label}" (type "${providerType}") does not expose an embeddings endpoint. ` +
+          'Knowledge bases require an OpenAI-compatible provider — OpenAI, DeepSeek, Ollama, or a custom ' +
+          'OpenAI-compatible Base URL.',
+        400,
+        'UNSUPPORTED_EMBEDDING_PROVIDER'
       );
     }
+
+    // Local Ollama users configure the embedding model on the provider
+    // itself, so use that when the request omits an explicit model. For the
+    // Developer context we always default to embeddinggemma-2 (local Ollama).
+    const resolvedModel =
+      embeddingModel ||
+      (providerType === 'ollama' ? provider.defaultModel : null) ||
+      config.knowledge.embeddingModel ||
+      'embeddinggemma-2';
+
+    const resolvedDimensions = await this._resolveEmbeddingDimensions(
+      resolvedModel,
+      provider,
+      embeddingDimensions ?? null
+    );
 
     // 1. Create a placeholder KB record in Mongo to get the _id
     const tempCollectionName = `kb_temp_${crypto.randomBytes(8).toString('hex')}`;
@@ -297,8 +574,10 @@ class KnowledgeService {
       isPublic,
       ...ownerFieldsForContext(context),
       qdrantCollectionName: tempCollectionName,
-      embeddingModel,
-      providerId: resolvedProviderId,
+      embeddingModel: resolvedModel,
+      embeddingDimensions: resolvedDimensions,
+      // Only store providerId when it's a real DB record (not the synthetic local Ollama)
+      providerId: resolvedProviderId || undefined,
       chunkSize,
       chunkOverlap,
       topK,
@@ -312,7 +591,7 @@ class KnowledgeService {
     // never a real, usable Knowledge Base and would otherwise show up in
     // list/count queries forever.
     try {
-      await this._createQdrantCollection(collectionName, kb.embeddingModel);
+      await this._createQdrantCollection(collectionName, resolvedDimensions);
     } catch (err) {
       await knowledgeRepository.deleteKb(kb._id).catch(() => {});
       throw err;
@@ -368,7 +647,17 @@ class KnowledgeService {
   }
 
   /**
-   * Updates a knowledge base's metadata (name, description, isPublic).
+   * Updates a knowledge base's metadata (name, description, isPublic) and
+   * non-destructive tuning (chunk settings, topK).
+   *
+   * The embedding configuration (model / provider / dimensions) is NOT
+   * freely mutable: it defines the Qdrant collection's vector size and the
+   * vector space of every already-indexed chunk. Changing it after
+   * documents exist would silently produce meaningless similarity scores
+   * (or a hard dimension mismatch), so it is rejected with a 409. On an
+   * EMPTY knowledge base the change is safe, and the (empty) collection is
+   * recreated with the new vector size.
+   *
    * `context` defaults to `personaExecutionContext(userId)`.
    */
   async updateKnowledgeBase(kbId, userId, updateData, context = personaExecutionContext(userId)) {
@@ -378,16 +667,67 @@ class KnowledgeService {
       throw new Error('Not authorized to update this knowledge base');
     }
 
+    const currentProviderId = String(kb.providerId?._id || kb.providerId || '');
+    const nextProviderId =
+      updateData.providerId !== undefined ? String(updateData.providerId) : currentProviderId;
+
+    const embeddingConfigChanged =
+      (updateData.embeddingModel !== undefined && updateData.embeddingModel !== kb.embeddingModel) ||
+      nextProviderId !== currentProviderId ||
+      (updateData.embeddingDimensions !== undefined &&
+        updateData.embeddingDimensions !== kb.embeddingDimensions);
+
     const sanitized = {};
     if (updateData.name !== undefined) sanitized.name = updateData.name;
     if (updateData.description !== undefined) sanitized.description = updateData.description;
     if (updateData.isPublic !== undefined) sanitized.isPublic = updateData.isPublic;
-    if (updateData.embeddingModel !== undefined)
-      sanitized.embeddingModel = updateData.embeddingModel;
-    if (updateData.providerId !== undefined) sanitized.providerId = updateData.providerId;
     if (updateData.chunkSize !== undefined) sanitized.chunkSize = updateData.chunkSize;
     if (updateData.chunkOverlap !== undefined) sanitized.chunkOverlap = updateData.chunkOverlap;
     if (updateData.topK !== undefined) sanitized.topK = updateData.topK;
+
+    if (embeddingConfigChanged) {
+      const hasIndexedContent = (kb.documentCount || 0) > 0 || (kb.chunkCount || 0) > 0;
+
+      if (hasIndexedContent) {
+        throw new BaseError(
+          'Embedding model, provider, and dimensions are fixed once documents are indexed. ' +
+            'Delete the indexed documents or create a new knowledge base to change them.',
+          409,
+          'KB_EMBEDDING_CONFIG_IMMUTABLE'
+        );
+      }
+
+      const provider = await this._resolveProvider(updateData.providerId ?? kb.providerId);
+      if (!provider) {
+        throw new Error('Provider not found. Please configure an AI provider first.');
+      }
+
+      const providerType = provider.type || 'custom';
+      if (!OPENAI_COMPATIBLE_EMBEDDING_PROVIDER_TYPES.includes(providerType)) {
+        throw new BaseError(
+          `Provider "${provider.label}" (type "${providerType}") does not expose an embeddings endpoint. ` +
+            'Knowledge bases require an OpenAI-compatible provider.',
+          400,
+          'UNSUPPORTED_EMBEDDING_PROVIDER'
+        );
+      }
+
+      const resolvedModel = updateData.embeddingModel ?? kb.embeddingModel;
+      const resolvedDimensions = await this._resolveEmbeddingDimensions(
+        resolvedModel,
+        provider,
+        updateData.embeddingDimensions ?? null
+      );
+
+      // The collection exists but holds no points — recreate it so its
+      // vector size matches the new model instead of failing on first upload.
+      await this._deleteQdrantCollection(kb.qdrantCollectionName);
+      await this._createQdrantCollection(kb.qdrantCollectionName, resolvedDimensions);
+
+      sanitized.embeddingModel = resolvedModel;
+      sanitized.providerId = provider._id;
+      sanitized.embeddingDimensions = resolvedDimensions;
+    }
 
     if (Object.keys(sanitized).length === 0) {
       throw new Error('No valid fields to update');
@@ -453,13 +793,15 @@ class KnowledgeService {
       throw new Error('Not authorized to upload to this knowledge base');
     }
 
-    // Ensure the Qdrant collection exists
-    await this._createQdrantCollection(kb.qdrantCollectionName, kb.embeddingModel);
+    // Ensure the Qdrant collection exists with the KB's stored vector size
+    const dimensions = await this._ensureKbDimensions(kb);
+    await this._createQdrantCollection(kb.qdrantCollectionName, dimensions);
 
     const vectorStore = await this._getVectorStore(
       kb.qdrantCollectionName,
       kb.embeddingModel,
-      kb.providerId
+      kb.providerId,
+      dimensions
     );
     const allDocs = [];
     const processedFiles = [];
@@ -616,24 +958,26 @@ class KnowledgeService {
     );
 
     const k = topK || kb.topK || config.knowledge.topK;
+    const dimensions = await this._ensureKbDimensions(kb);
     const vectorStore = await this._getVectorStore(
       kb.qdrantCollectionName,
       kb.embeddingModel,
-      kb.providerId
+      kb.providerId,
+      dimensions
     );
 
-    // Perform similarity search
-    const results = await vectorStore.similaritySearch(query, k);
+    // Perform similarity search — scores included so callers can threshold.
+    const results = await vectorStore.similaritySearchWithScore(query, k);
 
     logger.info(
       `[KnowledgeService] Found ${results ? results.length : 0} results for query "${query}"`
     );
 
     // Enrich results with chunk metadata from MongoDB
-    return results.map((result) => ({
+    return results.map(([result, score]) => ({
       text: result.pageContent,
       source: result.metadata?.sourceName || 'unknown',
-      score: result.metadata?.score || null,
+      score: typeof score === 'number' ? score : null,
     }));
   }
 

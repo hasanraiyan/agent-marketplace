@@ -63,19 +63,23 @@ jest.unstable_mockModule('pdf-parse', () => ({
 
 // Mock langchain openai and qdrant
 const mockEmbedDocuments = jest.fn();
+const mockEmbedQuery = jest.fn().mockResolvedValue(new Array(1536).fill(0.01));
 jest.unstable_mockModule('@langchain/openai', () => ({
   OpenAIEmbeddings: jest.fn().mockImplementation(() => ({
     embedDocuments: mockEmbedDocuments,
+    embedQuery: mockEmbedQuery,
   })),
 }));
 
 const mockAddDocuments = jest.fn();
 const mockSimilaritySearch = jest.fn();
+const mockSimilaritySearchWithScore = jest.fn();
 jest.unstable_mockModule('@langchain/qdrant', () => ({
   QdrantVectorStore: {
     fromExistingCollection: jest.fn().mockResolvedValue({
       addDocuments: mockAddDocuments,
       similaritySearch: mockSimilaritySearch,
+      similaritySearchWithScore: mockSimilaritySearchWithScore,
     }),
   },
 }));
@@ -118,6 +122,7 @@ describe('Knowledge Service', () => {
     mockProvider = {
       _id: '507f1f77bcf86cd799439033',
       label: 'OpenAI Test',
+      type: 'openai',
       apiKeyEncrypted: 'enc:test-provider-key',
       baseURL: 'https://api.openai.com/v1',
     };
@@ -129,6 +134,7 @@ describe('Knowledge Service', () => {
       ownerId: mockUserId,
       qdrantCollectionName: 'kb_507f1f77bcf86cd799439022_123456',
       embeddingModel: 'text-embedding-3-small',
+      embeddingDimensions: 1536,
       providerId: mockProvider._id,
       chunkSize: 800,
       chunkOverlap: 100,
@@ -141,6 +147,10 @@ describe('Knowledge Service', () => {
   });
 
   describe('createKnowledgeBase', () => {
+    beforeEach(() => {
+      providerRepository.findById.mockResolvedValue(mockProvider);
+    });
+
     test('should create knowledge base and Qdrant collection', async () => {
       providerRepository.findByUser.mockResolvedValue([mockProvider]);
       knowledgeRepository.createKb.mockResolvedValue(mockKb);
@@ -210,6 +220,78 @@ describe('Knowledge Service', () => {
       ).rejects.toThrow(
         'providerId is required when creating a Knowledge Base via the Developer API'
       );
+      expect(knowledgeRepository.createKb).not.toHaveBeenCalled();
+    });
+
+    test('uses the probed dimensionality of a non-OpenAI embedding model (embeddinggemma-2 → 768)', async () => {
+      const ollamaProvider = {
+        ...mockProvider,
+        label: 'Ollama (local)',
+        type: 'ollama',
+        baseURL: 'http://localhost:11434/v1',
+        defaultModel: 'embeddinggemma-2',
+      };
+      providerRepository.findById.mockResolvedValue(ollamaProvider);
+      knowledgeRepository.createKb.mockResolvedValue(mockKb);
+      knowledgeRepository.updateKb.mockResolvedValue(mockKb);
+      mockEmbedQuery.mockResolvedValueOnce(new Array(768).fill(0.01));
+
+      await knowledgeService.createKnowledgeBase(mockUserId, {
+        name: 'Gemma KB',
+        providerId: ollamaProvider._id,
+        embeddingModel: 'embeddinggemma-2',
+      });
+
+      expect(knowledgeRepository.createKb).toHaveBeenCalledWith(
+        expect.objectContaining({
+          embeddingModel: 'embeddinggemma-2',
+          embeddingDimensions: 768,
+        })
+      );
+      expect(mockCreateCollection).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          vectors: expect.objectContaining({ size: 768, distance: 'Cosine' }),
+        })
+      );
+    });
+
+    test('honours an explicit MRL truncation target (embeddinggemma-2 → 512)', async () => {
+      const ollamaProvider = { ...mockProvider, type: 'ollama', defaultModel: 'embeddinggemma-2' };
+      providerRepository.findById.mockResolvedValue(ollamaProvider);
+      knowledgeRepository.createKb.mockResolvedValue(mockKb);
+      knowledgeRepository.updateKb.mockResolvedValue(mockKb);
+      mockEmbedQuery.mockResolvedValueOnce(new Array(512).fill(0.01));
+
+      await knowledgeService.createKnowledgeBase(mockUserId, {
+        name: 'Truncated KB',
+        providerId: ollamaProvider._id,
+        embeddingModel: 'embeddinggemma-2',
+        embeddingDimensions: 512,
+      });
+
+      expect(knowledgeRepository.createKb).toHaveBeenCalledWith(
+        expect.objectContaining({ embeddingDimensions: 512 })
+      );
+      expect(mockCreateCollection).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ vectors: expect.objectContaining({ size: 512 }) })
+      );
+    });
+
+    test('rejects a provider type with no embeddings endpoint', async () => {
+      providerRepository.findById.mockResolvedValue({
+        ...mockProvider,
+        label: 'Anthropic',
+        type: 'anthropic',
+      });
+
+      await expect(
+        knowledgeService.createKnowledgeBase(mockUserId, {
+          name: 'Bad KB',
+          providerId: mockProvider._id,
+        })
+      ).rejects.toThrow('does not expose an embeddings endpoint');
       expect(knowledgeRepository.createKb).not.toHaveBeenCalled();
     });
   });
@@ -341,6 +423,71 @@ describe('Knowledge Service', () => {
       await expect(
         knowledgeService.updateKnowledgeBase(mockKbId, 'irrelevant', { name: 'Renamed' }, context)
       ).rejects.toThrow('Not authorized to update this knowledge base');
+    });
+
+    test('rejects changing the embedding model once documents are indexed', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({
+        ...mockKb,
+        documentCount: 1,
+        chunkCount: 12,
+      });
+
+      await expect(
+        knowledgeService.updateKnowledgeBase(mockKbId, mockUserId, {
+          embeddingModel: 'text-embedding-3-large',
+        })
+      ).rejects.toMatchObject({
+        statusCode: 409,
+        code: 'KB_EMBEDDING_CONFIG_IMMUTABLE',
+      });
+      expect(knowledgeRepository.updateKb).not.toHaveBeenCalled();
+    });
+
+    test('recreates the (empty) collection when the embedding model changes before any upload', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({
+        ...mockKb,
+        documentCount: 0,
+        chunkCount: 0,
+      });
+      knowledgeRepository.updateKb.mockResolvedValue({
+        ...mockKb,
+        embeddingModel: 'text-embedding-3-large',
+        embeddingDimensions: 3072,
+      });
+      providerRepository.findById.mockResolvedValue(mockProvider);
+      mockEmbedQuery.mockResolvedValueOnce(new Array(3072).fill(0.01));
+
+      const result = await knowledgeService.updateKnowledgeBase(mockKbId, mockUserId, {
+        embeddingModel: 'text-embedding-3-large',
+      });
+
+      expect(mockDeleteCollection).toHaveBeenCalledWith(mockKb.qdrantCollectionName);
+      expect(mockCreateCollection).toHaveBeenCalledWith(
+        mockKb.qdrantCollectionName,
+        expect.objectContaining({ vectors: expect.objectContaining({ size: 3072 }) })
+      );
+      expect(knowledgeRepository.updateKb).toHaveBeenCalledWith(
+        mockKbId,
+        expect.objectContaining({
+          embeddingModel: 'text-embedding-3-large',
+          embeddingDimensions: 3072,
+        })
+      );
+      expect(result).toBeDefined();
+    });
+
+    test('chunk settings remain tunable after indexing', async () => {
+      knowledgeRepository.findKbById.mockResolvedValue({
+        ...mockKb,
+        documentCount: 3,
+        chunkCount: 40,
+      });
+      knowledgeRepository.updateKb.mockResolvedValue({ ...mockKb, chunkSize: 1200 });
+
+      await knowledgeService.updateKnowledgeBase(mockKbId, mockUserId, { chunkSize: 1200 });
+
+      expect(knowledgeRepository.updateKb).toHaveBeenCalledWith(mockKbId, { chunkSize: 1200 });
+      expect(mockCreateCollection).not.toHaveBeenCalled();
     });
   });
 
@@ -510,34 +657,38 @@ describe('Knowledge Service', () => {
   });
 
   describe('searchKnowledgeBase', () => {
-    test('should search vector store and return results', async () => {
+    test('should search vector store and return results with scores', async () => {
       knowledgeRepository.findKbById.mockResolvedValue(mockKb);
-      mockSimilaritySearch.mockResolvedValue([
-        {
-          pageContent: 'matched text content',
-          metadata: { sourceName: 'test.txt', score: 0.85 },
-        },
+      mockSimilaritySearchWithScore.mockResolvedValue([
+        [
+          {
+            pageContent: 'matched text content',
+            metadata: { sourceName: 'test.txt' },
+          },
+          0.85,
+        ],
       ]);
 
       const result = await knowledgeService.searchKnowledgeBase(mockKbId, 'test query');
 
-      expect(mockSimilaritySearch).toHaveBeenCalledWith('test query', 5);
+      expect(mockSimilaritySearchWithScore).toHaveBeenCalledWith('test query', 5);
       expect(result).toHaveLength(1);
       expect(result[0].text).toBe('matched text content');
       expect(result[0].source).toBe('test.txt');
+      expect(result[0].score).toBe(0.85);
     });
 
     test('should handle JSON query string input', async () => {
       knowledgeRepository.findKbById.mockResolvedValue(mockKb);
-      mockSimilaritySearch.mockResolvedValue([]);
+      mockSimilaritySearchWithScore.mockResolvedValue([]);
 
       await knowledgeService.searchKnowledgeBase(mockKbId, JSON.stringify({ query: 'hello' }));
-      expect(mockSimilaritySearch).toHaveBeenCalledWith('hello', 5);
+      expect(mockSimilaritySearchWithScore).toHaveBeenCalledWith('hello', 5);
     });
 
     test('blueprint Phase 9, PR-47b: no context (Persona call site) skips the ownership check entirely, unchanged', async () => {
       knowledgeRepository.findKbById.mockResolvedValue({ ...mockKb, ownerId: 'someone-else' });
-      mockSimilaritySearch.mockResolvedValue([]);
+      mockSimilaritySearchWithScore.mockResolvedValue([]);
 
       await expect(knowledgeService.searchKnowledgeBase(mockKbId, 'test query')).resolves.toEqual(
         []
@@ -687,6 +838,36 @@ describe('Knowledge Service', () => {
 
       expect(knowledgeRepository.countKbs).toHaveBeenCalledWith({ domain: 'project-1' });
       expect(total).toBe(2);
+    });
+  });
+
+  describe('Qdrant client configuration', () => {
+    const originalApiKey = config.knowledge.qdrantApiKey;
+
+    afterEach(() => {
+      config.knowledge.qdrantApiKey = originalApiKey;
+      knowledgeService._qdrantClientPromise = null;
+    });
+
+    test('omits apiKey entirely for an unauthenticated local Qdrant', async () => {
+      config.knowledge.qdrantApiKey = null;
+      knowledgeService._qdrantClientPromise = null;
+
+      await knowledgeService._getQdrantClient();
+
+      const options = QdrantClient.mock.calls.at(-1)[0];
+      expect(options).toEqual({ url: config.knowledge.qdrantUrl });
+      expect(options).not.toHaveProperty('apiKey');
+    });
+
+    test('passes apiKey through for Qdrant Cloud / secured clusters', async () => {
+      config.knowledge.qdrantApiKey = 'cloud-key';
+      knowledgeService._qdrantClientPromise = null;
+
+      await knowledgeService._getQdrantClient();
+
+      const options = QdrantClient.mock.calls.at(-1)[0];
+      expect(options).toEqual({ url: config.knowledge.qdrantUrl, apiKey: 'cloud-key' });
     });
   });
 });

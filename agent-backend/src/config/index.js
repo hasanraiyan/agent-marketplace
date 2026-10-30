@@ -78,7 +78,8 @@ const config = {
   knowledge: {
     qdrantUrl: process.env.QDRANT_URL || 'https://your-cluster.cloud.qdrant.io',
     qdrantApiKey: process.env.QDRANT_API_KEY || null,
-    embeddingModel: process.env.KNOWLEDGE_EMBEDDING_MODEL || 'text-embedding-3-small',
+    embeddingModel: process.env.KNOWLEDGE_EMBEDDING_MODEL || 'embeddinggemma-2',
+    ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434/v1',
     chunkSize: parseInt(process.env.KNOWLEDGE_CHUNK_SIZE, 10) || 800,
     chunkOverlap: parseInt(process.env.KNOWLEDGE_CHUNK_OVERLAP, 10) || 100,
     topK: parseInt(process.env.KNOWLEDGE_TOP_K, 10) || 5,

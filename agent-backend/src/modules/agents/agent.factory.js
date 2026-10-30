@@ -463,9 +463,11 @@ class AgentFactory {
             apiKey: apiKey,
           },
         });
+      case 'ollama':
       case 'custom':
       default:
-        // Initializing dynamic ChatOpenAI class representing the base model.
+        // Ollama exposes an OpenAI-compatible /v1 surface, so it shares this
+        // branch. Initializing dynamic ChatOpenAI class representing the base model.
         // Same reasoning-off workaround as the 'openai' case above — a
         // custom OpenAI-compatible baseURL can serve the same gpt-5.x/o-
         // series model names and hits the identical tools+reasoning error.
