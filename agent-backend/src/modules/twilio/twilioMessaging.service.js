@@ -424,6 +424,43 @@ class TwilioMessagingService {
       throw err;
     }
 
+    const isNewChatCmd = /^\s*(\/new|\/reset|new chat)\b/i.test(body);
+    const promptText = isNewChatCmd
+      ? body.replace(/^\s*(\/new|\/reset|new chat)\s*/i, '').trim()
+      : body;
+
+    // If user just sent "/new" / "/reset" / "new chat" with no other prompt:
+    if (isNewChatCmd && !promptText) {
+      const newThreadId = crypto.randomUUID();
+      if (
+        mongoose.connection.readyState === 1 &&
+        typeof threadRepository?.create === 'function'
+      ) {
+        try {
+          const channelLabel =
+            channel === 'whatsapp' ? 'WhatsApp' : channel === 'sms' ? 'SMS' : 'Chat';
+          await threadRepository.create({
+            domain: projectId,
+            subjectType: 'ExternalUser',
+            externalUserId: subject,
+            agentId,
+            threadId: newThreadId,
+            title: `${channelLabel} Chat`,
+            lastMessageAt: new Date(),
+          });
+        } catch (err) {
+          logger.warn('[TwilioMessaging] Failed to create Thread document on /new', {
+            err: err?.message,
+          });
+        }
+      }
+      return {
+        reply: 'Started a new conversation! How can I help you today?',
+        threadId: newThreadId,
+        runError: null,
+      };
+    }
+
     const agent = await this.resolveChannelAgent(projectId, agentId);
     if (!agent) {
       const err = new Error('Agent not found');
@@ -446,7 +483,39 @@ class TwilioMessagingService {
       displayName ? { displayName } : {}
     );
 
-    const langGraphThreadId = threadId || this.buildThreadId(projectId, agentId, subject);
+    let langGraphThreadId = threadId;
+    if (isNewChatCmd) {
+      langGraphThreadId = crypto.randomUUID();
+    } else if (!langGraphThreadId) {
+      // Smart session resolution (ChatGPT / Perplexity WhatsApp style):
+      // Resume recent conversation if within 2 hours, otherwise mint a new thread.
+      if (
+        mongoose.connection.readyState === 1 &&
+        typeof threadRepository?.findLatestBySubjectAndAgent === 'function'
+      ) {
+        try {
+          const subjectFilter = {
+            domain: projectId,
+            subjectType: 'ExternalUser',
+            externalUserId: subject,
+          };
+          const latest = await threadRepository.findLatestBySubjectAndAgent(subjectFilter, agentId);
+          const isSessionRecent =
+            latest?.lastMessageAt &&
+            Date.now() - new Date(latest.lastMessageAt).getTime() < SESSION_INACTIVITY_TIMEOUT_MS;
+
+          if (latest && isSessionRecent) {
+            langGraphThreadId = latest.threadId;
+          }
+        } catch {
+          // fallback
+        }
+      }
+    }
+
+    if (!langGraphThreadId) {
+      langGraphThreadId = this.buildThreadId(projectId, agentId, subject);
+    }
 
     // Ensure a Thread document exists in conversations collection so it appears in the web chat UI
     if (
@@ -489,7 +558,7 @@ class TwilioMessagingService {
         agentId,
         userId: subject,
         langGraphThreadId,
-        messages: [{ role: 'user', content: body, ...(channel ? { channel } : {}) }],
+        messages: [{ role: 'user', content: promptText || body, ...(channel ? { channel } : {}) }],
         signal: controller.signal,
         executionContext,
         turnContext: channel ? { channel } : undefined,
