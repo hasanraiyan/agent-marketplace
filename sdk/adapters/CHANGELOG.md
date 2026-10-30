@@ -5,6 +5,24 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-10-30
+
+### Added
+
+- **Form URL-encoded request body parsing (`application/x-www-form-urlencoded`).**
+  Required by Twilio webhook channels (`/channels/twilio/voice` and `/channels/twilio/message`):
+  - Next.js server adapter (`toRuntimeRequest`) now parses urlencoded body strings into key-value
+    objects via `URLSearchParams` instead of throwing a `TranslationError` on non-JSON payloads.
+  - Node/Express/Nest shared translator (`toRuntimeRequestNode` and `readBody`) parses unconsumed
+    urlencoded incoming streams when host middleware has not already parsed the body.
+
+### Changed
+
+- Bumped `@personaai/sdk` to `^0.16.0`, `@personaai/runtime` to `^0.17.0`, and `@personaai/react`
+  to `^0.20.0` — current releases supporting telephony session tickets, BYO-Twilio channels, and
+  multi-channel message badging.
+- `VERSION` in `express`, `nestjs`, `nextjs/client`, and `nextjs/server` is now `'0.9.0'`.
+
 ## [0.8.2] - 2026-10-29
 
 ### Changed

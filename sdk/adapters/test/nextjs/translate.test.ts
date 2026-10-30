@@ -76,6 +76,20 @@ describe('toRuntimeRequest — body', () => {
     expect(request.body).toEqual({ agentId: 'a_1', messages: [] });
   });
 
+  it('parses an application/x-www-form-urlencoded body', async () => {
+    const req = new Request('http://app.test/api/persona/channels/twilio/voice', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      body: 'CallSid=CA123&From=%2B15551234567&SpeechResult=Hello+world',
+    });
+    const request = await toRuntimeRequest(req, routeContext(['channels', 'twilio', 'voice']));
+    expect(request.body).toEqual({
+      CallSid: 'CA123',
+      From: '+15551234567',
+      SpeechResult: 'Hello world',
+    });
+  });
+
   it('leaves the body undefined for GET and DELETE', async () => {
     for (const method of ['GET', 'DELETE'] as const) {
       const request = await toRuntimeRequest(

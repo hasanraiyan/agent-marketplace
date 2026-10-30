@@ -54,6 +54,22 @@ describe('Express → RuntimeRequest translation', () => {
     expect(runtime.requests[0]?.body).toEqual({ agentId: 'raw' });
   });
 
+  it('reads and parses raw application/x-www-form-urlencoded stream when no body parser is mounted', async () => {
+    const runtime = makeFakeRuntime(async () => okJson({ ok: true }));
+    const app = createTestApp(toExpressRouter(runtime), { json: false });
+
+    await request(app)
+      .post('/api/persona/channels/twilio/voice')
+      .set('Content-Type', 'application/x-www-form-urlencoded')
+      .send('CallSid=CA123&From=%2B15551234567')
+      .expect(200);
+
+    expect(runtime.requests[0]?.body).toEqual({
+      CallSid: 'CA123',
+      From: '+15551234567',
+    });
+  });
+
   it('responds 400 INVALID_REQUEST for malformed JSON', async () => {
     const runtime = makeFakeRuntime(async () => okJson({ ok: true }));
     const app = createTestApp(toExpressRouter(runtime), { json: false });

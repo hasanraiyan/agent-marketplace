@@ -101,14 +101,26 @@ export async function toRuntimeRequest(
     const text = await req.text();
     tLogger.trace('body text', { length: text.length });
     if (text.length > 0) {
-      try {
-        body = JSON.parse(text);
-        tLogger.debug('json parsed', {
-          bodyKeys: typeof body === 'object' && body ? Object.keys(body as Record<string, unknown>) : [],
+      if (contentType.includes('application/x-www-form-urlencoded')) {
+        const params = new URLSearchParams(text);
+        const obj: Record<string, string> = {};
+        for (const [key, value] of params.entries()) {
+          obj[key] = value;
+        }
+        body = obj;
+        tLogger.debug('urlencoded parsed', {
+          bodyKeys: Object.keys(obj),
         });
-      } catch {
-        tLogger.warn('invalid json', { preview: text.slice(0, 200) });
-        throw new TranslationError('Request body is not valid JSON.');
+      } else {
+        try {
+          body = JSON.parse(text);
+          tLogger.debug('json parsed', {
+            bodyKeys: typeof body === 'object' && body ? Object.keys(body as Record<string, unknown>) : [],
+          });
+        } catch {
+          tLogger.warn('invalid json', { preview: text.slice(0, 200) });
+          throw new TranslationError('Request body is not valid JSON.');
+        }
       }
     } else {
       tLogger.trace('empty body', {});

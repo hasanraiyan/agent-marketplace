@@ -2,7 +2,7 @@ import type { RuntimeMethod, RuntimeRequest, RuntimeUploadedFile } from '@person
 import type { Logger } from '@personaai/logger';
 import { TranslationError } from './errors.js';
 import { redactHeaders } from './headers.js';
-import { readJsonBody } from './json.js';
+import { readBody, readJsonBody } from './json.js';
 import { collectMulterFiles, parseMultipart } from './multipart-node.js';
 
 export interface NodeTranslateOptions {
@@ -95,7 +95,7 @@ export async function toRuntimeRequestNode(
     const hasHostBody = req.body !== undefined;
     log?.debug('json body handling', { hasHostBody, path });
     try {
-      body = req.body ?? (await readJsonBody(req, logger));
+      body = req.body ?? (await readBody(req, contentType, logger));
       log?.debug('json body resolved', { hasBody: body !== undefined, path });
     } catch (err) {
       if (err instanceof TranslationError) throw err;
