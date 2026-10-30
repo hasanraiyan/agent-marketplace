@@ -85,7 +85,12 @@ export function parseProjectCredential(authorizationHeader) {
 
 export default async function developerMachineAuthMiddleware(req, res, next) {
   try {
-    const credential = parseProjectCredential(req.headers.authorization);
+    const authHeader =
+      req.headers.authorization ||
+      (req.headers['x-persona-credential']
+        ? `Bearer ${req.headers['x-persona-credential']}`
+        : undefined);
+    const credential = parseProjectCredential(authHeader);
     if (!credential) {
       throw new BaseError('A valid Project credential is required', 401, 'UNAUTHORIZED');
     }

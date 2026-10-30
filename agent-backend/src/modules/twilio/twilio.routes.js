@@ -3,6 +3,9 @@ import twilioController from './twilio.controller.js';
 import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 import authMiddleware from '../auth/auth.middleware.js';
 import projectAdminAuthMiddleware from '../auth/projectAdminAuth.middleware.js';
+import developerMachineAuthMiddleware, {
+  parseProjectCredential,
+} from '../auth/developerMachineAuth.middleware.js';
 
 const router = express.Router();
 
@@ -176,12 +179,24 @@ router.post(
 export const outboundCallRouter = express.Router();
 
 /**
- * `/call` names its Project in the JSON body, while
- * `projectAdminAuthMiddleware` resolves it from `req.params`. This wrapper
- * bridges the two — deliberately scoped to this route instead of teaching
- * the shared middleware to trust body fields on every admin endpoint.
+ * `/call` supports both:
+ * 1. Machine callers with a Project credential (`Authorization: Bearer <keyId>.<secret>`
+ *    or `x-persona-credential`). Authenticated via `developerMachineAuthMiddleware`.
+ * 2. Developer Studio UI callers with a Clerk session. Authenticated via
+ *    `authMiddleware` + `projectAdminAuthMiddleware`.
  */
 export function outboundCallAuth(req, res, next) {
+  const authHeader =
+    req.headers.authorization ||
+    (req.headers['x-persona-credential']
+      ? `Bearer ${req.headers['x-persona-credential']}`
+      : undefined);
+  const isProjectCredential = parseProjectCredential(authHeader);
+
+  if (isProjectCredential) {
+    return developerMachineAuthMiddleware(req, res, next);
+  }
+
   req.params = { ...req.params, projectId: req.body?.projectId || req.query?.projectId };
   authMiddleware(req, res, (err) => {
     if (err) return next(err);
