@@ -31,7 +31,9 @@ function extractContentText(content) {
 export function voiceTurnToMessage(role, text) {
   const content = typeof text === 'string' ? text.trim() : '';
   if (!content) return null;
-  return role === 'user' ? new HumanMessage(content) : new AIMessage(content);
+  return role === 'user'
+    ? new HumanMessage({ content, additional_kwargs: { channel: 'voice' } })
+    : new AIMessage({ content, additional_kwargs: { channel: 'voice' } });
 }
 
 /**

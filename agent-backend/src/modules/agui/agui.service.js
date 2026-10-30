@@ -197,9 +197,19 @@ export async function* runAgentAsAguiEvents({
     titlePromise = checkpointService._autoTitleThread(thread, content, llm);
   }
 
+  const messageChannel =
+    turnContext?.channel || messages?.findLast?.((m) => m?.role === 'user')?.channel;
+
   const inputArg = isResuming
     ? new Command({ resume: buildResumeValue(pendingInterrupt, resume, content) })
-    : { messages: [new HumanMessage(content)] };
+    : {
+        messages: [
+          new HumanMessage({
+            content,
+            additional_kwargs: messageChannel ? { channel: messageChannel } : {},
+          }),
+        ],
+      };
 
   // Records run ancestry alongside the event stream so the translator can
   // attribute nested events to the correct `task` (subagent) call even when

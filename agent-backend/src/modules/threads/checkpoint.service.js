@@ -73,6 +73,8 @@ function normalizeMessages(rawMessages) {
         }
       : null;
 
+    const channel = msg.additional_kwargs?.channel || msg.channel || undefined;
+
     // A single agent turn is routinely MULTIPLE separate AIMessage objects
     // in LangGraph's own history -- one per LLM call within the ReAct loop
     // (decide to call a tool with empty/no content, then -- once the tool
@@ -92,6 +94,7 @@ function normalizeMessages(rawMessages) {
     ) {
       const last = normalized[currentAssistantIndex];
       if (content) last.content = last.content ? `${last.content}${content}` : content;
+      if (channel && !last.channel) last.channel = channel;
       if (toolCalls.length > 0) last.toolCalls = [...(last.toolCalls || []), ...toolCalls];
       if (reasoningEntry) {
         normalized.splice(currentAssistantIndex, 0, reasoningEntry);
@@ -106,6 +109,7 @@ function normalizeMessages(rawMessages) {
       id: msg.id || `${type}-${normalized.length}`,
       role,
       content,
+      ...(channel ? { channel } : {}),
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
     });
     if (role === 'assistant') currentAssistantIndex = normalized.length - 1;
