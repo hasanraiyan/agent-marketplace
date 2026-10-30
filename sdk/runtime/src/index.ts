@@ -17,6 +17,11 @@ export type {
   RestToolsManifestOptions,
   RestToolManifestEntry,
   RcpManifestOptions,
+  ChannelsOptions,
+  TwilioChannelOptions,
+  TwilioChannelRequest,
+  TwilioChannelUser,
+  ResolveTwilioChannelUser,
 } from './types/options.js';
 export type { RcpTool } from 'rcp-sdk';
 export type {

@@ -7,6 +7,7 @@ import {
   type RuntimeCapabilities,
   type RestToolsManifestOptions,
   type RcpManifestOptions,
+  type ChannelsOptions,
 } from '../src/index.js';
 
 export function jsonResponse(body: unknown, status = 200): Response {
@@ -46,6 +47,7 @@ export function makeRuntime(overrides: {
   capabilities?: RuntimeCapabilities;
   restToolsManifest?: RestToolsManifestOptions;
   rcpManifest?: RcpManifestOptions;
+  channels?: ChannelsOptions;
 }) {
   return createRuntime({
     baseUrl: 'https://api.example.com',
@@ -59,6 +61,7 @@ export function makeRuntime(overrides: {
     capabilities: overrides.capabilities,
     restToolsManifest: overrides.restToolsManifest,
     rcpManifest: overrides.rcpManifest,
+    channels: overrides.channels,
   });
 }
 

@@ -1,4 +1,4 @@
 allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
-  - '@personaai/sdk@0.14.1 || 0.15.0'
+  - '@personaai/sdk@0.14.1 || 0.15.0 || 0.16.0'

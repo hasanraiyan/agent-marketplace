@@ -4,6 +4,25 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.17.0
+
+- **New: Bring-your-own-Twilio channel routes (`channels.twilio`).**
+  Adds support for hosting Twilio Voice, SMS, and WhatsApp webhooks directly on the runtime:
+  - `POST /channels/twilio/voice`: Verifies `X-Twilio-Signature` against the host's Twilio auth token,
+    resolves the sender to a developer-asserted `externalUserId` via `options.channels.twilio.resolveUser`,
+    mints a telephony session ticket via `@personaai/sdk`, and returns TwiML `<Connect><Stream url="wss://...">`
+    connecting Twilio's audio stream directly to Persona without proxying media through the developer's server.
+  - `POST /channels/twilio/message`: Verifies webhook signature, resolves user identity, runs the Agent
+    via `client.messages.generateReply()`, and returns the reply text formatted as inline TwiML
+    `<Response><Message>...</Message></Response>`.
+  - Both routes are opt-in and public (`requiresAuth: false`), relying on Twilio's cryptographic signature
+    and the developer's identity resolver. Supports custom voice/message fallbacks and optional
+    `agentId` / `threadId` overrides per caller.
+  - New exported types: `ChannelsOptions`, `TwilioChannelOptions`, `TwilioChannelRequest`, `TwilioChannelUser`,
+    `ResolveTwilioChannelUser`.
+- Bumped `@personaai/sdk` dependency to `^0.16.0`.
+- `RUNTIME_VERSION` is now `"0.17.0"`.
+
 ## 0.16.1
 
 - **Fixed: failing-handle logs now carry the upstream status and code.** The `catch` in

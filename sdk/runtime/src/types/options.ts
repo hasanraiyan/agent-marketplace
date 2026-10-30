@@ -107,6 +107,77 @@ export interface RcpManifestOptions {
   authToken?: string;
 }
 
+/**
+ * A Twilio webhook request that reached this runtime, after its signature
+ * was verified. `from` is the end user's number (WhatsApp numbers keep the
+ * `whatsapp:` prefix), `body` is the message text on the message channel.
+ */
+export interface TwilioChannelRequest {
+  channel: 'voice' | 'whatsapp' | 'sms';
+  from: string;
+  to: string;
+  /** Present on the voice channel. */
+  callSid?: string;
+  /** Present on the message channel. */
+  messageSid?: string;
+  /** Present on the message channel — the inbound text. */
+  body?: string;
+  /** WhatsApp profile name, when Twilio supplies one. */
+  profileName?: string;
+}
+
+/**
+ * Return value of {@link TwilioChannelOptions.resolveUser}: the developer's
+ * own user id (which becomes the Persona external user id), optionally with
+ * a per-request Agent override. `null` means "not one of my users" — the
+ * runtime then rejects the call / sends no reply.
+ */
+export interface TwilioChannelUser {
+  externalUserId: string;
+  agentId?: string;
+  /** Continue an existing thread instead of the per-user default. */
+  threadId?: string;
+}
+
+export type ResolveTwilioChannelUser = (
+  request: TwilioChannelRequest
+) => TwilioChannelUser | string | null | Promise<TwilioChannelUser | string | null>;
+
+/**
+ * Bring-your-own-Twilio-number webhooks, served by this runtime:
+ * `POST /channels/twilio/voice` and `POST /channels/twilio/message`.
+ *
+ * Both routes verify Twilio's `X-Twilio-Signature` with YOUR auth token,
+ * resolve the sender to one of your users, and proxy to Persona. Voice
+ * returns TwiML that points Twilio's media stream straight at Persona (your
+ * server never relays audio); messaging returns the Agent's reply as TwiML,
+ * so no message is sent from Persona's own account.
+ */
+export interface TwilioChannelOptions {
+  /** Your Twilio Auth Token — used only to verify inbound webhook signatures. */
+  authToken: string;
+  /**
+   * The exact public origin Twilio calls, e.g. `https://app.example.com`.
+   * Twilio signs the full URL, so a proxy/rewrite that changes it breaks
+   * verification — set this when the request's own host headers aren't the
+   * public URL. Omit to derive it from `x-forwarded-proto` / `host`.
+   */
+  publicUrl?: string;
+  /** Maps a Twilio sender to one of your users. Return `null` to ignore the message/call. */
+  resolveUser: ResolveTwilioChannelUser;
+  /** Default Agent for both channels. `resolveUser` may override it per request. */
+  agentId?: string;
+  /** Spoken instead of the Agent's voice when the session cannot start. */
+  voiceFallback?: string;
+  /** Texted instead of the Agent's reply when the turn fails. `''` disables it. */
+  messageFallback?: string;
+}
+
+export interface ChannelsOptions {
+  /** Enables the two Twilio channel routes. Unset by default. */
+  twilio?: TwilioChannelOptions;
+}
+
 export interface CreateRuntimeOptions {
   /** Base URL of the Persona Developer Platform API, e.g. "https://api.persona.hasanraiyan.me". */
   baseUrl: string;
@@ -153,6 +224,12 @@ export interface CreateRuntimeOptions {
   restToolsManifest?: RestToolsManifestOptions;
   /** Serves a conformant RCP manifest for any RCP client to discover. See {@link RcpManifestOptions}. Unset by default — the route only exists when this is provided. */
   rcpManifest?: RcpManifestOptions;
+  /**
+   * Bring-your-own-Twilio-number webhook routes (`/channels/twilio/*`). See
+   * {@link ChannelsOptions}. Unset by default — the routes only exist when
+   * this is provided.
+   */
+  channels?: ChannelsOptions;
   /** Log level for the runtime — off by default. Overrides the global level set via `setLogLevel()` from `@personaai/sdk`. */
   logLevel?: LogLevel;
   /** Custom logger instance — when provided, `logLevel` is ignored. */

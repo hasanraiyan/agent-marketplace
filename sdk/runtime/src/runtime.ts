@@ -132,6 +132,7 @@ import {
   cancelWorkflowRun,
 } from './routes/workflows.js';
 import { workflowStreamRoute } from './routes/workflowStream.js';
+import { twilioVoiceChannel, twilioMessageChannel } from './routes/channels.js';
 
 function resolveCapabilities(
   capabilities: RuntimeCapabilities | undefined
@@ -439,6 +440,26 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
       requiresAuth: false,
     });
   }
+  if (options.channels?.twilio) {
+    // Bring-your-own-Twilio-number webhooks. Public by design: Twilio carries
+    // no end-user session, so each handler verifies X-Twilio-Signature with
+    // the host's own auth token and resolves the sender itself. Only exist
+    // when configured at all.
+    routes.push(
+      {
+        method: 'POST',
+        pattern: ['channels', 'twilio', 'voice'],
+        handler: twilioVoiceChannel,
+        requiresAuth: false,
+      },
+      {
+        method: 'POST',
+        pattern: ['channels', 'twilio', 'message'],
+        handler: twilioMessageChannel,
+        requiresAuth: false,
+      }
+    );
+  }
   const mode = resolveMode(options);
   const heartbeatIntervalMs = options.heartbeatIntervalMs ?? 15000;
 
@@ -623,6 +644,7 @@ export function createRuntime(options: CreateRuntimeOptions): Runtime {
         logger: routeLogger,
         restToolsManifest: options.restToolsManifest,
         rcpManifest: options.rcpManifest,
+        channels: options.channels,
       });
 
       const durationMs = Date.now() - startMs;

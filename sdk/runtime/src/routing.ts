@@ -1,7 +1,12 @@
 import type { RuntimeMethod, RuntimeRequest } from './types/request.js';
 import type { RuntimeResponse } from './types/response.js';
 import type { RunDriver } from './runDriver.js';
-import type { RcpManifestOptions, RestToolsManifestOptions, RuntimeCapabilities } from './types/options.js';
+import type {
+  ChannelsOptions,
+  RcpManifestOptions,
+  RestToolsManifestOptions,
+  RuntimeCapabilities,
+} from './types/options.js';
 
 export interface RouteContext {
   client: import('@personaai/sdk').PersonaClient;
@@ -18,6 +23,8 @@ export interface RouteContext {
   restToolsManifest: RestToolsManifestOptions | undefined;
   /** Set only when `createRuntime({ rcpManifest })` was configured — backs the RCP manifest route. */
   rcpManifest: RcpManifestOptions | undefined;
+  /** Set only when `createRuntime({ channels })` was configured — backs the channel webhook routes. */
+  channels: ChannelsOptions | undefined;
 }
 
 export type RouteHandler = (request: RuntimeRequest, ctx: RouteContext) => Promise<RuntimeResponse>;
