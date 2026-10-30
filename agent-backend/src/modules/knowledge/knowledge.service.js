@@ -142,7 +142,21 @@ class KnowledgeService {
    * client — the encrypted key and base URL live on the full row.
    */
   async _resolveProvider(providerRef) {
-    if (!providerRef) return null;
+    if (!providerRef) {
+      // No provider stored (KB was created via the auto-Ollama path). Synthesize
+      // a key-less local Ollama provider so uploads use the same baseURL as creation.
+      if (config.knowledge.ollamaBaseUrl) {
+        return {
+          _id: null,
+          label: 'Local Ollama (auto)',
+          type: 'ollama',
+          baseURL: config.knowledge.ollamaBaseUrl,
+          apiKeyEncrypted: null,
+          defaultModel: config.knowledge.embeddingModel || 'nomic-embed-text',
+        };
+      }
+      return null;
+    }
     if (typeof providerRef === 'object' && providerRef.apiKeyEncrypted) {
       return providerRef;
     }
