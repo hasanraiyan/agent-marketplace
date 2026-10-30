@@ -211,9 +211,9 @@ class TwilioService {
       projectId
     )}&agentId=${encodeURIComponent(agentId)}&callerPhone=${encodeURIComponent(to)}`;
 
-    const statusCallbackUrl = `${baseUrl}/api/v1/webhooks/twilio/status?projectId=${encodeURIComponent(
-      projectId
-    )}`;
+    const statusCallbackUrl = this.isPublicBaseUrl(baseUrl)
+      ? `${baseUrl}/api/v1/webhooks/twilio/status?projectId=${encodeURIComponent(projectId)}`
+      : null;
 
     logger.info('[TwilioService] Creating outbound call from project secrets', {
       to,
@@ -223,14 +223,17 @@ class TwilioService {
       webhookUrl,
     });
 
-    const call = await client.calls.create({
+    const callPayload = {
       to,
       from: callerId,
       url: webhookUrl,
-      statusCallback: statusCallbackUrl,
-      statusCallbackEvent: ['initiated', 'ringing', 'answered', 'completed'],
-      statusCallbackMethod: 'POST',
-    });
+    };
+    if (statusCallbackUrl) {
+      callPayload.statusCallback = statusCallbackUrl;
+      callPayload.statusCallbackEvent = ['initiated', 'ringing', 'answered', 'completed'];
+      callPayload.statusCallbackMethod = 'POST';
+    }
+    const call = await client.calls.create(callPayload);
 
     logger.info('[TwilioService] Outbound call created', {
       callSid: call.sid,
@@ -312,9 +315,27 @@ class TwilioService {
     return sender ? this.formatAddress(sender, 'sms') : null;
   }
 
+  isPublicBaseUrl(baseUrl) {
+    if (!baseUrl) return false;
+    let parsed;
+    try {
+      parsed = new URL(baseUrl);
+    } catch {
+      return false;
+    }
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+    const host = (parsed.hostname || '').toLowerCase();
+    if (!host) return false;
+    if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '0.0.0.0') {
+      return false;
+    }
+    return true;
+  }
+
   buildMessageStatusCallbackUrl(projectId, publicUrl) {
     const baseUrl = (publicUrl || config.backendUrl || '').replace(/\/$/, '');
     if (!baseUrl || !projectId) return null;
+    if (!this.isPublicBaseUrl(baseUrl)) return null;
     return `${baseUrl}/api/v1/webhooks/twilio/message-status?projectId=${encodeURIComponent(
       projectId
     )}`;

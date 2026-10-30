@@ -155,7 +155,7 @@ class TwilioController {
         });
       });
 
-    return res.status(200).type('text/plain').send('ok');
+    return res.status(200).type('text/plain').send('');
   }
 
   /**
