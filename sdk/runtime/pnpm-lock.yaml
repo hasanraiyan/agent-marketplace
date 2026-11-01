@@ -15,8 +15,8 @@ importers:
         specifier: ^0.16.0
         version: 0.16.0(zod@3.25.76)
       rcp-sdk:
-        specifier: ^0.1.0
-        version: 0.1.1
+        specifier: ^0.2.0
+        version: 0.2.0
     devDependencies:
       '@eslint/js':
         specifier: ^9.19.0
@@ -1114,9 +1114,14 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
-  rcp-sdk@0.1.1:
-    resolution: {integrity: sha512-656fAOyv2HnDwULGi3A19nsi/wR+3AvSgUnfhjc31PJzb2zS4EOficPFoqXb3wTx7ynIGs7+DB4xteXKeKbAwA==}
+  rcp-sdk@0.2.0:
+    resolution: {integrity: sha512-sG4Pk/bSh/FmlNsi2BLwB/krJv/4eq3PL+OyxUW1aHRk2bPbPZR/VXwUrwSHpxMopsfxGlrlFxXbDGUYlhqRqg==}
     engines: {node: '>=18'}
+    peerDependencies:
+      '@langchain/core': '>=0.3.0'
+    peerDependenciesMeta:
+      '@langchain/core':
+        optional: true
 
   readdirp@4.1.2:
     resolution: {integrity: sha512-GDhwkLfywWL2s6vEjyhri+eXmfH6j1L7JE27WhqLeYzoh/A3DBaYGEj2H/HFZCn/kMfim73FXxEJTw06WtxQwg==}
@@ -2255,7 +2260,7 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  rcp-sdk@0.1.1:
+  rcp-sdk@0.2.0:
     dependencies:
       zod: 3.25.76
 
