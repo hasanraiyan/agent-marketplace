@@ -5,6 +5,28 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-11-07
+
+### Added
+
+- **Images in chat and frontend tools in voice calls**, via the upgraded dependencies — no
+  adapter code changes:
+  - `@personaai/adapters/nextjs` (client) now re-exports `@personaai/react` 0.22.0's
+    `useAttachments`, `useAttachmentUrl` and `ATTACHMENT_LIMITS`; `useChat().sendMessage(text,
+    { attachments })` sends images, and `useVoice` runs tools registered with
+    `useFrontendTool` & co. during a voice call.
+  - The server handlers (`createPersonaHandler`, `toExpressRouter`, `PersonaModule`) run on
+    `@personaai/runtime` 0.21.0: `POST /chat` forwards image `attachments` (max 4,
+    `{ fileId }` from `POST /files`) and `POST /voice/sessions` forwards frontend `tools`, both
+    validated with a 400 on malformed input.
+  - Images need the agent's **Image Input** setting (`imageInputEnabled`) and a vision-capable
+    model; voice tools need **Frontend Tools** (`frontendToolsEnabled`).
+
+### Changed
+
+- Dependencies: `@personaai/react` ^0.22.0, `@personaai/runtime` ^0.21.0,
+  `@personaai/sdk` ^0.20.0.
+
 ## [0.10.0] - 2026-11-07
 
 ### Added
