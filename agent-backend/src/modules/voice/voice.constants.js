@@ -11,7 +11,7 @@
 
 /** Documented Live API models (ai.google.dev/gemini-api/docs/live-guide). */
 export const VOICE_MODELS = Object.freeze([
-  'gemini-3.1-flash-live-preview',
+  'gemini-3.8-live',
   'gemini-2.5-flash-native-audio-preview-12-2025',
 ]);
 
