@@ -47,6 +47,8 @@ export interface Agent {
   webSearchEnabled: boolean;
   /** Real shell execution in an isolated CodeSandbox VM. Requires a `CSB_API_KEY` Project Secret to exist first (there is no `secrets` SDK resource yet — create one via the platform UI or `POST /api/v1/developer/secrets`). In local dev/debug mode, when no secret is present, a host (local) shell is used instead. */
   sandboxEnabled: boolean;
+  /** Accept tools supplied by the embedding client app that run in the end user's browser (`@personaai/react`'s `useFrontendTool` & co.). While `false`, client-supplied tools are ignored. */
+  frontendToolsEnabled: boolean;
   visibility: AgentVisibility;
   category: AgentCategory;
   /** Bare id strings on `create`/`update`/`list`; populated objects on `get()`. */
@@ -85,6 +87,8 @@ export interface CreateAgentInput {
   webSearchEnabled?: boolean;
   /** @default false */
   sandboxEnabled?: boolean;
+  /** @default false */
+  frontendToolsEnabled?: boolean;
   /** @default 'private' */
   visibility?: AgentVisibility;
   /** @default 'other' */
@@ -118,6 +122,7 @@ export interface UpdateAgentInput {
   modelName?: string;
   webSearchEnabled?: boolean;
   sandboxEnabled?: boolean;
+  frontendToolsEnabled?: boolean;
   /** Replaces the entire array — this is not a merge/append. */
   skills?: string[];
   /** Replaces the entire array — this is not a merge/append. */

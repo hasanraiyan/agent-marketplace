@@ -136,6 +136,16 @@ const agentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Lets the client app that embeds this agent hand it extra tools that run
+    // in the end user's browser (`tools` on the AG-UI run input, registered
+    // via @personaai/react's useFrontendTool & co.). Off by default: while
+    // false, client-supplied tools are silently ignored at run time. The
+    // calls pause the graph via interrupt() and resume with the browser's
+    // result — see tools/frontendTool.tool.js.
+    frontendToolsEnabled: {
+      type: Boolean,
+      default: false,
+    },
     skills: [
       {
         type: mongoose.Schema.Types.ObjectId,

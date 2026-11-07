@@ -119,6 +119,9 @@
  *         sandboxEnabled:
  *           type: boolean
  *           description: Real shell execution in an isolated CodeSandbox VM. Requires a CSB_API_KEY Project Secret (in local dev/debug mode a host shell is used instead).
+ *         frontendToolsEnabled:
+ *           type: boolean
+ *           description: Accept tools supplied by the embedding client app that run in the end user's browser. While false, client-supplied tools are ignored.
  *         visibility:
  *           type: string
  *           enum: [private, unlisted, public]

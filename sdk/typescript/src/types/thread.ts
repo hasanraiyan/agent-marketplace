@@ -4,10 +4,18 @@ import type { ChatInterrupt } from './chat.js';
 export interface Thread {
   _id: string;
   domain: string;
-  /** Populated as `{ _id, name, avatar, slug, sandboxEnabled }` on `list()`/`get()`; a bare id on `create()`. */
+  /** Populated as `{ _id, name, avatar, slug, sandboxEnabled, frontendToolsEnabled }` on `list()`/`get()`; a bare id on `create()`. */
   agentId:
     | string
-    | { _id: string; name: string; avatar?: string; slug: string; sandboxEnabled: boolean };
+    | {
+        _id: string;
+        name: string;
+        avatar?: string;
+        slug: string;
+        sandboxEnabled: boolean;
+        /** Absent on threads served by a backend older than this field. */
+        frontendToolsEnabled?: boolean;
+      };
   subjectType: 'PersonaUser' | 'ExternalUser';
   userId?: string;
   externalUserId?: string;

@@ -24,6 +24,7 @@ export const createAgentSchema = z.object({
   modelName: z.string().min(1, 'Model name is required').optional(),
   webSearchEnabled: z.boolean().default(false),
   sandboxEnabled: z.boolean().default(false),
+  frontendToolsEnabled: z.boolean().default(false),
   visibility: z.enum(['private', 'unlisted', 'public']).default('private'),
   category: z
     .enum(['productivity', 'coding', 'creative', 'research', 'roleplay', 'other'])
@@ -53,6 +54,7 @@ export const updateAgentSchema = z.object({
   modelName: z.string().min(1).optional(),
   webSearchEnabled: z.boolean().optional(),
   sandboxEnabled: z.boolean().optional(),
+  frontendToolsEnabled: z.boolean().optional(),
   skills: z.array(z.string()).optional(),
   mcps: z.array(z.string()).optional(),
   restApiTools: z.array(z.string()).optional(),

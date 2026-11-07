@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeftIcon,
+  BrowserIcon,
   CheckIcon,
   ClockIcon,
   CodeIcon,
@@ -130,6 +131,7 @@ interface AgentFormState {
   modelName: string;
   webSearchEnabled: boolean;
   sandboxEnabled: boolean;
+  frontendToolsEnabled: boolean;
   visibility: Visibility;
   category: Category;
   isActive: boolean;
@@ -149,6 +151,7 @@ const EMPTY_FORM: AgentFormState = {
   modelName: "",
   webSearchEnabled: false,
   sandboxEnabled: false,
+  frontendToolsEnabled: false,
   visibility: "private",
   category: "other",
   isActive: true,
@@ -325,6 +328,7 @@ export function AgentForm({
           modelName: str(found, "modelName"),
           webSearchEnabled: !!found.webSearchEnabled,
           sandboxEnabled: !!found.sandboxEnabled,
+          frontendToolsEnabled: !!found.frontendToolsEnabled,
           visibility: (found.visibility as Visibility) || "private",
           category: (found.category as Category) || "other",
           isActive: found.isActive !== false,
@@ -514,6 +518,7 @@ export function AgentForm({
       providerId: form.providerId,
       webSearchEnabled: form.webSearchEnabled,
       sandboxEnabled: form.sandboxEnabled,
+      frontendToolsEnabled: form.frontendToolsEnabled,
       visibility: form.visibility,
       category: form.category,
       isActive: form.isActive,
@@ -1113,6 +1118,25 @@ export function AgentForm({
                   id="sandboxEnabled"
                   checked={form.sandboxEnabled}
                   onCheckedChange={(c) => update("sandboxEnabled", !!c)}
+                />
+              </div>
+
+              <div className="flex items-start justify-between gap-3 rounded-none border border-dashed border-border/80 bg-muted/10 p-2.5">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5 font-medium text-foreground">
+                    <BrowserIcon className="size-3.5 text-violet-500" />
+                    Frontend Tools
+                  </div>
+                  <span className="text-[11px] leading-relaxed text-muted-foreground">
+                    Lets apps embedding this agent give it extra tools that run
+                    in the user&apos;s browser (via @personaai/react). Your app
+                    decides what those tools do. Off: they&apos;re ignored.
+                  </span>
+                </div>
+                <Switch
+                  id="frontendToolsEnabled"
+                  checked={form.frontendToolsEnabled}
+                  onCheckedChange={(c) => update("frontendToolsEnabled", !!c)}
                 />
               </div>
             </CardContent>
