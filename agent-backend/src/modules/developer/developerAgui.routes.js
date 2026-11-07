@@ -79,13 +79,45 @@ router.use(developerMachineAuthMiddleware);
  *               resume:
  *                 type: object
  *                 description: >
- *                   Resume data for a Thread paused on a human-in-the-loop
- *                   interrupt (e.g. an agent-management tool the Agent's
- *                   `interruptOn` config requires confirming). Pass
- *                   { type: "decision", decision: "continue" | "reject" }
- *                   to approve/deny a pending tool call, or an object
- *                   shaped for the specific clarification the interrupted
- *                   run is waiting on.
+ *                   Resume data for a Thread paused on an interrupt. Shape
+ *                   depends on what the run is waiting on — a `hitl_request`
+ *                   (a tool the Agent's `interruptOn` config requires
+ *                   confirming) takes { decisions: [{ type: "approve" |
+ *                   "reject", message? }] }; a `clarification_request` takes
+ *                   { answers: [...], text? }; a `frontend_tool_request`
+ *                   takes { toolResults: [{ toolCallId, result?, error? }] }
+ *                   — one entry per call, `error` for a failure or the user
+ *                   declining (a call left unanswered is reported to the
+ *                   model as not completed). Send `tools` again on a
+ *                   frontend-tool resume.
+ *               tools:
+ *                 type: array
+ *                 maxItems: 20
+ *                 description: >
+ *                   Frontend tools — tools the client app runs itself (e.g.
+ *                   in the end user's browser), in the AG-UI
+ *                   `RunAgentInput.tools` shape. Ignored unless the Agent has
+ *                   `frontendToolsEnabled`, and on voice/SMS/WhatsApp turns.
+ *                   When the model calls one, the run pauses and streams a
+ *                   `frontend_tool_request` CUSTOM event with
+ *                   { calls: [{ toolCallId, name, args }] }; run the tools and
+ *                   resume with `resume.toolResults`. Invalid entries (bad
+ *                   name, schema over 8 KB, or a name clashing with one of
+ *                   the Agent's own tools) are dropped, not rejected.
+ *                 items:
+ *                   type: object
+ *                   required: [name]
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       pattern: '^[a-zA-Z0-9_-]{1,64}$'
+ *                     description:
+ *                       type: string
+ *                       maxLength: 1024
+ *                       description: What the tool does and when to use it — the model reads this.
+ *                     parameters:
+ *                       type: object
+ *                       description: JSON Schema (type "object") of the tool's arguments. Defaults to no arguments.
  *               contextOverride:
  *                 type: string
  *                 maxLength: 4000
@@ -131,7 +163,7 @@ router.use(developerMachineAuthMiddleware);
  *             description: The active custom-event schema version (see GET /api/v1/developer/agui/schema).
  *             schema:
  *               type: string
- *               example: "1.0.0"
+ *               example: "1.2.0"
  *       400:
  *         description: Missing x-agent-id, or credential has no asserted external user
  *       401:
@@ -152,8 +184,9 @@ router.use(developerMachineAuthMiddleware);
  *     summary: Versioned schema for the custom AG-UI events this backend emits
  *     description: >
  *       Documents every non-base-protocol `CUSTOM` AG-UI event this backend
- *       streams (clarification_request, hitl_request, mcp_app,
- *       subagent_activity) with a resolvable JSON Schema per payload. The
+ *       streams (clarification_request, frontend_tool_request, hitl_request,
+ *       mcp_app, subagent_activity, workflow_node_*) with a resolvable JSON
+ *       Schema per payload. The
  *       base `@ag-ui/core` protocol version is fixed and unaffected by this
  *       document's own schemaVersion. Every POST /api/v1/developer/agui
  *       stream response also carries the active schemaVersion on the
