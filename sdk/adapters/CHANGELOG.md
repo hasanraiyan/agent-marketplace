@@ -5,6 +5,21 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-11-07
+
+### Added
+
+- **Images in voice calls**, via `@personaai/react` 0.23.0:
+  - `@personaai/adapters/nextjs` (client) re-exports `useVoice().sendImage(file, { text })`, plus
+    `VOICE_IMAGE_LIMITS`, `prepareVoiceImage` and the `PersonaVoiceImage` types.
+  - No server route change: images go from the browser straight to Persona over the call's
+    WebSocket. Needs the Agent's `imageInputEnabled`.
+
+### Changed
+
+- Dependencies: `@personaai/react` `^0.23.0`, `@personaai/runtime` `^0.22.0`,
+  `@personaai/sdk` `^0.21.0`.
+
 ## [0.11.1] - 2026-11-07
 
 ### Added

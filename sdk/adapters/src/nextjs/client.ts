@@ -2,4 +2,4 @@
 
 export * from '@personaai/react';
 
-export const VERSION = '0.11.1';
+export const VERSION = '0.12.0';
