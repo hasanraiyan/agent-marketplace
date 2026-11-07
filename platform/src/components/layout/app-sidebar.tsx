@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import {
   ChatCircleIcon,
+  ChartLineIcon,
   ClockCounterClockwiseIcon,
   CpuIcon,
   DatabaseIcon,
@@ -50,6 +51,7 @@ const NAV_GROUPS = [
       { segment: "playground", label: "Playground", icon: ChatCircleIcon },
       { segment: "agents", label: "Agents", icon: RobotIcon },
       { segment: "workflows", label: "Workflows", icon: TreeStructureIcon },
+      { segment: "traces", label: "Traces", icon: ChartLineIcon },
     ],
   },
   {

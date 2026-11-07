@@ -142,6 +142,8 @@ export interface UseAguiChatReturn {
   pendingClarification: ClarificationRequest | null;
   /** Tool call IDs whose visual output is already rendered as UI blocks. */
   uiBlockToolCallIds: string[];
+  /** Trace id of the latest run (Developer Platform playground only), from the `trace_started` CUSTOM event. */
+  lastTraceId: string | null;
   send: (text: string) => Promise<void>;
   stop: () => void;
   clear: () => void;
@@ -499,6 +501,9 @@ export function useAguiChat(
   const [isRunning, setIsRunning] = useState(false);
   const [isReasoning, setIsReasoning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set by the backend's `trace_started` CUSTOM event (Developer Platform
+  // playground runs only) — the id of the latest run's trace.
+  const [lastTraceId, setLastTraceId] = useState<string | null>(null);
   const [threadId, setThreadId] = useState<string | undefined>(
     externalThreadId,
   );
@@ -859,6 +864,11 @@ export function useAguiChat(
       // ── CUSTOM events (routing hub) ──
       if (matchType(type, EventType.CUSTOM, "CUSTOM")) {
         switch (event.name as string) {
+          case "trace_started": {
+            const id = (event.value as { traceId?: unknown } | undefined)?.traceId;
+            if (typeof id === "string") setLastTraceId(id);
+            return;
+          }
           case "ui_block": {
             const value = event.value as Record<string, unknown>;
             const blockEntry: ChatUIBlock = {
@@ -1344,6 +1354,7 @@ export function useAguiChat(
     pendingApproval,
     pendingClarification,
     uiBlockToolCallIds,
+    lastTraceId,
     send,
     stop,
     clear,

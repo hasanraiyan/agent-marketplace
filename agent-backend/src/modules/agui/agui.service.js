@@ -15,6 +15,7 @@ import {
   describeInterrupt,
 } from './aguiTranslator.js';
 import { RunScopeTracker } from './RunScopeTracker.js';
+import { traceService, TRACE_STATUS } from '../traces/index.js';
 import {
   AttachmentError,
   attachmentSubject,
@@ -41,13 +42,15 @@ export async function readJsonBody(req, { maxBytes = MAX_AGUI_BODY_BYTES } = {})
   if (req.body && typeof req.body === 'object') return req.body;
 
   const declared = Number(req.headers?.['content-length']);
-  if (declared > maxBytes) throw new BaseError('Request body is too large', 413, 'PAYLOAD_TOO_LARGE');
+  if (declared > maxBytes)
+    throw new BaseError('Request body is too large', 413, 'PAYLOAD_TOO_LARGE');
 
   const chunks = [];
   let total = 0;
   for await (const chunk of req) {
     total += chunk.length;
-    if (total > maxBytes) throw new BaseError('Request body is too large', 413, 'PAYLOAD_TOO_LARGE');
+    if (total > maxBytes)
+      throw new BaseError('Request body is too large', 413, 'PAYLOAD_TOO_LARGE');
     chunks.push(chunk);
   }
   if (chunks.length === 0) return {};
@@ -263,7 +266,8 @@ export async function* runAgentAsAguiEvents({
       humanContent = await buildTurnContent({
         lastUserMessage: getLastUserMessage(messages),
         text: content,
-        imagesAllowed: Boolean(agentConfig?.imageInputEnabled) && (!turnChannel || turnChannel === 'web'),
+        imagesAllowed:
+          Boolean(agentConfig?.imageInputEnabled) && (!turnChannel || turnChannel === 'web'),
         subject: attachmentSubject(executionContext, userId),
         agentId,
         threadKey: langGraphThreadId,
@@ -314,6 +318,24 @@ export async function* runAgentAsAguiEvents({
   // several subagents run in parallel.
   const runScopeTracker = new RunScopeTracker();
 
+  // Built-in tracing (Developer Platform Projects only — see trace.service.js):
+  // records every LLM/tool/subagent step for the platform's Traces page.
+  // Fail-soft: null when disabled, and its DB writes never throw into the run.
+  const trace = traceService.begin({
+    executionContext,
+    agentId,
+    agentConfig,
+    providerConfig,
+    threadId: threadDbId || thread?._id || langGraphThreadId,
+    channel: turnChannel || 'web',
+    input: isResuming ? '(resumed after interrupt)' : content,
+  });
+  if (trace && executionContext?.principalType === 'ProjectAdmin') {
+    // Lets the platform playground link straight to this run's trace.
+    // Admin (playground) runs only — not part of the public AG-UI catalog.
+    yield { type: EventType.CUSTOM, name: 'trace_started', value: { traceId: trace.traceId } };
+  }
+
   const stream = agentInstance.streamEvents(inputArg, {
     // contextOverride/turnContext ride here, not inputArg.messages:
     // `configurable` is per-invocation RunnableConfig, never persisted by
@@ -325,11 +347,13 @@ export async function* runAgentAsAguiEvents({
     configurable: { thread_id: langGraphThreadId, contextOverride, turnContext },
     version: 'v2',
     signal,
-    callbacks: [runScopeTracker],
+    callbacks: trace ? [runScopeTracker, trace.recorder] : [runScopeTracker],
   });
 
   let pausedForInterrupt = false;
-  yield* translateLangGraphStream(stream, {
+  let runError = null;
+  let completed = false;
+  const translated = translateLangGraphStream(stream, {
     providerConfig,
     logger,
     mcpAppMap,
@@ -354,6 +378,7 @@ export async function* runAgentAsAguiEvents({
       pausedForInterrupt = true;
     },
     onError: (leaves, err) => {
+      runError = err?.message || 'Agent run failed';
       logger.error(`[AG-UI] stream failed: ${err?.name || 'Error'}: ${err?.message}`, {
         agentId,
         leafCount: leaves.length,
@@ -361,6 +386,28 @@ export async function* runAgentAsAguiEvents({
       });
     },
   });
+
+  try {
+    for await (const event of translated) {
+      if (event?.type === EventType.RUN_ERROR && !runError) {
+        runError = event.message || 'Agent run failed';
+      }
+      yield event;
+    }
+    completed = true;
+  } catch (err) {
+    runError = runError || err?.message || 'Agent run failed';
+    throw err;
+  } finally {
+    if (trace) {
+      let status = TRACE_STATUS.SUCCESS;
+      if (runError) status = TRACE_STATUS.ERROR;
+      else if (signal?.aborted || !completed) status = TRACE_STATUS.CANCELLED;
+      else if (pausedForInterrupt) status = TRACE_STATUS.INTERRUPTED;
+      // Not awaited: persisting the trace must not hold up the response.
+      void trace.finish({ status, error: runError });
+    }
+  }
 
   if (titlePromise && !pausedForInterrupt) {
     try {

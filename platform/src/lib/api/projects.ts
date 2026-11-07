@@ -221,6 +221,15 @@ export const bulkDeleteProjectAgents = (projectId: string, ids: string[]) =>
 export const getProjectAuditLogs = (projectId: string, params?: unknown) =>
   api.get(`/projects/${projectId}/audit-logs`, { params });
 
+// Traces — every recorded agent run (playground, API, Architect) with its
+// step tree (LLM calls, tool calls, subagents), plus usage stats.
+export const getProjectTraces = (projectId: string, params?: unknown) =>
+  api.get(`/projects/${projectId}/traces`, { params });
+export const getProjectTraceStats = (projectId: string, params?: unknown) =>
+  api.get(`/projects/${projectId}/traces/stats`, { params });
+export const getProjectTrace = (projectId: string, traceId: string) =>
+  api.get(`/projects/${projectId}/traces/${traceId}`);
+
 // REST API Tool Builder — no single-item GET route.
 export const getProjectRestTools = (projectId: string) =>
   api.get(`/projects/${projectId}/rest-tools`);

@@ -67,6 +67,12 @@ const config = {
     // convention, not a value derived from the architecture docs themselves.
     deletionGracePeriodDays: parseInt(process.env.PROJECT_DELETION_GRACE_PERIOD_DAYS, 10) || 7,
   },
+  traces: {
+    // Developer Platform built-in tracing: per-run step trees (LLM / tool /
+    // subagent spans) for Project agents, shown on the platform's Traces page.
+    enabled: process.env.TRACES_ENABLED !== 'false',
+    retentionDays: parseInt(process.env.TRACE_RETENTION_DAYS, 10) || 30,
+  },
   ai: {
     openAiApiKey: process.env.OPENAI_API_KEY || null,
     openAiModel: process.env.OPENAI_MODEL || 'gpt-4.1-mini',

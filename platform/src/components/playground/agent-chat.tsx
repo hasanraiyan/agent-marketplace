@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { SpinnerIcon } from "@phosphor-icons/react";
+import Link from "next/link";
+import { ChartLineIcon, SpinnerIcon } from "@phosphor-icons/react";
 import { api } from "@/lib/api/core";
 import {
   useAguiChat,
@@ -244,6 +245,19 @@ function AgentChatInner({
             <AlertTitle>Agent run failed</AlertTitle>
             <AlertDescription>{chat.error}</AlertDescription>
           </Alert>
+        )}
+
+        {chat.lastTraceId && (
+          <div className="mb-1.5 flex justify-end">
+            <Link
+              href={`/projects/${projectId}/traces/${chat.lastTraceId}`}
+              target="_blank"
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              <ChartLineIcon className="size-3.5" />
+              {chat.isRunning ? "Trace for this run" : "View trace of last run"}
+            </Link>
+          </div>
         )}
 
         <ChatComposer

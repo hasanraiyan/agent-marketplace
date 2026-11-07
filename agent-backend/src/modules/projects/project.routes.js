@@ -5,6 +5,7 @@ import projectAdminAuthMiddleware from '../auth/projectAdminAuth.middleware.js';
 import rateLimiter, { RATE_LIMITS } from '../rateLimiter/rateLimiter.middleware.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import projectController from './project.controller.js';
+import { traceController } from '../traces/index.js';
 import {
   createProjectSchema,
   updateProjectSchema,
@@ -593,6 +594,105 @@ adminRouter.post('/agents/bulk-delete', mutateLimiter, projectController.bulkDel
 adminRouter.get('/audit-logs', projectController.listAuditLogs);
 
 /**
+ * @openapi
+ * /api/v1/projects/{projectId}/traces:
+ *   get:
+ *     tags: [Projects]
+ *     summary: List recorded agent runs (traces) for this Project
+ *     description: >
+ *       One row per agent run (AG-UI turn) — playground, API and Architect runs.
+ *       Newest first. Traces expire after TRACE_RETENTION_DAYS (default 30).
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer }
+ *       - name: limit
+ *         in: query
+ *         schema: { type: integer, maximum: 100 }
+ *       - name: agentId
+ *         in: query
+ *         schema: { type: string }
+ *       - name: threadId
+ *         in: query
+ *         schema: { type: string }
+ *       - name: status
+ *         in: query
+ *         schema: { type: string, enum: [running, success, error, interrupted, cancelled] }
+ *       - name: source
+ *         in: query
+ *         schema: { type: string, enum: [playground, api, architect] }
+ *       - name: from
+ *         in: query
+ *         schema: { type: string, format: date-time }
+ *       - name: to
+ *         in: query
+ *         schema: { type: string, format: date-time }
+ *     responses:
+ *       200: { description: "{ items: Trace[], pagination: { total, page, limit, pages } }" }
+ *       401: { description: Unauthorized }
+ *       403: { description: Not an Admin of this Project }
+ */
+adminRouter.get('/traces', traceController.list);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/traces/stats:
+ *   get:
+ *     tags: [Projects]
+ *     summary: Usage stats over recorded traces
+ *     description: >
+ *       Totals (runs, errors, tokens, p50/p95 latency), a per-day series, a
+ *       per-agent breakdown and the most-called tools for the last N days.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: days
+ *         in: query
+ *         schema: { type: integer, minimum: 1, maximum: 90, default: 7 }
+ *       - name: agentId
+ *         in: query
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: "{ days, totals, byDay[], byAgent[], tools[] }" }
+ *       400: { description: days out of range }
+ *       401: { description: Unauthorized }
+ *       403: { description: Not an Admin of this Project }
+ */
+adminRouter.get('/traces/stats', traceController.stats);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/traces/{traceId}:
+ *   get:
+ *     tags: [Projects]
+ *     summary: Get one trace with its full step (span) tree
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: traceId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200: { description: "{ trace: Trace, spans: TraceSpan[] }" }
+ *       401: { description: Unauthorized }
+ *       403: { description: Not an Admin of this Project }
+ *       404: { description: Trace not found }
+ */
+adminRouter.get('/traces/:traceId', traceController.get);
+
+/**
  * Full create/edit/delete for a Project's own Skills/Knowledge/MCP/
  * Providers from Developer Studio (Phase 11.5) — the read-only PR-55
  * `list*` routes above stay as-is; these are new siblings on the same
@@ -655,7 +755,6 @@ adminRouter.get('/stores/:storeId/files', projectController.listStoreFiles);
 adminRouter.get('/stores/:storeId/file', projectController.getStoreFile);
 adminRouter.put('/stores/:storeId/file', mutateLimiter, projectController.writeStoreFile);
 adminRouter.delete('/stores/:storeId/file', mutateLimiter, projectController.deleteStoreFile);
-
 
 adminRouter.post(
   '/knowledge',

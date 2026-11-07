@@ -62,6 +62,8 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 | `LANGSMITH_API_KEY`  | No       | —                                 | LangSmith API key for tracing |
 | `LANGSMITH_PROJECT`  | No       | `persona-ai-backend`              | LangSmith project name        |
 | `LANGSMITH_ENDPOINT` | No       | `https://api.smith.langchain.com` | LangSmith endpoint            |
+| `TRACES_ENABLED`       | No | `true` | Built-in run tracing for Developer Platform Project agents (Traces page). Set `false` to stop recording. |
+| `TRACE_RETENTION_DAYS` | No | `30`   | Days a recorded trace (and its spans) is kept before MongoDB's TTL index deletes it. Changing it later requires dropping the existing `createdAt_1` TTL index on `traces` and `tracespans` (or running `collMod`). |
 
 > **Note:** LangSmith tracing is currently disabled due to a bug where subagent callbacks fire twice through `streamEvents`.
 
