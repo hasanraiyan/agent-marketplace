@@ -4,6 +4,17 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.20.0
+
+- **`@personaai/sdk` upgraded to `^0.19.0`.**
+- **`POST /chat` forwards image `attachments`** (`{ fileId }[]` — files the same end user
+  uploaded through `POST /files`) for `@personaai/react`'s `useAttachments`. They're added as
+  image parts to the turn's last user message. Not an array of `{ fileId }` (non-empty string,
+  ≤ 64 chars), or more than 4, is rejected with a 400 before any API call; other keys on an
+  entry are dropped. Type, size and ownership are checked by the backend, which ignores images
+  unless the Agent has `imageInputEnabled`.
+- **Agents routes forward `imageInputEnabled`** on create.
+
 ## 0.19.0
 
 - **`@personaai/sdk` upgraded to `^0.18.0`.**

@@ -128,6 +128,61 @@ describe('POST /chat', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('forwards attachments as image parts on the last user message', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const runtime = makeRuntime({ fetchMock });
+
+    await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: {
+        agentId: 'agent-1',
+        messages: [{ role: 'user', content: 'what is this?' }],
+        // Extra keys are not forwarded.
+        attachments: [{ fileId: 'f1', url: 'https://evil.example/x.png' }],
+      },
+      userId: null,
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sentBody = JSON.parse(init.body as string);
+    expect(sentBody.messages).toEqual([
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'what is this?' },
+          { type: 'image', fileId: 'f1' },
+        ],
+      },
+    ]);
+  });
+
+  it('rejects malformed or too many attachments with 400 without calling the API', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const runtime = makeRuntime({ fetchMock });
+
+    for (const attachments of [
+      'f1',
+      [{ id: 'f1' }],
+      [{ fileId: '' }],
+      [null],
+      Array.from({ length: 5 }, (_, i) => ({ fileId: `f${i}` })),
+    ]) {
+      const response = await runtime.handle({
+        method: 'POST',
+        path: '/chat',
+        headers: {},
+        query: {},
+        body: { agentId: 'agent-1', messages: [{ role: 'user', content: 'hi' }], attachments },
+        userId: null,
+      });
+      expect(response.status).toBe(400);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('rejects a non-object context with 400 without calling the API', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
     const runtime = makeRuntime({ fetchMock });

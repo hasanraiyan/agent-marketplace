@@ -59,6 +59,8 @@ export const createAgent: RouteHandler = async (request, ctx) => {
       typeof body.sandboxEnabled === 'boolean' ? body.sandboxEnabled : undefined,
     frontendToolsEnabled:
       typeof body.frontendToolsEnabled === 'boolean' ? body.frontendToolsEnabled : undefined,
+    imageInputEnabled:
+      typeof body.imageInputEnabled === 'boolean' ? body.imageInputEnabled : undefined,
     visibility: body.visibility as CreateAgentInput['visibility'],
     category: body.category as AgentCategory | undefined,
     skills: Array.isArray(body.skills) ? (body.skills as string[]) : undefined,

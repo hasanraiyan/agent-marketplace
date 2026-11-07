@@ -1,4 +1,9 @@
-import type { ChatMessageInput, ChatResume, FrontendToolDefinition } from '@personaai/sdk';
+import type {
+  ChatAttachmentInput,
+  ChatMessageInput,
+  ChatResume,
+  FrontendToolDefinition,
+} from '@personaai/sdk';
 import type { RouteHandler } from '../routing.js';
 import { RuntimeHttpError } from '../errors.js';
 import { RunDriver } from '../runDriver.js';
@@ -14,6 +19,48 @@ interface ChatBody {
   contextOverride?: string;
   context?: Record<string, unknown>;
   tools?: FrontendToolDefinition[];
+  attachments?: ChatAttachmentInput[];
+}
+
+// Same cap as the backend (IMAGE_ATTACHMENT_LIMITS.maxImagesPerMessage) —
+// rejected here so an oversized request never reaches the API.
+const MAX_ATTACHMENTS = 4;
+
+/**
+ * Images for this turn (`@personaai/react`'s useAttachments): ids of files
+ * this same end user uploaded through `POST /files`. The backend checks
+ * ownership, type and size, and ignores them unless the Agent has
+ * `imageInputEnabled`.
+ */
+function parseAttachments(value: unknown): ChatAttachmentInput[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (a) =>
+        typeof a === 'object' &&
+        a !== null &&
+        typeof a.fileId === 'string' &&
+        a.fileId.length > 0 &&
+        a.fileId.length <= 64
+    )
+  ) {
+    throw new RuntimeHttpError(
+      400,
+      'INVALID_REQUEST',
+      '"attachments" must be an array of { fileId } objects.'
+    );
+  }
+  if (value.length > MAX_ATTACHMENTS) {
+    throw new RuntimeHttpError(
+      400,
+      'INVALID_REQUEST',
+      `At most ${MAX_ATTACHMENTS} attachments per message.`
+    );
+  }
+  return value.length > 0
+    ? value.map((a: { fileId: string }) => ({ fileId: a.fileId }))
+    : undefined;
 }
 
 /**
@@ -70,6 +117,7 @@ function parseChatBody(body: unknown): ChatBody {
     // object, or over the byte cap) rather than coercing/dropping it.
     context: validateTurnContext(b.context),
     tools: parseTools(b.tools),
+    attachments: parseAttachments(b.attachments),
   };
 }
 
@@ -115,6 +163,7 @@ export const chatRoute: RouteHandler = async (request, ctx) => {
     contextOverride: body.contextOverride,
     context: body.context,
     tools: body.tools,
+    attachments: body.attachments,
   });
 
   const runId = crypto.randomUUID();
