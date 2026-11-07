@@ -57,6 +57,8 @@ export const createAgent: RouteHandler = async (request, ctx) => {
       typeof body.webSearchEnabled === 'boolean' ? body.webSearchEnabled : undefined,
     sandboxEnabled:
       typeof body.sandboxEnabled === 'boolean' ? body.sandboxEnabled : undefined,
+    frontendToolsEnabled:
+      typeof body.frontendToolsEnabled === 'boolean' ? body.frontendToolsEnabled : undefined,
     visibility: body.visibility as CreateAgentInput['visibility'],
     category: body.category as AgentCategory | undefined,
     skills: Array.isArray(body.skills) ? (body.skills as string[]) : undefined,

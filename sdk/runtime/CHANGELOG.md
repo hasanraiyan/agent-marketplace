@@ -4,6 +4,14 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.18.0
+
+- **`@personaai/sdk` upgraded to `^0.17.0`.**
+- **`POST /agents` forwards `frontendToolsEnabled`** (behind `capabilities.agentsWrite`, like the
+  other agent fields), so a Project admin surface can create an Agent with frontend tools already
+  enabled. `PATCH /agents/:id` already passed the body through unchanged, so updates needed no change.
+- Additive only — no breaking changes.
+
 ## 0.17.0
 
 - **New: Bring-your-own-Twilio channel routes (`channels.twilio`).**
