@@ -3,6 +3,18 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.20.0
+
+- **Frontend tools in voice calls.** `voice.createSession(agentId, { tools })` takes the same
+  `FrontendToolDefinition[]` as `chat.stream()`. When the Agent has `frontendToolsEnabled`,
+  Gemini Live can call them during the call: a `voice_frontend_tool_call` message arrives on
+  the call's WebSocket, answered with `voice_frontend_tool_result` (a call the model drops is
+  announced with `voice_frontend_tool_cancelled`). `@personaai/react`'s `useVoice` handles this
+  for tools registered with `useFrontendTool`.
+  - `tools` is only sent when given — no change for existing callers. Invalid entries are dropped
+    server-side, same limits as chat (20 tools, 8 KB schema).
+  - Requires a Persona backend with voice frontend tools.
+
 ## 0.19.0
 
 - **Images on user messages.** `chat.stream()` / `chat.sendMessage()` take

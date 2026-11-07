@@ -1,4 +1,5 @@
 import type { HttpClient } from '../http.js';
+import type { FrontendToolDefinition } from '../types/chat.js';
 import type {
   CreateTelephonySessionOptions,
   TelephonySessionTicket,
@@ -47,11 +48,15 @@ export interface CreateVoiceSessionOptions {
    */
   context?: Record<string, unknown>;
   /**
-   * Browser-side client tool definitions (JSON schemas). If provided and the
-   * agent has frontend tools enabled, Gemini Live can invoke these tools in
-   * real time during the call via WebSocket message `voice_frontend_tool_call`.
+   * Frontend tools for this call — tools your app runs itself, same shape
+   * and limits as `chat.stream()`'s `tools` ({@link FrontendToolDefinition}).
+   * Used only when the Agent has `frontendToolsEnabled`; invalid entries are
+   * dropped server-side. During the call the model invokes one with a
+   * `voice_frontend_tool_call` message on the call's WebSocket; answer with
+   * `voice_frontend_tool_result` (`@personaai/react`'s `useVoice` does this
+   * for tools registered with `useFrontendTool`).
    */
-  tools?: unknown[];
+  tools?: FrontendToolDefinition[];
 }
 
 /**
