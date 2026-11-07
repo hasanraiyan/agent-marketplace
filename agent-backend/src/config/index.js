@@ -57,6 +57,9 @@ const config = {
     // discovery-trigger schedule only — the actual cleanup runs as a
     // durable Agenda job, not inside this cron tick itself.
     discoverExpiredDeletions: process.env.CRON_DISCOVER_EXPIRED_DELETIONS || '0 * * * *',
+    // Voice trace cleanup: expired recordings, stale temp files, and voice
+    // traces left `running` by a restart.
+    sweepVoiceTraces: process.env.CRON_SWEEP_VOICE_TRACES || '30 * * * *',
   },
   projects: {
     // Developer Platform (blueprint Phase 10, PR-52, AD-08 §28/§41): the
@@ -72,6 +75,20 @@ const config = {
     // subagent spans) for Project agents, shown on the platform's Traces page.
     enabled: process.env.TRACES_ENABLED !== 'false',
     retentionDays: parseInt(process.env.TRACE_RETENTION_DAYS, 10) || 30,
+    // Voice call recordings (one stereo WAV per traced call: user left,
+    // agent right). Off by default — it records end users' voices.
+    voiceAudio: {
+      enabled: process.env.TRACE_VOICE_AUDIO === 'true',
+      dir: process.env.TRACE_AUDIO_DIR || 'trace-audio',
+      maxMinutes: parseInt(process.env.TRACE_AUDIO_MAX_MINUTES, 10) || 15,
+    },
+    // Log every raw Gemini Live usageMetadata message (debug aid for
+    // checking whether counts are per-response or running totals).
+    debugVoiceUsage: process.env.TRACE_DEBUG_VOICE_USAGE === 'true',
+    // How Gemini Live usage messages are summed: 'auto' (per response, with
+    // running-total updates inside one turn detected), 'per_response', or
+    // 'cumulative' (each message is a session-wide running total).
+    voiceUsageMode: process.env.TRACE_VOICE_USAGE_MODE || 'auto',
   },
   ai: {
     openAiApiKey: process.env.OPENAI_API_KEY || null,

@@ -15,6 +15,7 @@ import voiceThreadService from '../voiceThread.service.js';
 import VoiceTranscriptSink from '../voiceTranscriptSink.js';
 import { VOICE_IMAGE_PROMPT_SECTION } from '../voiceImage.js';
 import { attachmentSubject } from '../../agui/userContent.js';
+import { traceService } from '../../traces/index.js';
 
 const logger = loggerService.getLogger();
 
@@ -222,14 +223,23 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
   // forward the picture to Gemini.
   const imageInputEnabled = agent.imageInputEnabled === true;
   if (imageInputEnabled) {
-    liveConfig.systemInstruction =
-      `${liveConfig.systemInstruction || ''}
+    liveConfig.systemInstruction = `${liveConfig.systemInstruction || ''}
 
 ${VOICE_IMAGE_PROMPT_SECTION}`.trim();
   }
 
+  // Built-in tracing (Project calls only; null when off). One trace per call.
+  const tracer = traceService.beginVoice({
+    claims,
+    agentName: agent.name,
+    model,
+    provider: provider.label,
+    voiceName,
+  });
+
   wss.handleUpgrade(req, socket, head, (clientWs) => {
     const session = new VoiceSession({
+      tracer,
       clientWs,
       claims,
       apiKey: provider.apiKey,

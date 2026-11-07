@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   CheckIcon,
   WarningCircleIcon,
@@ -72,7 +73,8 @@ function VoiceTab({
   agentId: string;
 }) {
   const voice = useVoiceSession({ projectId, agentId });
-  const { state, duration, isMuted, transcript, partial, toolCalls, error, endReason } = voice;
+  const { state, duration, isMuted, transcript, partial, toolCalls, error, endReason, traceId, recording } =
+    voice;
 
   const live = isLive(state);
   const [text, setText] = React.useState("");
@@ -164,6 +166,23 @@ function VoiceTab({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {/* Built-in tracing: this call's trace, and the recording notice */}
+      {traceId && (
+        <div className="flex items-center gap-2 border-b border-border px-4 py-1.5 text-[11px] text-muted-foreground">
+          {recording && (
+            <span className="flex items-center gap-1 text-destructive">
+              <span className="size-1.5 rounded-full bg-destructive" aria-hidden />
+              This call is recorded
+            </span>
+          )}
+          <Link
+            href={`/projects/${projectId}/traces/${traceId}`}
+            className="ml-auto text-blue-600 hover:underline dark:text-blue-400"
+          >
+            {live ? "View live trace" : "View trace of this call"}
+          </Link>
+        </div>
+      )}
       {/* Top status bar when transcript is visible and call is live */}
       {live && showTranscript && (
         <div className="flex flex-col border-b border-border bg-card/60 px-4 py-2.5 backdrop-blur-sm">

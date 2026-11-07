@@ -17,10 +17,79 @@ import { cn } from "@/lib/utils";
 export type TraceStatus = "running" | "success" | "error" | "interrupted" | "cancelled";
 export type SpanKind = "llm" | "tool" | "subagent" | "retriever" | "chain" | "interrupt" | "human";
 
+export interface UsageDetails {
+  input?: { audio?: number; text?: number; image?: number; video?: number };
+  output?: { audio?: number; text?: number };
+  toolUse?: number;
+  thoughts?: number;
+  cached?: number;
+  responses?: number;
+}
+
 export interface Usage {
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
+  /** Voice calls: Gemini Live tokens broken down by type. */
+  details?: UsageDetails;
+}
+
+export interface TraceAudio {
+  status: "recording" | "processing" | "ready" | "failed" | "none";
+  storageKey?: string;
+  mimeType?: string;
+  durationMs?: number;
+  bytes?: number;
+  sampleRate?: number;
+  channels?: { left: string; right: string };
+  truncated?: boolean;
+  error?: string;
+}
+
+export interface VoiceMeta {
+  voiceName?: string | null;
+  endReason?: string | null;
+  durationMs?: number;
+  turns?: number;
+  interruptions?: number;
+  reconnects?: number;
+  imagesSent?: number;
+  droppedAgentMs?: number;
+  latency?: { firstAudioP50Ms?: number | null; firstAudioP95Ms?: number | null };
+  telephony?: { callSid?: string | null; callerPhone?: string | null; channel?: string };
+}
+
+/** Where a voice step sits in the call recording (ms on the call timeline). */
+export interface AudioOffset {
+  startMs?: number | null;
+  endMs?: number | null;
+}
+
+export function isVoiceTrace(trace?: { metadata?: { voice?: unknown } | null } | null) {
+  return Boolean(trace?.metadata?.voice);
+}
+
+export function spanAudio(span: Span): AudioOffset | null {
+  const a = span.metadata?.audio as AudioOffset | undefined;
+  return a && typeof a.startMs === "number" ? a : null;
+}
+
+const END_REASON: Record<string, string> = {
+  agent_ended: "Agent ended",
+  client_closed: "Caller hung up",
+  idle: "Idle timeout",
+  max_duration: "Max duration",
+  upstream_error: "Gemini error",
+};
+
+export function endReasonLabel(reason?: string | null) {
+  return reason ? END_REASON[reason] ?? reason : "—";
+}
+
+export function formatClock(ms?: number | null) {
+  if (ms == null || Number.isNaN(ms)) return "—";
+  const total = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
 export interface TraceRow {
@@ -53,6 +122,9 @@ export interface TraceRow {
   resume?: ResumeSummary | null;
   resumedFromTraceId?: string | null;
   resumedByTraceId?: string | null;
+  /** Voice calls only. */
+  audio?: TraceAudio | null;
+  metadata?: { voice?: VoiceMeta } | null;
 }
 
 export interface Span {

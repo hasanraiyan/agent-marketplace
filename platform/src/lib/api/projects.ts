@@ -229,6 +229,10 @@ export const getProjectTraceStats = (projectId: string, params?: unknown) =>
   api.get(`/projects/${projectId}/traces/stats`, { params });
 export const getProjectTrace = (projectId: string, traceId: string) =>
   api.get(`/projects/${projectId}/traces/${traceId}`);
+// A voice call's recording (stereo WAV: user left, agent right). Fetched
+// with the Clerk token as a Blob — a plain <audio src> can't send it.
+export const getProjectTraceAudio = (projectId: string, traceId: string) =>
+  api.get<Blob>(`/projects/${projectId}/traces/${traceId}/audio`, { responseType: "blob" });
 
 // REST API Tool Builder — no single-item GET route.
 export const getProjectRestTools = (projectId: string) =>

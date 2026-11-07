@@ -626,6 +626,10 @@ adminRouter.get('/audit-logs', projectController.listAuditLogs);
  *       - name: source
  *         in: query
  *         schema: { type: string, enum: [playground, api, architect] }
+ *       - name: channel
+ *         in: query
+ *         description: Turn channel, e.g. web or voice (voice = Gemini Live calls).
+ *         schema: { type: string }
  *       - name: from
  *         in: query
  *         schema: { type: string, format: date-time }
@@ -661,7 +665,7 @@ adminRouter.get('/traces', traceController.list);
  *         in: query
  *         schema: { type: string }
  *     responses:
- *       200: { description: "{ days, totals, byDay[], byAgent[], tools[] }" }
+ *       200: { description: "{ days, totals, byDay[], byAgent[], byChannel[], voice: { calls, callMinutes, recordedMinutes, totalTokens, interruptions, tokensByType }, tools[] }" }
  *       400: { description: days out of range }
  *       401: { description: Unauthorized }
  *       403: { description: Not an Admin of this Project }
@@ -691,6 +695,44 @@ adminRouter.get('/traces/stats', traceController.stats);
  *       404: { description: Trace not found }
  */
 adminRouter.get('/traces/:traceId', traceController.get);
+
+/**
+ * @openapi
+ * /api/v1/projects/{projectId}/traces/{traceId}/audio:
+ *   get:
+ *     tags: [Projects]
+ *     summary: Stream a voice call's recording
+ *     description: >
+ *       Stereo WAV (user on the left channel, agent on the right) of a traced
+ *       voice call. Supports HTTP Range requests (206) for seeking. Recorded
+ *       only when TRACE_VOICE_AUDIO=true.
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - name: projectId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: traceId
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *       - name: Range
+ *         in: header
+ *         schema: { type: string, example: "bytes=0-" }
+ *     responses:
+ *       200:
+ *         description: The whole recording
+ *         content:
+ *           audio/wav:
+ *             schema: { type: string, format: binary }
+ *       206: { description: The requested byte range }
+ *       401: { description: Unauthorized }
+ *       403: { description: Not an Admin of this Project }
+ *       404: { description: Trace not found, or it has no recording }
+ *       409: { description: The recording is still being recorded or processed }
+ *       416: { description: Range not satisfiable }
+ */
+adminRouter.get('/traces/:traceId/audio', traceController.audio);
 
 /**
  * Full create/edit/delete for a Project's own Skills/Knowledge/MCP/

@@ -27,8 +27,16 @@ export default function TraceDetailPage() {
           const data = res.data?.data;
           setTrace(data?.trace ?? null);
           setSpans(data?.spans ?? []);
-          // Steps are written when a run ends — poll while it's still going.
-          if (data?.trace?.status === "running") timer = setTimeout(load, 3000);
+          // Steps are written as a run goes — poll while it's still going,
+          // and while a voice call's recording is still being prepared.
+          const audioStatus = data?.trace?.audio?.status;
+          if (
+            data?.trace?.status === "running" ||
+            audioStatus === "recording" ||
+            audioStatus === "processing"
+          ) {
+            timer = setTimeout(load, 3000);
+          }
         })
         .catch((err) => {
           if (!cancelled) setError(errorMessage(err, "Failed to load trace."));
@@ -71,5 +79,5 @@ export default function TraceDetailPage() {
     );
   }
 
-  return <TraceView trace={trace} spans={spans} backHref={backHref} />;
+  return <TraceView trace={trace} spans={spans} backHref={backHref} projectId={projectId} />;
 }

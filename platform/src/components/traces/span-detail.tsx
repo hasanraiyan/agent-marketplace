@@ -1,7 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { CaretDownIcon, CaretRightIcon, TreeStructureIcon, WarningCircleIcon } from "@phosphor-icons/react";
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  PlayIcon,
+  TreeStructureIcon,
+  WarningCircleIcon,
+} from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,11 +15,16 @@ import { JsonTreeView } from "@/components/chat/tool-cards/json-tree-view";
 import { CopyButton } from "@/components/chat/copy-button";
 import { IconTile, PayloadView } from "@/components/traces/message-cards";
 import { InterruptView, ResumeView } from "@/components/traces/hitl-view";
+import { BargeInView, VoiceTokenBreakdown } from "@/components/traces/voice-view";
+import { Button } from "@/components/ui/button";
 import {
   StatusBadge,
+  formatClock,
   formatDuration,
   formatTokens,
   kindMeta,
+  spanAudio,
+  type AudioOffset,
   type InterruptKind,
   type InterruptSummary,
   type ResumeSummary,
@@ -118,11 +129,23 @@ function interruptFromSpan(span: Span): InterruptSummary {
     : { kind, actions: list as InterruptSummary["actions"] };
 }
 
-export function SpanDetail({ span }: { span: Span }) {
+export function SpanDetail({
+  span,
+  onPlay,
+}: {
+  span: Span;
+  /** Voice traces: play this step's part of the call recording. */
+  onPlay?: (offset: AudioOffset) => void;
+}) {
   const meta = kindMeta(span.kind);
   const md = span.metadata ?? {};
+  const isVoice = Boolean(md.voice);
+  const isBargeIn = isVoice && span.kind === "interrupt";
+  const audio = spanAudio(span);
   const tools = Array.isArray(md.tools) ? (md.tools as string[]) : null;
-  const extra = Object.fromEntries(Object.entries(md).filter(([k]) => !["tools", "root"].includes(k)));
+  const extra = Object.fromEntries(
+    Object.entries(md).filter(([k]) => !["tools", "root", "voice"].includes(k))
+  );
   const argsStyle = span.kind === "tool" || span.kind === "subagent";
   const output = span.kind === "chain" ? newOutputMessages(span.input, span.output) : span.output;
 
@@ -135,11 +158,34 @@ export function SpanDetail({ span }: { span: Span }) {
           ID
           <CopyButton text={span.spanId} label="Copy span ID" />
         </span>
+        {md.partial === true && (
+          <Badge variant="outline" className="shrink-0 border-amber-500/40 text-amber-700 dark:text-amber-400">
+            cut off
+          </Badge>
+        )}
+        {md.cancelled === true && (
+          <Badge variant="outline" className="shrink-0">
+            cancelled
+          </Badge>
+        )}
         <StatusBadge
-          status={span.kind === "interrupt" ? "interrupted" : span.status}
+          status={span.kind === "interrupt" && !isVoice ? "interrupted" : span.status}
           className="ml-auto shrink-0"
         />
       </div>
+
+      {audio && onPlay && (
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => onPlay(audio)}>
+            <PlayIcon weight="fill" />
+            Play this part
+          </Button>
+          <span className="font-mono text-xs text-muted-foreground">
+            {formatClock(audio.startMs)}
+            {typeof audio.endMs === "number" ? ` – ${formatClock(audio.endMs)}` : ""}
+          </span>
+        </div>
+      )}
 
       {span.error && (
         <div className="flex gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
@@ -157,7 +203,18 @@ export function SpanDetail({ span }: { span: Span }) {
         </TabsList>
 
         <TabsContent value="run" className="flex flex-col gap-6">
-          {span.kind === "interrupt" ? (
+          {isVoice && span.usage?.details && (
+            <Collapsible title={`Tokens · ${formatTokens(span.usage.totalTokens)}`}>
+              <VoiceTokenBreakdown details={span.usage.details} />
+            </Collapsible>
+          )}
+          {isBargeIn ? (
+            <BargeInView droppedAgentMs={typeof md.droppedAgentMs === "number" ? md.droppedAgentMs : undefined} />
+          ) : isVoice && span.kind === "human" ? (
+            <Collapsible title={span.name}>
+              <PayloadView value={span.output} />
+            </Collapsible>
+          ) : span.kind === "interrupt" ? (
             <Collapsible title="Waiting for">
               <InterruptView interrupt={interruptFromSpan(span)} />
             </Collapsible>
@@ -198,7 +255,10 @@ export function SpanDetail({ span }: { span: Span }) {
             {span.endedAt && <Attr label="End" value={new Date(span.endedAt).toLocaleString()} />}
             {span.kind === "llm" && (
               <>
-                <Attr label="Time to first token" value={formatDuration(span.timeToFirstTokenMs)} />
+                <Attr
+                  label={isVoice ? "Time to first audio" : "Time to first token"}
+                  value={formatDuration(span.timeToFirstTokenMs)}
+                />
                 <Attr label="Model" value={span.model || "—"} />
                 <Attr label="Provider" value={span.provider || "—"} />
                 <Attr label="Input tokens" value={formatTokens(span.usage?.inputTokens)} />

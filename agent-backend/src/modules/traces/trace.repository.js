@@ -32,6 +32,9 @@ const LIST_PROJECTION = {
   'resume.summary': 1,
   resumedFromTraceId: 1,
   resumedByTraceId: 1,
+  'audio.status': 1,
+  'audio.durationMs': 1,
+  'metadata.voice': 1,
 };
 
 class TraceRepository {
@@ -76,6 +79,26 @@ class TraceRepository {
 
   async findLatest(filter) {
     return await Trace.findOne(filter).sort({ startedAt: -1 }).select({ _id: 1 }).lean();
+  }
+
+  async findAudioMeta(filter) {
+    return await Trace.findOne(filter).select({ _id: 1, domain: 1, audio: 1 }).lean();
+  }
+
+  async exists(id) {
+    return Boolean(await Trace.exists({ _id: id }));
+  }
+
+  /** Voice traces still `running` long after any call could have ended (crash). */
+  async findStaleVoiceRunning(startedBefore) {
+    return await Trace.find({
+      status: 'running',
+      'metadata.voice': { $exists: true },
+      startedAt: { $lt: startedBefore },
+    })
+      .select({ _id: 1, audio: 1 })
+      .limit(500)
+      .lean();
   }
 
   async findSpans(traceId) {

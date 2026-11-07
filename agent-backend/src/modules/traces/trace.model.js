@@ -24,6 +24,8 @@ const usageSchema = new mongoose.Schema(
     inputTokens: { type: Number, default: 0 },
     outputTokens: { type: Number, default: 0 },
     totalTokens: { type: Number, default: 0 },
+    // Voice calls: Gemini Live token breakdown by type (VoiceUsageMeter).
+    details: { type: mongoose.Schema.Types.Mixed, default: undefined },
   },
   { _id: false }
 );
@@ -72,6 +74,13 @@ const traceSchema = new mongoose.Schema(
     resumedByTraceId: { type: String, default: null },
     // True when the run produced more spans than the per-trace cap.
     truncated: { type: Boolean, default: false },
+    // Voice calls: the call recording (traceAudioStore) —
+    // { status: 'recording'|'processing'|'ready'|'failed'|'none', storageKey,
+    //   mimeType, durationMs, bytes, sampleRate, channels, truncated, error }.
+    audio: { type: mongoose.Schema.Types.Mixed, default: null },
+    // Channel-specific extras, e.g. `metadata.voice` (end reason, turns,
+    // interruptions, reconnects, latency, masked telephony info).
+    metadata: { type: mongoose.Schema.Types.Mixed, default: null },
     createdAt: { type: Date, default: Date.now },
   },
   { timestamps: false }

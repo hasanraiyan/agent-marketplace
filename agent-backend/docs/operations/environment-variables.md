@@ -63,7 +63,13 @@ All environment variables are loaded in `src/config/index.js` using `dotenv`. Va
 | `LANGSMITH_PROJECT`  | No       | `persona-ai-backend`              | LangSmith project name        |
 | `LANGSMITH_ENDPOINT` | No       | `https://api.smith.langchain.com` | LangSmith endpoint            |
 | `TRACES_ENABLED`       | No | `true` | Built-in run tracing for Developer Platform Project agents (Traces page). Set `false` to stop recording. |
-| `TRACE_RETENTION_DAYS` | No | `30`   | Days a recorded trace (and its spans) is kept before MongoDB's TTL index deletes it. Changing it later requires dropping the existing `createdAt_1` TTL index on `traces` and `tracespans` (or running `collMod`). |
+| `TRACE_RETENTION_DAYS` | No | `30`   | Days a recorded trace (and its spans) is kept before MongoDB's TTL index deletes it. Changing it later requires dropping the existing `createdAt_1` TTL index on `traces` and `tracespans` (or running `collMod`). Voice recordings older than this are deleted by the `sweepVoiceTraces` cron. |
+| `TRACE_VOICE_AUDIO` | No | `false` | Record traced Gemini Live voice calls as a stereo WAV (user left, agent right; ~3.75 MB/min). Records end users' voices — tell your users. |
+| `TRACE_AUDIO_DIR` | No | `trace-audio` | Folder for voice recordings (local disk; needs a persistent volume in production). |
+| `TRACE_AUDIO_MAX_MINUTES` | No | `15` | Recording stops past this call length. |
+| `TRACE_VOICE_USAGE_MODE` | No | `auto` | How Gemini Live `usageMetadata` messages are summed: `auto`, `per_response`, or `cumulative`. |
+| `TRACE_DEBUG_VOICE_USAGE` | No | `false` | Log every raw Gemini Live `usageMetadata` message (to confirm the usage mode). |
+| `CRON_SWEEP_VOICE_TRACES` | No | `30 * * * *` | Schedule of the voice recording / stale-trace cleanup job. |
 
 > **Note:** LangSmith tracing is currently disabled due to a bug where subagent callbacks fire twice through `streamEvents`.
 

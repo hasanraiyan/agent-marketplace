@@ -75,8 +75,61 @@ as an error. Helpers live in `traceInterrupts.js`; `agui.service.js` passes `{ p
 of the resume and the translator's `onInterrupt` info. The platform shows a banner linking the
 two runs and a **View thread** link (`?threadId=` on the list) for the whole conversation.
 
-Not yet traced: workflow runs (they have their own run viewer) and Gemini Live voice sessions
-(`VoiceSession.js` calls tools outside LangChain callbacks).
+Not yet traced: workflow runs (they have their own run viewer).
+
+## Voice calls
+
+Gemini Live calls (`voice/gateway/VoiceSession.js`) run no LangGraph graph, so `TraceRecorder`
+can't see them. Instead each gateway (`voice/gateway/voiceGateway.js` for browser / SDK / Studio
+calls, `twilio/twilioGateway.js` for phone calls) calls `traceService.beginVoice()` and injects
+the returned `VoiceCallTracer` into `VoiceSession` as `tracer`. **One trace per call**,
+`channel: 'voice'` (or the telephony channel), `metadata.voice` set.
+
+```
+Turn N                chain   (RUN_STARTED → RUN_FINISHED), usage = this turn's tokens
+├─ User / User (typed) / User (image)   human   final transcript only
+├─ <tool>             tool    server / browser (metadata.frontend) / end_call (metadata.synthetic)
+│   └─ …              nested LLM / retriever steps (a TraceRecorder passed to tool.invoke)
+├─ User interrupted   interrupt  barge-in (metadata.bargeIn, droppedAgentMs)
+└─ Agent              llm     transcript, timeToFirstTokenMs = time to first audio, usage
+Reconnected to Gemini chain   goAway / session resumption (same trace continues)
+```
+
+Every `VoiceSession` hook goes through `_trace()`, which swallows errors — tracing can never
+break or delay the audio. Writes are fire-and-forget on one promise chain: the trace row is
+created at call start (`running`), closed steps + running totals are flushed every 3 turns /
+15 s (the trace page polls while running), and `end()` writes the final status:
+`agent_ended` / `client_closed` → `success`, `upstream_error` → `error`, `idle` /
+`max_duration` → `cancelled`. Phone traces store `metadata.voice.telephony.callerPhone`
+**masked** (`+91•••••4321`); the full number is never stored.
+
+**Tokens** (`VoiceUsageMeter.js`). Gemini Live sends `usageMetadata` on many messages and
+re-processes the whole context on each response, so the call's usage is the **sum** over
+messages (the old `voice_session_ended.usage` reported only the last one; it now reports the
+sum, same shape plus `totalTokens`). `usage.details` breaks it down: input audio / text / image /
+video, output audio / text, tool use, thoughts, cached. `TRACE_VOICE_USAGE_MODE` picks how
+messages are summed: `auto` (default — per response, a same-turn restatement counts only its
+growth), `per_response`, or `cumulative`. `TRACE_DEBUG_VOICE_USAGE=true` logs every raw message
+so the right mode can be confirmed on a real call.
+
+**Recording** (`TRACE_VOICE_AUDIO=true`, off by default — it records end users' voices).
+`VoiceAudioRecorder.js` writes two raw PCM tracks to temp files while the call runs: the mic as
+sent to Gemini (16 kHz, placed at arrival time, gaps > 200 ms padded with silence) and the agent
+as received (24 kHz, placed on a playback cursor, since Gemini sends audio faster than real
+time). On barge-in the agent audio the listener never heard is dropped, matching the client's
+playback flush. After the call `traceAudioMix.js` mixes one **stereo 16 kHz WAV** (user left,
+agent right; ~3.75 MB/min) in 1-second blocks, and `trace.audio` goes `recording → processing →
+ready` (or `failed` — the trace itself is unaffected). User / agent / turn spans carry
+`metadata.audio: { startMs, endMs }` offsets into it. A `voice_recording { enabled: true }`
+CUSTOM event at setup lets a client show a recording notice; Studio (ProjectAdmin) clients also
+get `trace_started { traceId }` for a "View trace" link.
+
+Storage is local disk (`traceAudioStore.js`, folder `TRACE_AUDIO_DIR`, default
+`./trace-audio`, gitignored) — it needs a persistent volume in production. All access goes through
+that module, so an S3/R2 backend can be added later without touching anything else. MongoDB's
+TTL removes trace documents but not files, so the hourly `sweepVoiceTraces` cron deletes
+recordings past `TRACE_RETENTION_DAYS` or whose trace is gone, temp files older than a day, and
+marks voice traces left `running` by a restart as `cancelled`.
 
 ## API
 
@@ -84,9 +137,10 @@ All routes are Project-Admin (Clerk + `projectAdminAuthMiddleware`), read-only:
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/v1/projects/{projectId}/traces` | Paginated runs. Filters: `agentId`, `threadId`, `status`, `source`, `from`, `to`; `limit` ≤ 100 |
-| GET | `/api/v1/projects/{projectId}/traces/stats` | `days` (1–90, default 7), `agentId` → totals (incl. p50/p95 latency), `byDay`, `byAgent`, `tools` |
+| GET | `/api/v1/projects/{projectId}/traces` | Paginated runs. Filters: `agentId`, `threadId`, `status`, `source`, `channel`, `from`, `to`; `limit` ≤ 100 |
+| GET | `/api/v1/projects/{projectId}/traces/stats` | `days` (1–90, default 7), `agentId` → totals (incl. p50/p95 latency), `byDay`, `byAgent`, `byChannel`, `voice` (calls, minutes, tokens by type), `tools` |
 | GET | `/api/v1/projects/{projectId}/traces/{traceId}` | `{ trace, spans }` |
+| GET | `/api/v1/projects/{projectId}/traces/{traceId}/audio` | Voice call recording (`audio/wav`), HTTP Range / 206 for seeking; 404 no recording, 409 still recording / processing |
 
 ## Files
 
@@ -99,15 +153,32 @@ All routes are Project-Admin (Clerk + `projectAdminAuthMiddleware`), read-only:
 | `trace.repository.js` | DB access |
 | `trace.service.js` | `begin()` write path; `list` / `get` / `stats` |
 | `trace.controller.js` | HTTP handlers (routes live in `projects/project.routes.js`) |
+| `VoiceCallTracer.js` | The voice `tracer` a VoiceSession talks to; background writes |
+| `VoiceTraceRecorder.js` | Voice call → in-memory turn / step tree |
+| `VoiceUsageMeter.js` | Sums Gemini Live `usageMetadata`, breakdown by type |
+| `VoiceAudioRecorder.js` | Two synced PCM tracks → temp files |
+| `traceAudioMix.js` | Temp tracks → stereo WAV |
+| `traceAudioStore.js` | Where recordings live (local disk; S3 later) |
+| `cron/sweepVoiceTraces.js` | Hourly recording / stale-trace cleanup |
 
 ## Configuration
 
 | Variable | Default | |
 | --- | --- | --- |
 | `TRACES_ENABLED` | `true` | `false` stops recording |
-| `TRACE_RETENTION_DAYS` | `30` | TTL for traces and spans. Changing it later requires dropping the existing `createdAt_1` TTL index on `traces` and `tracespans` (or `collMod`) — Mongoose won't alter an existing index |
+| `TRACE_RETENTION_DAYS` | `30` | TTL for traces and spans. Changing it later requires dropping the existing `createdAt_1` TTL index on `traces` and `tracespans` (or `collMod`) — Mongoose won't alter an existing index. Also the age limit for voice recordings |
+| `TRACE_VOICE_AUDIO` | `false` | Record traced voice calls (stereo WAV) |
+| `TRACE_AUDIO_DIR` | `trace-audio` | Recording folder (relative to the backend's working directory) |
+| `TRACE_AUDIO_MAX_MINUTES` | `15` | Stop recording past this length (`audio.truncated`) |
+| `TRACE_VOICE_USAGE_MODE` | `auto` | `auto` / `per_response` / `cumulative` — how Gemini usage messages are summed |
+| `TRACE_DEBUG_VOICE_USAGE` | `false` | Log every raw Gemini `usageMetadata` message |
+| `CRON_SWEEP_VOICE_TRACES` | `30 * * * *` | Schedule of the voice cleanup job |
 
 ## Tests
 
 `tests/traceRecorder.test.js`, `tests/traceSerializer.test.js`, `tests/traceService.test.js`,
-`tests/traceController.test.js`, `tests/traceInterrupts.test.js`.
+`tests/traceController.test.js`, `tests/traceInterrupts.test.js`; voice:
+`tests/voiceUsageMeter.test.js`, `tests/voiceTraceRecorder.test.js`,
+`tests/voiceAudioRecorder.test.js`, `tests/voiceCallTracer.test.js`,
+`tests/voiceSessionTracing.test.js`, `tests/traceServiceVoice.test.js`,
+`tests/traceAudio.test.js`, `tests/traceAudioStore.test.js`.

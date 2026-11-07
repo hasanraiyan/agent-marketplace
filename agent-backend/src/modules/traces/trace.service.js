@@ -2,6 +2,7 @@ import config from '../../config/index.js';
 import { loggerService } from '../../utils/index.js';
 import NotFoundError from '../../utils/errors/NotFoundError.js';
 import ValidationError from '../../utils/errors/ValidationError.js';
+import BaseError from '../../utils/errors/BaseError.js';
 import { PERSONA_DOMAIN } from '../auth/personaPrincipalContext.js';
 import { PROJECT_ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
 import traceRepository from './trace.repository.js';
@@ -9,6 +10,8 @@ import { TRACE_STATUS } from './trace.model.js';
 import { TraceRecorder } from './TraceRecorder.js';
 import { SPAN_KIND } from './traceSpan.model.js';
 import { summarizeInterrupt, summarizeResume } from './traceInterrupts.js';
+import { VoiceCallTracer } from './VoiceCallTracer.js';
+import traceAudioStore from './traceAudioStore.js';
 
 const logger = loggerService.getLogger();
 
@@ -33,6 +36,38 @@ function endUserFor(executionContext) {
   return null;
 }
 
+/** '+919876544321' → '+91•••••4321'. The full number is never stored. */
+export function maskPhone(phone) {
+  if (!phone || typeof phone !== 'string') return null;
+  const digits = phone.replace(/[^\d]/g, '');
+  if (digits.length <= 4) return '••••';
+  const plus = phone.trim().startsWith('+') ? '+' : '';
+  const cc = plus && digits.length > 10 ? digits.slice(0, digits.length - 10) : '';
+  return `${plus}${cc}•••••${digits.slice(-4)}`;
+}
+
+// A voice call lasts at most 15 min; anything still running well past that
+// was cut off by a crash / restart.
+const STALE_VOICE_TRACE_MS = 20 * 60 * 1000;
+
+function voiceStats(v) {
+  const tokensByType = {
+    inAudio: v?.inAudio || 0,
+    inText: v?.inText || 0,
+    inImage: v?.inImage || 0,
+    outAudio: v?.outAudio || 0,
+    outText: v?.outText || 0,
+  };
+  return {
+    calls: v?.calls || 0,
+    callMinutes: Math.round(((v?.callMs || 0) / 60000) * 10) / 10,
+    recordedMinutes: Math.round(((v?.recordedMs || 0) / 60000) * 10) / 10,
+    totalTokens: v?.totalTokens || 0,
+    interruptions: v?.interruptions || 0,
+    tokensByType,
+  };
+}
+
 function buildFilter(domain, filters = {}) {
   const filter = { domain: String(domain) };
   if (filters.agentId) filter.agentId = String(filters.agentId);
@@ -41,6 +76,7 @@ function buildFilter(domain, filters = {}) {
     filter.status = filters.status;
   }
   if (filters.source) filter.source = String(filters.source);
+  if (filters.channel) filter.channel = String(filters.channel);
   const from = filters.from ? new Date(filters.from) : null;
   const to = filters.to ? new Date(filters.to) : null;
   if ((from && !Number.isNaN(from.getTime())) || (to && !Number.isNaN(to.getTime()))) {
@@ -220,6 +256,110 @@ class TraceService {
     return { traceId: String(traceId), recorder, finish };
   }
 
+  /**
+   * Starts tracing one Gemini Live voice call (browser, SDK or Twilio).
+   * Returns the `tracer` to inject into VoiceSession, or null when the call
+   * is not traced (tracing off / Persona domain). VoiceSession calls
+   * `tracer.start()` when it starts and `tracer.end({ reason })` on close.
+   *
+   * @param {object} p
+   * @param {object} p.claims     voice ticket claims (domain, agentId, principalType, subjectId, threadId)
+   * @param {{callSid?: string, from?: string, channel?: string}} [p.telephony]
+   * @returns {null | VoiceCallTracer}
+   */
+  beginVoice({ claims, agentName, model, provider, voiceName, channel, telephony } = {}) {
+    try {
+      if (!claims || !this.isEnabledFor({ domain: claims.domain })) return null;
+      const traceId = String(traceRepository.newId());
+      const audioCfg = config.traces.voiceAudio || {};
+      return new VoiceCallTracer({
+        traceId,
+        repository: traceRepository,
+        store: audioCfg.enabled ? traceAudioStore : null,
+        maxAudioMinutes: audioCfg.maxMinutes || 15,
+        usageMode: config.traces.voiceUsageMode,
+        debugUsage: Boolean(config.traces.debugVoiceUsage),
+        base: {
+          domain: String(claims.domain),
+          agentId: String(claims.agentId),
+          agentName: agentName || null,
+          threadId: claims.threadId ? String(claims.threadId) : null,
+          source: claims.principalType === 'ProjectAdmin' ? 'playground' : 'api',
+          channel: channel || 'voice',
+          endUserId: claims.subjectId ? String(claims.subjectId) : null,
+          model: model || null,
+          provider: provider || null,
+        },
+        metadata: {
+          voiceName: voiceName || null,
+          ...(telephony
+            ? {
+                telephony: {
+                  callSid: telephony.callSid || null,
+                  callerPhone: maskPhone(telephony.from),
+                  channel: telephony.channel || 'voice',
+                },
+              }
+            : {}),
+        },
+      });
+    } catch (err) {
+      logger.warn('[Traces] failed to begin voice trace', { err: err?.message });
+      return null;
+    }
+  }
+
+  /**
+   * The call recording of a voice trace, for streaming.
+   * @returns {Promise<{key: string, size: number, mimeType: string}>}
+   */
+  async getAudio(domain, traceId) {
+    if (!traceRepository.isValidId(traceId)) throw new NotFoundError('Trace not found', 'Trace');
+    const trace = await traceRepository.findAudioMeta({ _id: traceId, domain: String(domain) });
+    if (!trace) throw new NotFoundError('Trace not found', 'Trace');
+    const audio = trace.audio;
+    if (audio?.status === 'recording' || audio?.status === 'processing') {
+      throw new BaseError('The recording is not ready yet', 409, 'AUDIO_NOT_READY');
+    }
+    if (audio?.status !== 'ready' || !audio.storageKey) {
+      throw new NotFoundError('This trace has no recording', 'TraceAudio');
+    }
+    const stat = await traceAudioStore.stat(audio.storageKey);
+    if (!stat) throw new NotFoundError('The recording file is gone', 'TraceAudio');
+    return { key: audio.storageKey, size: stat.size, mimeType: audio.mimeType || 'audio/wav' };
+  }
+
+  openAudioStream(key, range) {
+    return traceAudioStore.createReadStream(key, range);
+  }
+
+  /**
+   * Daily cleanup: recordings past retention or without a trace, stale temp
+   * files, and voice traces left `running` by a crash or restart.
+   */
+  async sweepVoice() {
+    const stale = await traceRepository.findStaleVoiceRunning(
+      new Date(Date.now() - STALE_VOICE_TRACE_MS)
+    );
+    for (const t of stale) {
+      await traceRepository
+        .update(t._id, {
+          status: TRACE_STATUS.CANCELLED,
+          error: 'Call ended unexpectedly (server restart)',
+          ...(t.audio
+            ? { audio: { status: 'failed', error: 'Server restarted during the call' } }
+            : {}),
+        })
+        .catch(() => {});
+      await traceAudioStore.removeTemp(t._id).catch(() => {});
+    }
+    const { deleted } = await traceAudioStore.sweep({
+      olderThanMs: config.traces.retentionDays * 24 * 60 * 60 * 1000,
+      isKnown: (id) => traceRepository.exists(id),
+    });
+    return { staleTraces: stale.length, deletedFiles: deleted };
+  }
+
   async list(domain, filters, { page = 1, limit = 20 } = {}) {
     const filter = buildFilter(domain, filters);
     const [items, total] = await Promise.all([
@@ -292,6 +432,35 @@ class TraceService {
             { $sort: { runs: -1 } },
             { $limit: 25 },
           ],
+          byChannel: [
+            {
+              $group: {
+                _id: { $ifNull: ['$channel', 'web'] },
+                runs: { $sum: 1 },
+                errors: { $sum: isError },
+                totalTokens: { $sum: '$usage.totalTokens' },
+              },
+            },
+            { $sort: { runs: -1 } },
+          ],
+          voice: [
+            { $match: { 'metadata.voice': { $exists: true } } },
+            {
+              $group: {
+                _id: null,
+                calls: { $sum: 1 },
+                callMs: { $sum: { $ifNull: ['$durationMs', 0] } },
+                recordedMs: { $sum: { $ifNull: ['$audio.durationMs', 0] } },
+                inAudio: { $sum: { $ifNull: ['$usage.details.input.audio', 0] } },
+                inText: { $sum: { $ifNull: ['$usage.details.input.text', 0] } },
+                inImage: { $sum: { $ifNull: ['$usage.details.input.image', 0] } },
+                outAudio: { $sum: { $ifNull: ['$usage.details.output.audio', 0] } },
+                outText: { $sum: { $ifNull: ['$usage.details.output.text', 0] } },
+                totalTokens: { $sum: '$usage.totalTokens' },
+                interruptions: { $sum: { $ifNull: ['$metadata.voice.interruptions', 0] } },
+              },
+            },
+          ],
           durations: [
             { $match: { durationMs: { $ne: null } } },
             { $sort: { durationMs: 1 } },
@@ -360,6 +529,8 @@ class TraceService {
       },
       byDay,
       byAgent: (facets?.byAgent || []).map(({ _id, ...rest }) => ({ agentId: _id, ...rest })),
+      byChannel: (facets?.byChannel || []).map(({ _id, ...rest }) => ({ channel: _id, ...rest })),
+      voice: voiceStats(facets?.voice?.[0]),
       tools: tools.map(({ _id, ...rest }) => ({ name: _id, ...rest })),
     };
   }

@@ -11,6 +11,8 @@ import {
   resolveVoiceImage,
 } from '../voiceImage.js';
 import fileService from '../../files/file.service.js';
+import { VoiceUsageMeter } from '../../traces/VoiceUsageMeter.js';
+import config from '../../../config/index.js';
 import {
   INPUT_MIME_TYPE,
   INPUT_SAMPLE_RATE,
@@ -96,8 +98,14 @@ export class VoiceSession {
     onTranscriptCommit,
     initialContext,
     imageInput,
+    tracer,
   }) {
     this.clientWs = clientWs;
+    // Built-in tracing (traces/VoiceCallTracer.js), injected by the gateway
+    // for Project calls. Every call goes through _trace(), which swallows
+    // errors — tracing and recording can never affect the live audio.
+    this.tracer = tracer || null;
+    this.traceAnnounced = false;
     this.claims = claims;
     this.apiKey = apiKey;
     this.model = model;
@@ -164,6 +172,10 @@ export class VoiceSession {
     this.pendingAgentText = null;
     this.pendingAgentFragments = 0;
     this.lastUsage = null;
+    // Sums every usageMetadata message for voice_session_ended — Live
+    // re-processes the whole context on each response, so the last message
+    // alone undercounts the call.
+    this.usageMeter = new VoiceUsageMeter({ mode: config.traces?.voiceUsageMode });
     // Set once the model calls end_call. Checked at the NEXT turnComplete
     // rather than acted on immediately, so a goodbye the model says after
     // calling the tool still gets fully sent before the session closes.
@@ -179,9 +191,22 @@ export class VoiceSession {
     this.goAwayTimer = null;
   }
 
+  /** Runs one tracer call; any error is logged and dropped. */
+  _trace(fn) {
+    const tracer = this.tracer;
+    if (!tracer) return undefined;
+    try {
+      return fn(tracer);
+    } catch (err) {
+      logger.debug('[Voice] tracer error ignored', { err: err?.message });
+      return undefined;
+    }
+  }
+
   async start() {
     this.startedAt = Date.now();
     this.lastClientAudioAt = this.startedAt;
+    this._trace((t) => t.start());
 
     this.clientWs.on('message', (data, isBinary) => this._handleClientMessage(data, isBinary));
     this.clientWs.on('close', () => this._closeSession(CLOSE_REASON.CLIENT_CLOSED));
@@ -291,6 +316,7 @@ export class VoiceSession {
         return;
       }
       await this._connectUpstream(this.resumptionHandle);
+      this._trace((t) => t.reconnected());
       this._sendCustom('voice_session_resumed', { handle: this.resumptionHandle });
       logger.info('[Voice] transparently reconnected upstream', {
         domain: this.claims.domain,
@@ -301,6 +327,23 @@ export class VoiceSession {
       this._closeSession(CLOSE_REASON.UPSTREAM_ERROR);
     } finally {
       this.reconnecting = false;
+    }
+  }
+
+  /**
+   * Once per call, after the first setupComplete: tells a Studio (Project
+   * Admin) client which trace this call writes to, and every client whether
+   * the call is being recorded (so an app can show a recording notice).
+   */
+  _announceTrace() {
+    if (this.traceAnnounced || !this.tracer) return;
+    this.traceAnnounced = true;
+    const traceId = this._trace((t) => t.traceId);
+    if (traceId && this.claims.principalType === 'ProjectAdmin') {
+      this._sendCustom('trace_started', { traceId });
+    }
+    if (this._trace((t) => t.recording)) {
+      this._sendCustom('voice_recording', { enabled: true });
     }
   }
 
@@ -333,7 +376,15 @@ export class VoiceSession {
         outputSampleRate: OUTPUT_SAMPLE_RATE,
         maxDurationMs: DEFAULT_MAX_DURATION_MS,
       });
+      this._announceTrace();
       return;
+    }
+
+    // Counted before serverContent so usage arriving with turnComplete
+    // still lands on the turn it belongs to.
+    if (message.usageMetadata) {
+      this.usageMeter.record(message.usageMetadata);
+      this._trace((t) => t.usage(message.usageMetadata));
     }
 
     if (message.voiceActivity) {
@@ -341,8 +392,10 @@ export class VoiceSession {
       if (type === 'ACTIVITY_START') {
         this._sendCustom('voice_activity', { speaker: 'user', state: 'start' });
         this._beginTurnIfNeeded();
+        this._trace((t) => t.userSpeechStart());
       } else if (type === 'ACTIVITY_END') {
         this._sendCustom('voice_activity', { speaker: 'user', state: 'end' });
+        this._trace((t) => t.userSpeechEnd());
       }
     }
 
@@ -384,6 +437,7 @@ export class VoiceSession {
           this._beginAgentAudioIfNeeded();
           const pcm = Buffer.from(part.inlineData.data, 'base64');
           this._sendAudioFrame(pcm);
+          this._trace((t) => t.agentAudio(pcm));
         }
       }
     }
@@ -406,6 +460,7 @@ export class VoiceSession {
       });
       this._sendTextChunk('user', content.inputTranscription.text);
       this._commitTranscript('user', content.inputTranscription.text);
+      this._trace((t) => t.userSaid(content.inputTranscription.text, { via: 'speech' }));
     }
 
     if (content.outputTranscription?.text) {
@@ -439,6 +494,9 @@ export class VoiceSession {
       // assistant reply. _flushAgentUtterance() nulls the pending text, so
       // a later turnComplete for this aborted turn becomes a no-op (no
       // double commit).
+      // Traced first, so the flushed agent line is marked as cut off and the
+      // recording drops the audio the listener never heard.
+      this._trace((t) => t.interrupted());
       this._flushAgentUtterance();
       // Generation genuinely stopped here - tell the client the agent is no
       // longer speaking and let the next utterance fire a fresh agent start
@@ -541,6 +599,10 @@ export class VoiceSession {
     const controller = new AbortController();
     const entry = { controller, cancelled: false };
     this.pendingToolCalls.set(fc.id, entry);
+    const isFrontend = Boolean(this.frontendToolNames && this.frontendToolNames.has(fc.name));
+    this._trace((t) =>
+      t.toolStart(fc, { frontend: isFrontend, synthetic: fc.name === END_CALL_TOOL_NAME })
+    );
 
     this._sendRaw({
       type: EventType.TOOL_CALL_CHUNK,
@@ -557,11 +619,20 @@ export class VoiceSession {
       // this turn's turnComplete (_handleServerContent).
       this.endCallRequested = true;
       this.pendingToolCalls.delete(fc.id);
+      this._trace((t) => t.toolEnd(fc.id, { output: 'ok' }));
       return { id: fc.id, name: fc.name, cancelled: entry.cancelled, response: { output: 'ok' } };
     }
 
-    if (this.frontendToolNames && this.frontendToolNames.has(fc.name)) {
-      return await this._executeFrontendToolCall(fc, entry, controller);
+    if (isFrontend) {
+      const settled = await this._executeFrontendToolCall(fc, entry, controller);
+      this._trace((t) =>
+        t.toolEnd(fc.id, {
+          output: settled.response?.output,
+          error: settled.response?.error,
+          cancelled: settled.cancelled,
+        })
+      );
+      return settled;
     }
 
     const tool = this.toolsByName.get(fc.name);
@@ -589,10 +660,14 @@ export class VoiceSession {
       // earlier) so a `voice.context` message that arrived after this call
       // was queued still lands in time — same live-read contract an RCP
       // tool's resolver relies on for text chat's `configurable`.
+      // When traced, a per-tool TraceRecorder nests the tool's own LLM /
+      // retriever steps under its span.
+      const callbacks = this._trace((t) => t.toolCallbacks(fc.id));
       const result = await Promise.race([
         tool.invoke(fc.args ?? {}, {
           signal: controller.signal,
           configurable: { turnContext: this.turnContext },
+          ...(callbacks?.length ? { callbacks } : {}),
         }),
         timeoutPromise,
       ]);
@@ -604,6 +679,7 @@ export class VoiceSession {
       });
 
       const safeOutput = result !== undefined ? result : { status: 'ok' };
+      this._trace((t) => t.toolEnd(fc.id, { output: safeOutput, cancelled: entry.cancelled }));
       return {
         id: fc.id,
         name: fc.name,
@@ -616,6 +692,9 @@ export class VoiceSession {
         toolCallId: fc.id,
         err: err?.message,
       });
+      this._trace((t) =>
+        t.toolEnd(fc.id, { error: err?.message || String(err), cancelled: entry.cancelled })
+      );
       return {
         id: fc.id,
         name: fc.name,
@@ -702,12 +781,14 @@ export class VoiceSession {
     this.turnActive = true;
     this.runId = crypto.randomUUID();
     this._sendRaw({ type: EventType.RUN_STARTED, threadId: this.threadId, runId: this.runId });
+    this._trace((t) => t.turnStart(this.runId));
   }
 
   _endTurn() {
     if (!this.turnActive) return;
     this._sendRaw({ type: EventType.RUN_FINISHED, threadId: this.threadId, runId: this.runId });
     this.turnActive = false;
+    this._trace((t) => t.turnEnd());
   }
 
   _beginAgentAudioIfNeeded() {
@@ -760,6 +841,7 @@ export class VoiceSession {
     });
     this._sendTextChunk('assistant', text);
     this._commitTranscript('assistant', text);
+    this._trace((t) => t.agentSaid(text));
   }
 
   /** Persist one final transcript line (Phase 4). Never blocks the audio path. */
@@ -816,6 +898,7 @@ export class VoiceSession {
           });
           this._sendTextChunk('user', text);
           this._commitTranscript('user', text);
+          this._trace((t) => t.userSaid(text, { via: 'text' }));
         }
         break;
       case 'voice.image':
@@ -920,7 +1003,10 @@ export class VoiceSession {
       return;
     }
     if (this.imagesSent >= VOICE_IMAGE_LIMITS.maxImagesPerCall) {
-      reject('IMAGE_LIMIT_REACHED', `At most ${VOICE_IMAGE_LIMITS.maxImagesPerCall} images per call.`);
+      reject(
+        'IMAGE_LIMIT_REACHED',
+        `At most ${VOICE_IMAGE_LIMITS.maxImagesPerCall} images per call.`
+      );
       return;
     }
     const now = Date.now();
@@ -965,7 +1051,8 @@ export class VoiceSession {
       : { mimeType: image.mimeType };
     if (image.ref && this.imageInput.persist && this.claims.threadId) {
       Promise.resolve(this.imageInput.bindToThread([image.ref.fileId], this.claims.threadId)).catch(
-        (err) => logger.warn('[Voice] binding image to thread failed (non-fatal)', { err: err?.message })
+        (err) =>
+          logger.warn('[Voice] binding image to thread failed (non-fatal)', { err: err?.message })
       );
     }
 
@@ -979,6 +1066,7 @@ export class VoiceSession {
     });
     if (caption) this._sendTextChunk('user', caption);
     this._commitTranscript('user', caption, image.ref ? [image.ref] : []);
+    this._trace((t) => t.userSaid(caption, { via: 'image', attachments: [attachment] }));
   }
 
   _forwardClientAudio(buffer) {
@@ -986,6 +1074,7 @@ export class VoiceSession {
     this.geminiSession.sendRealtimeInput({
       audio: { data: buffer.toString('base64'), mimeType: INPUT_MIME_TYPE },
     });
+    this._trace((t) => t.userAudio(buffer));
   }
 
   // ---- lifecycle ----------------------------------------------------------
@@ -1033,15 +1122,24 @@ export class VoiceSession {
 
     if (this.turnActive) this._endTurn();
 
-    const usage = this.lastUsage || {};
+    // Summed over every usage message of the call (previously only the
+    // last message was reported, which undercounts).
+    const usage = this.usageMeter.sessionEndedUsage();
     this._sendCustom('voice_session_ended', {
       reason,
       usage: {
         durationMs: Date.now() - this.startedAt,
-        inputTokens: usage.promptTokenCount,
-        outputTokens: usage.responseTokenCount,
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        totalTokens: usage.totalTokens,
       },
     });
+    const tracer = this.tracer;
+    if (tracer) {
+      Promise.resolve()
+        .then(() => tracer.end({ reason }))
+        .catch((err) => logger.warn('[Voice] trace finish failed', { err: err?.message }));
+    }
 
     try {
       this.geminiSession?.close();

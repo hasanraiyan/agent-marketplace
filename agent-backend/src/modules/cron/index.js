@@ -3,6 +3,7 @@ import { loggerService } from '../../utils/index.js';
 import config from '../../config/index.js';
 import deleteInactiveUsers from './deleteInactiveUsers.js';
 import discoverExpiredDeletions from './discoverExpiredDeletions.js';
+import sweepVoiceTraces from './sweepVoiceTraces.js';
 
 const logger = loggerService.getLogger();
 
@@ -35,6 +36,7 @@ export function startAllCronJobs() {
     config.cron.discoverExpiredDeletions,
     discoverExpiredDeletions
   );
+  registerJob('sweepVoiceTraces', config.cron.sweepVoiceTraces, sweepVoiceTraces);
 
   logger.info(`Registered ${jobs.length} cron jobs`);
 }

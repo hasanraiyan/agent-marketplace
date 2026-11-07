@@ -17,11 +17,22 @@ import { SpanDetail, spanIcon } from "@/components/traces/span-detail";
 import { IconTile } from "@/components/traces/message-cards";
 import { HitlBanner } from "@/components/traces/hitl-view";
 import {
+  VoiceIcon,
+  VoicePlayer,
+  VoiceTokenBreakdown,
+  type Marker,
+  type PlayRequest,
+} from "@/components/traces/voice-view";
+import {
   StatusBadge,
+  endReasonLabel,
   formatDuration,
   formatTokens,
+  isVoiceTrace,
   kindMeta,
   sourceLabel,
+  spanAudio,
+  type AudioOffset,
   type Span,
   type SubagentRollup,
   type TraceRow,
@@ -111,13 +122,29 @@ export function TraceView({
   trace,
   spans,
   backHref,
+  projectId,
   initialSpanId = null,
 }: {
   trace: TraceRow;
   spans: Span[];
   backHref: string;
+  /** Needed to stream a voice call's recording. */
+  projectId?: string;
   initialSpanId?: string | null;
 }) {
+  const voice = isVoiceTrace(trace) ? trace.metadata?.voice ?? {} : null;
+  const [playRequest, setPlayRequest] = React.useState<PlayRequest | null>(null);
+  const playSegment = React.useCallback((a: AudioOffset) => {
+    if (typeof a.startMs !== "number") return;
+    setPlayRequest((prev) => ({ startMs: a.startMs as number, endMs: a.endMs, n: (prev?.n ?? 0) + 1 }));
+  }, []);
+  const markers = React.useMemo<Marker[]>(
+    () =>
+      spans
+        .filter((s) => s.kind === "chain" && typeof s.metadata?.turn === "number")
+        .map((s) => ({ ms: spanAudio(s)?.startMs ?? 0, label: s.name })),
+    [spans]
+  );
   const [picked, setPicked] = React.useState<string | null>(initialSpanId);
   const [collapsed, setCollapsed] = React.useState<Set<string>>(new Set());
   const [filter, setFilter] = React.useState("");
@@ -163,14 +190,49 @@ export function TraceView({
             <CopyButton text={trace._id} label="Copy trace ID" />
           </span>
           <StatusBadge status={trace.status} />
+          {voice && (
+            <Badge variant="outline" className="gap-1">
+              <VoiceIcon />
+              {voice.telephony ? "Phone call" : "Voice call"}
+            </Badge>
+          )}
           {trace.truncated && <Badge variant="outline">step limit reached</Badge>}
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1">
-          <Stat label="Latency" value={formatDuration(trace.durationMs)} />
-          <Stat
-            label="Tokens"
-            value={`${formatTokens(trace.usage?.totalTokens)} (${formatTokens(trace.usage?.inputTokens)} → ${formatTokens(trace.usage?.outputTokens)})`}
-          />
+          <Stat label={voice ? "Call length" : "Latency"} value={formatDuration(trace.durationMs)} />
+          {trace.usage?.details ? (
+            <details className="group relative">
+              <summary className="cursor-pointer list-none">
+                <Stat
+                  label="Tokens ▾"
+                  value={`${formatTokens(trace.usage?.totalTokens)} (${formatTokens(trace.usage?.inputTokens)} → ${formatTokens(trace.usage?.outputTokens)})`}
+                />
+              </summary>
+              <div className="absolute right-0 z-20 mt-2 w-72 rounded-md border border-border bg-popover p-3 shadow-md">
+                <VoiceTokenBreakdown details={trace.usage.details} compact />
+              </div>
+            </details>
+          ) : (
+            <Stat
+              label="Tokens"
+              value={`${formatTokens(trace.usage?.totalTokens)} (${formatTokens(trace.usage?.inputTokens)} → ${formatTokens(trace.usage?.outputTokens)})`}
+            />
+          )}
+          {voice && (
+            <>
+              <Stat label="Ended" value={endReasonLabel(voice.endReason)} />
+              <Stat
+                label="Turns"
+                value={`${voice.turns ?? 0}${voice.interruptions ? ` · ${voice.interruptions} barge-in` : ""}`}
+              />
+              {voice.latency?.firstAudioP50Ms != null && (
+                <Stat label="First audio p50" value={formatDuration(voice.latency.firstAudioP50Ms)} />
+              )}
+              {voice.voiceName && <Stat label="Voice" value={voice.voiceName} />}
+              {voice.telephony?.callerPhone && <Stat label="Caller" value={voice.telephony.callerPhone} />}
+              {voice.reconnects ? <Stat label="Reconnects" value={voice.reconnects} /> : null}
+            </>
+          )}
           <Stat label="Model" value={trace.model || "—"} />
           {trace.subagentCalls ? <Stat label="Subagents" value={trace.subagentCalls} /> : null}
           <Stat
@@ -190,6 +252,16 @@ export function TraceView({
       </div>
 
       <HitlBanner trace={trace} tracesHref={backHref} />
+
+      {voice && projectId && (
+        <VoicePlayer
+          projectId={projectId}
+          traceId={trace._id}
+          audio={trace.audio}
+          markers={markers}
+          request={playRequest}
+        />
+      )}
 
       {trace.error && (
         <div className="flex gap-2 border-b border-destructive/30 bg-destructive/5 px-4 py-2 text-xs text-destructive">
@@ -214,7 +286,11 @@ export function TraceView({
           <div className="min-h-0 flex-1 overflow-y-auto pb-3" role="tree" aria-label="Run steps">
             {spans.length === 0 ? (
               <p className="px-3 text-xs text-muted-foreground">
-                {trace.status === "running" ? "Steps appear when the run finishes." : "No steps recorded."}
+                {trace.status === "running"
+                  ? voice
+                    ? "Steps appear every few turns while the call is live."
+                    : "Steps appear when the run finishes."
+                  : "No steps recorded."}
               </p>
             ) : rows.length === 0 ? (
               <p className="px-3 text-xs text-muted-foreground">No steps match “{filter}”.</p>
@@ -267,6 +343,14 @@ export function TraceView({
                       {span.kind === "subagent" && (
                         <SubagentRowMeta span={span} />
                       )}
+                      {span.kind === "chain" && typeof span.metadata?.turn === "number" && (
+                        <div className="flex">
+                          <TokenPill n={span.usage?.totalTokens} />
+                        </div>
+                      )}
+                      {span.metadata?.partial === true && (
+                        <span className="text-[11px] text-amber-700 dark:text-amber-400">cut off</span>
+                      )}
                     </div>
                     {children.length > 0 && (
                       <button
@@ -291,7 +375,11 @@ export function TraceView({
         {/* Run inspector */}
         <section className="min-h-0 min-w-0 overflow-y-auto p-4 sm:p-5">
           {selected ? (
-            <SpanDetail key={selected.spanId} span={selected} />
+            <SpanDetail
+              key={selected.spanId}
+              span={selected}
+              onPlay={voice && trace.audio?.status === "ready" ? playSegment : undefined}
+            />
           ) : (
             <p className="text-xs text-muted-foreground">Select a step to inspect it.</p>
           )}

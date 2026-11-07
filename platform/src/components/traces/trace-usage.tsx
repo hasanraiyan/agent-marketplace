@@ -48,6 +48,70 @@ interface Stats {
   byDay: DayRow[];
   byAgent: { agentId: string; agentName?: string | null; runs: number; errors: number; totalTokens: number; avgDurationMs: number | null }[];
   tools: { name: string; kind: string; calls: number; errors: number; avgDurationMs: number | null }[];
+  byChannel?: { channel: string; runs: number; errors: number; totalTokens: number }[];
+  voice?: {
+    calls: number;
+    callMinutes: number;
+    recordedMinutes: number;
+    totalTokens: number;
+    interruptions: number;
+    tokensByType: { inAudio: number; inText: number; inImage: number; outAudio: number; outText: number };
+  };
+}
+
+const TOKEN_TYPES = [
+  ["inAudio", "Audio in"],
+  ["inText", "Text in"],
+  ["inImage", "Image in"],
+  ["outAudio", "Audio out"],
+  ["outText", "Text out"],
+] as const;
+
+/** Voice calls at a glance + how their tokens split by type. */
+function VoiceUsage({ voice }: { voice: NonNullable<Stats["voice"]> }) {
+  const typed = TOKEN_TYPES.map(([key, label]) => ({ key, label, value: voice.tokensByType[key] || 0 }));
+  const max = Math.max(1, ...typed.map((t) => t.value));
+  const perMinute = voice.callMinutes ? Math.round(voice.totalTokens / voice.callMinutes) : null;
+  return (
+    <ChartBlock title="Voice calls">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <Tile label="Calls" value={voice.calls.toLocaleString()} hint={`${voice.interruptions.toLocaleString()} barge-ins`} />
+        <Tile label="Call minutes" value={voice.callMinutes.toLocaleString()} hint={`${voice.recordedMinutes.toLocaleString()} min recorded`} />
+        <Tile label="Voice tokens" value={formatTokens(voice.totalTokens)} hint={perMinute ? `${formatTokens(perMinute)} per call minute` : undefined} />
+        <Tile
+          label="Audio share"
+          value={
+            voice.totalTokens
+              ? `${Math.round(((voice.tokensByType.inAudio + voice.tokensByType.outAudio) / voice.totalTokens) * 100)}%`
+              : "—"
+          }
+          hint="of voice tokens are audio"
+        />
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Token type</TableHead>
+            <TableHead className="w-1/2" />
+            <TableHead className="text-right">Tokens</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {typed.map((t) => (
+            <TableRow key={t.key}>
+              <TableCell className="text-xs">{t.label}</TableCell>
+              <TableCell>
+                <div className="h-2 w-full bg-muted" aria-hidden>
+                  <div className="h-2 bg-[var(--chart-3)]" style={{ width: `${(t.value / max) * 100}%` }} />
+                </div>
+              </TableCell>
+              <TableCell className="text-right font-mono text-xs">{formatTokens(t.value)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </ChartBlock>
+  );
 }
 
 const runsConfig = {
@@ -195,6 +259,7 @@ export function TraceUsage({ projectId, agentId }: { projectId: string; agentId?
         </p>
       ) : (
         <>
+          {stats.voice && stats.voice.calls > 0 && <VoiceUsage voice={stats.voice} />}
           <ChartBlock title="Runs per day">
             <ChartContainer config={runsConfig} className="h-52 w-full">
               <BarChart data={runsData} margin={{ left: 0, right: 8, top: 4 }}>

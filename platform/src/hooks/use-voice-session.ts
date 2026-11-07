@@ -75,6 +75,10 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
   const [toolCalls, setToolCalls] = useState<VoiceToolCallSummary[]>([]);
   const [error, setError] = useState<Error | null>(null);
   const [endReason, setEndReason] = useState<string | null>(null);
+  // Built-in tracing: the trace this call writes to (Studio calls only),
+  // and whether the call is being recorded.
+  const [traceId, setTraceId] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -309,6 +313,12 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
         case "voice_session_resumed":
           // Transparent by design — nothing for the UI to do.
           break;
+        case "trace_started":
+          if (typeof value?.traceId === "string") setTraceId(value.traceId);
+          break;
+        case "voice_recording":
+          setRecording(value?.enabled === true);
+          break;
         case "voice_session_ended":
           setState("ended");
           setEndReason((value?.reason as string) || null);
@@ -401,6 +411,8 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
     setPartial(null);
     setToolCalls([]);
     setDuration(0);
+    setTraceId(null);
+    setRecording(false);
     callStartedAtRef.current = null;
     acceptedTurnSeqRef.current = 0;
     setState("connecting");
@@ -461,6 +473,8 @@ export function useVoiceSession({ projectId, agentId }: UseVoiceSessionOptions) 
     toolCalls,
     error,
     endReason,
+    traceId,
+    recording,
     start,
     stop,
     mute,

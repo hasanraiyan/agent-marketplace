@@ -11,7 +11,9 @@ import {
   CheckCircleIcon,
   CircleNotchIcon,
   HourglassIcon,
+  MicrophoneIcon,
   PauseCircleIcon,
+  PhoneIcon,
   ProhibitIcon,
   XCircleIcon,
 } from "@phosphor-icons/react";
@@ -36,6 +38,7 @@ import {
   formatDuration,
   formatTime,
   formatTokens,
+  isVoiceTrace,
   sourceLabel,
   type TraceRow,
 } from "@/components/traces/trace-utils";
@@ -108,6 +111,7 @@ function TracesPageInner() {
   const [agentId, setAgentId] = React.useState(searchParams.get("agentId") ?? "");
   const [status, setStatus] = React.useState("");
   const [source, setSource] = React.useState("");
+  const [channel, setChannel] = React.useState(searchParams.get("channel") ?? "");
   const [range, setRange] = React.useState<string>("24h");
   const [page, setPage] = React.useState(1);
   const [reloadKey, setReloadKey] = React.useState(0);
@@ -116,7 +120,7 @@ function TracesPageInner() {
   const [pages, setPages] = React.useState(1);
   const [total, setTotal] = React.useState(0);
   const [result, setResult] = React.useState<{ key: string; error: string | null } | null>(null);
-  const requestKey = [projectId, page, agentId, status, source, range, threadId, reloadKey].join("|");
+  const requestKey = [projectId, page, agentId, status, source, channel, range, threadId, reloadKey].join("|");
   const loading = result?.key !== requestKey;
   const error = loading ? null : (result?.error ?? null);
 
@@ -137,6 +141,7 @@ function TracesPageInner() {
       agentId: agentId || undefined,
       status: status || undefined,
       source: source || undefined,
+      channel: channel || undefined,
       threadId: threadId || undefined,
       from: span ? new Date(Date.now() - span).toISOString() : undefined,
     })
@@ -156,7 +161,7 @@ function TracesPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, tab, page, agentId, status, source, range, threadId, reloadKey, requestKey]);
+  }, [projectId, tab, page, agentId, status, source, channel, range, threadId, reloadKey, requestKey]);
 
   const setTab = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -185,7 +190,7 @@ function TracesPageInner() {
           Traces
         </h1>
         <p className="text-xs text-muted-foreground">
-          Every agent run, step by step — LLM calls, tool calls, subagents, tokens and latency.
+          Every agent run and voice call, step by step — LLM calls, tool calls, subagents, tokens and latency.
         </p>
       </div>
 
@@ -248,6 +253,11 @@ function TracesPageInner() {
                 <NativeSelectOption value="playground">Playground</NativeSelectOption>
                 <NativeSelectOption value="architect">Architect</NativeSelectOption>
               </NativeSelect>
+              <NativeSelect size="sm" value={channel} onChange={onFilter(setChannel)} aria-label="Filter by channel">
+                <NativeSelectOption value="">Any channel</NativeSelectOption>
+                <NativeSelectOption value="web">Text chat</NativeSelectOption>
+                <NativeSelectOption value="voice">Voice calls</NativeSelectOption>
+              </NativeSelect>
               <div className="ml-auto flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
                   {loading && !rows ? "…" : `${total.toLocaleString()} traces`}
@@ -299,10 +309,17 @@ function TracesPageInner() {
                           >
                             {t.agentName || t.agentId}
                           </Link>
-                          <Cell className="text-[11px] text-muted-foreground">
+                          <span className="flex min-w-0 items-center gap-1 truncate text-[11px] text-muted-foreground">
+                            {isVoiceTrace(t) && <PhoneIcon className="size-3 shrink-0" aria-label="Voice call" />}
                             {sourceLabel(t.source)}
                             {t.channel && t.channel !== "web" ? ` · ${t.channel}` : ""}
-                          </Cell>
+                            {t.audio?.status === "ready" && (
+                              <MicrophoneIcon
+                                className="size-3 shrink-0 text-blue-600 dark:text-blue-400"
+                                aria-label="Recording available"
+                              />
+                            )}
+                          </span>
                         </TableCell>
                         <TableCell className="text-sm">
                           <Cell>
@@ -358,7 +375,12 @@ function TracesPageInner() {
                     className="flex flex-col gap-1.5 rounded-md border border-border bg-card px-3 py-2.5"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="truncate text-sm font-medium">{t.agentName || t.agentId}</span>
+                      <span className="flex min-w-0 items-center gap-1 truncate text-sm font-medium">
+                        {isVoiceTrace(t) && (
+                          <PhoneIcon className="size-3.5 shrink-0 text-muted-foreground" aria-label="Voice call" />
+                        )}
+                        {t.agentName || t.agentId}
+                      </span>
                       <StatusBadge status={t.status} />
                     </div>
                     <span className="line-clamp-2 text-xs">{t.input || "—"}</span>

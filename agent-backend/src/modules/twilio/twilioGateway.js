@@ -10,6 +10,7 @@ import VoiceTranscriptSink from '../voice/voiceTranscriptSink.js';
 import { redeemVoiceTicket } from '../voice/voiceTicket.service.js';
 import { VoiceSession } from '../voice/gateway/VoiceSession.js';
 import TwilioVoiceTransport from './TwilioVoiceTransport.js';
+import { traceService } from '../traces/index.js';
 
 const logger = loggerService.getLogger();
 
@@ -84,7 +85,10 @@ export async function handleTwilioUpgrade(req, socket, head, url, wss) {
   let preClaims = null;
   if (urlTicket) {
     preClaims = redeemVoiceTicket(urlTicket);
-    if (preClaims.audience !== TELEPHONY_TICKET_AUDIENCE || preClaims.principalType !== 'ProjectRuntime') {
+    if (
+      preClaims.audience !== TELEPHONY_TICKET_AUDIENCE ||
+      preClaims.principalType !== 'ProjectRuntime'
+    ) {
       throw new Error('Ticket is not valid for telephony');
     }
   }
@@ -105,13 +109,21 @@ export async function handleTwilioUpgrade(req, socket, head, url, wss) {
         try {
           claims = redeemVoiceTicket(ticket);
         } catch (err) {
-          logger.warn('[TwilioGateway] Stream rejected: invalid ticket', { err: err?.message, callSid });
+          logger.warn('[TwilioGateway] Stream rejected: invalid ticket', {
+            err: err?.message,
+            callSid,
+          });
           transport.close(1008, 'Invalid ticket');
           return;
         }
 
-        if (claims.audience !== TELEPHONY_TICKET_AUDIENCE || claims.principalType !== 'ProjectRuntime') {
-          logger.warn('[TwilioGateway] Stream rejected: ticket not valid for telephony', { callSid });
+        if (
+          claims.audience !== TELEPHONY_TICKET_AUDIENCE ||
+          claims.principalType !== 'ProjectRuntime'
+        ) {
+          logger.warn('[TwilioGateway] Stream rejected: ticket not valid for telephony', {
+            callSid,
+          });
           transport.close(1008, 'Ticket not valid for telephony');
           return;
         }
@@ -264,7 +276,24 @@ async function startVoiceSessionForTwilio({ transport, claims, projectId, agentI
     context: channelContext,
   };
 
+  // Built-in tracing: one voice trace per phone call. The caller's number
+  // is masked by traceService (last 4 digits only) before it is stored.
+  const tracer = traceService.beginVoice({
+    claims: sessionClaims,
+    agentName: candidate.name,
+    model,
+    provider: provider.label,
+    voiceName,
+    channel: claims.telephony?.channel || 'voice',
+    telephony: {
+      callSid,
+      from: claims.telephony?.from || null,
+      channel: claims.telephony?.channel || 'voice',
+    },
+  });
+
   const session = new VoiceSession({
+    tracer,
     clientWs: transport,
     claims: sessionClaims,
     apiKey: provider.apiKey,
