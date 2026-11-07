@@ -7,6 +7,8 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
+  HeadObjectCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import config from '../../config/index.js';
@@ -63,7 +65,9 @@ class S3Service {
       await this.#ensureBucket(this.publicBucket, true);
       await this.#ensureBucket(this.privateBucket, false);
       this.#bucketsInitialized = true;
-      logger.info(`[S3Storage] Storage buckets verified: ${this.publicBucket}, ${this.privateBucket}`);
+      logger.info(
+        `[S3Storage] Storage buckets verified: ${this.publicBucket}, ${this.privateBucket}`
+      );
     } catch (err) {
       logger.error(`[S3Storage] Error ensuring S3 buckets: ${err.message}`, { error: err });
     }
@@ -125,7 +129,13 @@ class S3Service {
    * @param {boolean} [options.isPublic] - Whether this object is in the public bucket
    * @returns {Promise<{ key: string, bucket: string, url: string, etag: string }>}
    */
-  async uploadBuffer({ bucket = this.privateBucket, key, buffer, contentType = 'application/octet-stream', isPublic = false }) {
+  async uploadBuffer({
+    bucket = this.privateBucket,
+    key,
+    buffer,
+    contentType = 'application/octet-stream',
+    isPublic = false,
+  }) {
     const targetBucket = isPublic ? this.publicBucket : bucket;
 
     const command = new PutObjectCommand({
@@ -204,14 +214,59 @@ class S3Service {
    * @param {string} [options.filename] - Optional download filename for Content-Disposition
    * @returns {Promise<string>}
    */
-  async getSignedDownloadUrl({ bucket = this.privateBucket, key, expiresInSeconds = 3600, filename }) {
+  async getSignedDownloadUrl({
+    bucket = this.privateBucket,
+    key,
+    expiresInSeconds = 3600,
+    filename,
+  }) {
     const command = new GetObjectCommand({
       Bucket: bucket,
       Key: key,
-      ResponseContentDisposition: filename ? `attachment; filename="${encodeURIComponent(filename)}"` : undefined,
+      ResponseContentDisposition: filename
+        ? `attachment; filename="${encodeURIComponent(filename)}"`
+        : undefined,
     });
 
     return await getSignedUrl(this.#client, command, { expiresIn: expiresInSeconds });
+  }
+
+  /**
+   * An object's metadata without downloading it (HEAD request).
+   *
+   * @returns {Promise<null | { contentLength: number, contentType: string, lastModified: Date }>}
+   *   null when the object does not exist.
+   */
+  async headObject({ bucket = this.privateBucket, key }) {
+    try {
+      const response = await this.#client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+      return {
+        contentLength: response.ContentLength,
+        contentType: response.ContentType,
+        lastModified: response.LastModified,
+      };
+    } catch (err) {
+      if (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404) return null;
+      throw err;
+    }
+  }
+
+  /**
+   * Lists every object under a prefix, page by page.
+   *
+   * @returns {AsyncGenerator<{ key: string, size: number, lastModified: Date }>}
+   */
+  async *listObjects({ bucket = this.privateBucket, prefix }) {
+    let ContinuationToken;
+    do {
+      const page = await this.#client.send(
+        new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken })
+      );
+      for (const obj of page.Contents || []) {
+        yield { key: obj.Key, size: obj.Size, lastModified: obj.LastModified };
+      }
+      ContinuationToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+    } while (ContinuationToken);
   }
 
   /**

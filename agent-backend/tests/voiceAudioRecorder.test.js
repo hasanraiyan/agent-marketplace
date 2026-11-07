@@ -2,7 +2,14 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { VoiceAudioRecorder } from '../src/modules/traces/VoiceAudioRecorder.js';
-import { mixToStereoWav, wavHeader } from '../src/modules/traces/traceAudioMix.js';
+import {
+  MAX_CONCURRENT_MIXES,
+  closeMixWorkers,
+  mixInWorker,
+  mixQueueState,
+  mixToStereoWav,
+  wavHeader,
+} from '../src/modules/traces/traceAudioMix.js';
 
 function fakeStreams() {
   const data = {};
@@ -160,5 +167,95 @@ describe('mixToStereoWav', () => {
     expect(h.readUInt32LE(4)).toBe(436);
     expect(h.readUInt32LE(28)).toBe(64000);
     expect(h.readUInt16LE(32)).toBe(4);
+  });
+});
+
+describe('mixInWorker', () => {
+  afterAll(() => closeMixWorkers());
+  let dir;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trace-mix-worker-'));
+  });
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  function tracks(name) {
+    const userPath = path.join(dir, `${name}.u.pcm`);
+    const agentPath = path.join(dir, `${name}.a.pcm`);
+    fs.writeFileSync(userPath, pcm(16000, 300));
+    fs.writeFileSync(agentPath, pcm(36000, -400));
+    return { userPath, agentPath, outPath: path.join(dir, `${name}.wav`) };
+  }
+
+  test('produces the same WAV as the main-thread mix, on a worker thread', async () => {
+    const a = tracks('a');
+    const b = tracks('b');
+    const viaWorker = await mixInWorker(a);
+    const inline = await mixToStereoWav(b);
+    expect(viaWorker).toEqual(inline);
+    expect(fs.readFileSync(a.outPath).equals(fs.readFileSync(b.outPath))).toBe(true);
+  });
+
+  test('runs at most MAX_CONCURRENT_MIXES at once and queues the rest', async () => {
+    const jobs = ['j1', 'j2', 'j3', 'j4'].map((n) => mixInWorker(tracks(n)));
+    const state = mixQueueState();
+    expect(state.running).toBeLessThanOrEqual(MAX_CONCURRENT_MIXES);
+    expect(state.running + state.queued).toBe(4);
+    const results = await Promise.all(jobs);
+    expect(results.every((r) => r.durationMs === 1500)).toBe(true);
+    expect(mixQueueState()).toEqual({ running: 0, queued: 0 });
+  });
+
+  test('falls back to mixing on the main thread when a worker cannot start', async () => {
+    const t = tracks('fallback');
+    const result = await mixInWorker(t, { workerUrl: 'not-a-valid-worker-path.js' });
+    expect(result.durationMs).toBe(1500);
+    expect(fs.existsSync(t.outPath)).toBe(true);
+  });
+
+  test('a mixing error inside the worker is reported (no silent fallback)', async () => {
+    await expect(
+      mixInWorker({
+        userPath: path.join(dir, 'u.pcm'),
+        agentPath: path.join(dir, 'a.pcm'),
+        outPath: path.join(dir, 'x.wav'),
+        userRate: 8000, // unsupported → worker throws
+      })
+    ).rejects.toThrow('user track must already be at the output rate');
+  });
+});
+
+describe('mixInWorker worker reuse', () => {
+  afterAll(() => closeMixWorkers());
+
+  test('later recordings reuse the running worker thread', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'trace-mix-reuse-'));
+    try {
+      const job = (n) => {
+        const userPath = path.join(dir, `${n}.u.pcm`);
+        fs.writeFileSync(userPath, pcm(1600, 5));
+        return {
+          userPath,
+          agentPath: path.join(dir, 'none.pcm'),
+          outPath: path.join(dir, `${n}.wav`),
+        };
+      };
+      await mixInWorker(job(1));
+      const { Worker } = await import('worker_threads');
+      const before = Worker.prototype.postMessage;
+      let posts = 0;
+      Worker.prototype.postMessage = function counted(...a) {
+        posts += 1;
+        return before.apply(this, a);
+      };
+      try {
+        await mixInWorker(job(2));
+      } finally {
+        Worker.prototype.postMessage = before;
+      }
+      expect(posts).toBe(1);
+      expect(fs.existsSync(path.join(dir, '2.wav'))).toBe(true);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

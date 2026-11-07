@@ -2,7 +2,7 @@
 
 > **Status (2026-11-07):** Built: backend, platform, tests and docs (build steps 2–8 and 10). Still open:
 > - **Step 1/9:** a real Studio call to confirm the Gemini token format and check the recording end to end. `TRACE_DEBUG_VOICE_USAGE=true` is set in `.env` for this.
-> - **Simplification:** the WAV mix runs on the main thread in 1-second blocks that yield between blocks, not in a `worker_threads` worker.
+> - **Done (2026-11-07):** the WAV mix runs on reused worker threads (`mixInWorker`; up to 2 at once, the rest queue). On a 15-minute call, main-thread busy time dropped from about 960 ms to 0–5 ms.
 > - **Simplification:** the Studio player fetches the file as a Blob (no signed URLs).
 > **Date:** 2026-11-07
 > **Changes from v1:** token counting is now a requirement, with per-response accounting and a breakdown by type (§6). Call audio is now recorded and playable in the trace view (§7).

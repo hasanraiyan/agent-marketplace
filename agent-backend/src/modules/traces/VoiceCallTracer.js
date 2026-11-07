@@ -2,7 +2,7 @@ import { loggerService } from '../../utils/index.js';
 import { TRACE_STATUS } from './trace.model.js';
 import { VoiceTraceRecorder } from './VoiceTraceRecorder.js';
 import { VoiceAudioRecorder } from './VoiceAudioRecorder.js';
-import { mixToStereoWav } from './traceAudioMix.js';
+import { mixInWorker } from './traceAudioMix.js';
 
 const logger = loggerService.getLogger();
 
@@ -58,7 +58,7 @@ export class VoiceCallTracer {
     now = () => Date.now(),
     flushIntervalMs = FLUSH_INTERVAL_MS,
     openStream,
-    mix = mixToStereoWav,
+    mix = mixInWorker, // off the main thread (traceAudioMix.js)
   }) {
     this.traceId = String(traceId);
     this.base = base;
@@ -223,8 +223,9 @@ export class VoiceCallTracer {
     const paths = this.store.tempPaths(this.traceId);
     const key = this.store.keyFor(this.traceId);
     let audio;
+    let result = null; // outside the try: the S3 upload below needs it
     try {
-      const result = await this.mix({
+      result = await this.mix({
         userPath: paths.user,
         agentPath: paths.agent,
         outPath: this.store.pathForKey(key),

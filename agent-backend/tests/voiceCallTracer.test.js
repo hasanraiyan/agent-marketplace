@@ -4,6 +4,14 @@ import path from 'path';
 import { jest } from '@jest/globals';
 import { VoiceCallTracer, statusForCloseReason } from '../src/modules/traces/VoiceCallTracer.js';
 import { TraceAudioStore } from '../src/modules/traces/traceAudioStore.js';
+import { closeMixWorkers } from '../src/modules/traces/traceAudioMix.js';
+
+// The real store also uploads the finished WAV to S3; tests stay on local disk.
+class LocalOnlyStore extends TraceAudioStore {
+  async finalizeWav() {}
+}
+
+afterAll(() => closeMixWorkers());
 
 const TRACE_ID = 'aaaaaaaaaaaaaaaaaaaaaaaa';
 
@@ -151,7 +159,7 @@ describe('VoiceCallTracer', () => {
 
   test('records audio, mixes the WAV after the call and marks it ready', async () => {
     const repo = fakeRepo();
-    const store = new TraceAudioStore({ dir });
+    const store = new LocalOnlyStore({ dir });
     const tracer = new VoiceCallTracer({
       traceId: TRACE_ID,
       base,
@@ -195,7 +203,7 @@ describe('VoiceCallTracer', () => {
       traceId: TRACE_ID,
       base,
       repository: repo,
-      store: new TraceAudioStore({ dir }),
+      store: new LocalOnlyStore({ dir }),
       mix: async () => {
         throw new Error('boom');
       },

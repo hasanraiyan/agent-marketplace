@@ -1,11 +1,17 @@
 import fsp from 'fs/promises';
+import { Worker } from 'worker_threads';
 
 /**
  * Mixes the two raw PCM tracks of a recorded voice call into one stereo
  * WAV: the user on the left channel, the agent on the right, both at
  * `outRate`. The agent track is resampled with linear interpolation (good
- * enough for speech). Works one second at a time and yields to the event
- * loop between blocks, so even a 15-minute call never blocks live sessions.
+ * enough for speech).
+ *
+ * Production path: `mixInWorker()` runs the mix on a worker thread (at most
+ * MAX_CONCURRENT_MIXES at once, the rest queue), so the main event loop that
+ * carries every live call never does the per-sample work. If a worker can't
+ * start, it falls back to mixing here, one second at a time, yielding to the
+ * event loop between blocks.
  */
 
 const BYTES = 2; // s16le
@@ -56,6 +62,9 @@ export async function mixToStereoWav({
   userRate = 16000,
   agentRate = 24000,
   outRate = 16000,
+  // Yield to the event loop between 1-second blocks. Needed only when
+  // mixing on the main thread (the fallback); the worker passes 0.
+  yieldEvery = 1,
 }) {
   if (userRate !== outRate) throw new Error('user track must already be at the output rate');
   const userLen = Math.floor((await sizeOf(userPath)) / BYTES);
@@ -95,12 +104,148 @@ export async function mixToStereoWav({
       }
       await out.write(frame, 0, frame.length, pos);
       pos += frame.length;
-      await yieldLoop();
+      if (yieldEvery) await yieldLoop();
     }
     return { bytes: pos, durationMs: Math.round((outLen / outRate) * 1000), sampleRate: outRate };
   } finally {
     await Promise.all([userFh?.close(), agentFh?.close(), out.close()]);
   }
+}
+
+// ── worker thread ─────────────────────────────────────────────────────────
+
+const WORKER_URL = new URL('./traceAudioMix.worker.js', import.meta.url);
+// Mixing is short (seconds even for a 15-minute call); two at a time keeps
+// CPU free for live calls when many calls end together.
+export const MAX_CONCURRENT_MIXES = 2;
+// A worker that hangs is killed rather than holding a slot forever.
+const WORKER_TIMEOUT_MS = 2 * 60 * 1000;
+
+let running = 0;
+const queue = [];
+
+function runNext() {
+  while (running < MAX_CONCURRENT_MIXES && queue.length) {
+    const job = queue.shift();
+    running += 1;
+    job.start().finally(() => {
+      running -= 1;
+      runNext();
+    });
+  }
+}
+
+// Idle, reusable workers (started on first use, kept for later recordings —
+// starting a thread costs ~10 ms on the main thread, so it is paid once,
+// not per recording). unref'd so they never keep the process alive.
+const idle = new Map(); // workerUrl string -> Worker[]
+let nextJobId = 0;
+
+function takeWorker(workerUrl) {
+  const list = idle.get(String(workerUrl)) || [];
+  const w = list.pop();
+  if (w) return w;
+  const worker = new Worker(workerUrl);
+  worker.unref();
+  return worker;
+}
+
+function giveBack(workerUrl, worker) {
+  const key = String(workerUrl);
+  if (!idle.has(key)) idle.set(key, []);
+  idle.get(key).push(worker);
+}
+
+function discard(workerUrl, worker) {
+  const list = idle.get(String(workerUrl));
+  if (list)
+    idle.set(
+      String(workerUrl),
+      list.filter((w) => w !== worker)
+    );
+  worker.terminate().catch(() => {});
+}
+
+/** Runs one mix on a pooled worker thread. Rejects (workerStartFailed) if no worker can start. */
+function runWorker(args, { workerUrl = WORKER_URL, timeoutMs = WORKER_TIMEOUT_MS } = {}) {
+  return new Promise((resolve, reject) => {
+    let worker;
+    try {
+      worker = takeWorker(workerUrl);
+    } catch (err) {
+      reject(Object.assign(err, { workerStartFailed: true }));
+      return;
+    }
+    const id = ++nextJobId;
+    let settled = false;
+    const cleanup = () => {
+      clearTimeout(timer);
+      worker.off('message', onMessage);
+      worker.off('error', onError);
+      worker.off('exit', onExit);
+    };
+    const finish = (fn, value, { healthy }) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (healthy) giveBack(workerUrl, worker);
+      else discard(workerUrl, worker);
+      fn(value);
+    };
+    const onMessage = (msg) => {
+      if (msg?.id !== id) return;
+      if (msg.ok) finish(resolve, msg.result, { healthy: true });
+      else finish(reject, new Error(msg.error || 'Mixing failed'), { healthy: true });
+    };
+    const onError = (err) => {
+      // The worker's own file failed to load: treat as "couldn't start".
+      if (/^ERR_(MODULE_NOT_FOUND|WORKER_|UNKNOWN_FILE)/.test(err?.code || '')) {
+        err.workerStartFailed = true;
+      }
+      finish(reject, err, { healthy: false });
+    };
+    const onExit = (code) =>
+      finish(reject, new Error(`Mixing worker exited with code ${code}`), { healthy: false });
+    const timer = setTimeout(
+      () => finish(reject, new Error('Mixing the recording timed out'), { healthy: false }),
+      timeoutMs
+    );
+    timer.unref?.();
+    worker.on('message', onMessage);
+    worker.on('error', onError);
+    worker.on('exit', onExit);
+    worker.postMessage({ id, args });
+  });
+}
+
+/** For tests / shutdown: stops every idle worker. */
+export async function closeMixWorkers() {
+  const all = [...idle.values()].flat();
+  idle.clear();
+  await Promise.all(all.map((w) => w.terminate().catch(() => {})));
+}
+
+/**
+ * Mixes a recording on a worker thread (queued, max MAX_CONCURRENT_MIXES at
+ * once). Same arguments and result as mixToStereoWav. If the worker cannot
+ * be started at all, mixes on the main thread instead (yielding between
+ * 1-second blocks) so the recording is still produced.
+ */
+export function mixInWorker(args, opts = {}) {
+  return new Promise((resolve, reject) => {
+    queue.push({
+      start: () =>
+        runWorker(args, opts)
+          .catch((err) => (err?.workerStartFailed ? mixToStereoWav(args) : Promise.reject(err)))
+          .then(resolve, reject),
+    });
+    runNext();
+  });
+}
+
+/** For tests: how many mixes are running / waiting. */
+export function mixQueueState() {
+  return { running, queued: queue.length };
 }
 
 export default mixToStereoWav;

@@ -118,7 +118,10 @@ sent to Gemini (16 kHz, placed at arrival time, gaps > 200 ms padded with silenc
 as received (24 kHz, placed on a playback cursor, since Gemini sends audio faster than real
 time). On barge-in the agent audio the listener never heard is dropped, matching the client's
 playback flush. After the call `traceAudioMix.js` mixes one **stereo 16 kHz WAV** (user left,
-agent right; ~3.75 MB/min) in 1-second blocks, and `trace.audio` goes `recording → processing →
+agent right; ~3.75 MB/min) **on a worker thread** (`mixInWorker`: up to 2 long-lived, reused
+workers, more recordings queue; a 15-minute call keeps the main thread busy ~0–5 ms instead of
+~1 s; if no worker can start it falls back to mixing on the main thread in yielding 1-second
+blocks), and `trace.audio` goes `recording → processing →
 ready` (or `failed` — the trace itself is unaffected). User / agent / turn spans carry
 `metadata.audio: { startMs, endMs }` offsets into it. A `voice_recording { enabled: true }`
 CUSTOM event at setup lets a client show a recording notice; Studio (ProjectAdmin) clients also
@@ -157,7 +160,8 @@ All routes are Project-Admin (Clerk + `projectAdminAuthMiddleware`), read-only:
 | `VoiceTraceRecorder.js` | Voice call → in-memory turn / step tree |
 | `VoiceUsageMeter.js` | Sums Gemini Live `usageMetadata`, breakdown by type |
 | `VoiceAudioRecorder.js` | Two synced PCM tracks → temp files |
-| `traceAudioMix.js` | Temp tracks → stereo WAV |
+| `traceAudioMix.js` | Temp tracks → stereo WAV; `mixInWorker` worker pool + queue |
+| `traceAudioMix.worker.js` | The worker thread that runs the mix |
 | `traceAudioStore.js` | Where recordings live (local disk; S3 later) |
 | `cron/sweepVoiceTraces.js` | Hourly recording / stale-trace cleanup |
 

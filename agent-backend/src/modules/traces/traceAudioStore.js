@@ -23,6 +23,8 @@ const logger = loggerService.getLogger();
  */
 
 const ID_RE = /^[a-f0-9]{24}$/i;
+/** Where finished recordings live in the private bucket. */
+export const S3_PREFIX = 'traces/voice/';
 
 function safeId(traceId) {
   const id = String(traceId);
@@ -31,8 +33,15 @@ function safeId(traceId) {
 }
 
 class TraceAudioStore {
-  constructor({ dir } = {}) {
+  /** @param {{ dir?: string, s3?: object }} [opts] `s3` is injectable for tests. */
+  constructor({ dir, s3 = s3Service } = {}) {
     this._dir = dir || null;
+    this.s3 = s3;
+  }
+
+  /** The recording's object key in the private bucket. */
+  s3KeyFor(key) {
+    return `${S3_PREFIX}${path.basename(String(key))}`;
   }
 
   dir() {
@@ -72,9 +81,9 @@ class TraceAudioStore {
     try {
       if (fs.existsSync(localPath)) {
         const buffer = await fsp.readFile(localPath);
-        await s3Service.uploadBuffer({
-          bucket: s3Service.privateBucket,
-          key: `traces/voice/${key}`,
+        await this.s3.uploadBuffer({
+          bucket: this.s3.privateBucket,
+          key: this.s3KeyFor(key),
           buffer,
           contentType: 'audio/wav',
         });
@@ -96,12 +105,12 @@ class TraceAudioStore {
     }
 
     try {
-      const s3Key = `traces/voice/${path.basename(String(key))}`;
-      const streamObj = await s3Service.getReadStream({
-        bucket: s3Service.privateBucket,
-        key: s3Key,
+      // HEAD only — never download (or leave open) the recording just to size it.
+      const head = await this.s3.headObject({
+        bucket: this.s3.privateBucket,
+        key: this.s3KeyFor(key),
       });
-      return { size: streamObj.contentLength };
+      return head ? { size: head.contentLength } : null;
     } catch {
       return null;
     }
@@ -115,12 +124,12 @@ class TraceAudioStore {
     }
 
     const passThrough = new PassThrough();
-    const s3Key = `traces/voice/${path.basename(String(key))}`;
+    const s3Key = this.s3KeyFor(key);
     const rangeHeader = range != null ? `bytes=${range.start}-${range.end}` : undefined;
 
-    s3Service
+    this.s3
       .getReadStream({
-        bucket: s3Service.privateBucket,
+        bucket: this.s3.privateBucket,
         key: s3Key,
         range: rangeHeader,
       })
@@ -144,10 +153,10 @@ class TraceAudioStore {
     await this.removeTemp(traceId);
     const key = this.keyFor(traceId);
     await fsp.rm(this.pathForKey(key), { force: true });
-    await s3Service
+    await this.s3
       .deleteObject({
-        bucket: s3Service.privateBucket,
-        key: `traces/voice/${key}`,
+        bucket: this.s3.privateBucket,
+        key: this.s3KeyFor(key),
       })
       .catch(() => {});
   }
@@ -155,15 +164,56 @@ class TraceAudioStore {
   /**
    * Deletes recordings older than `olderThanMs`, temp files older than
    * `tempOlderThanMs`, and (when `isKnown` is given) recordings whose trace
-   * no longer exists.
-   * @returns {Promise<{deleted: number}>}
+   * no longer exists — on local disk AND in S3 (MongoDB's TTL removes the
+   * trace documents but never the files).
+   * @returns {Promise<{deleted: number, deletedLocal: number, deletedS3: number}>}
    */
   async sweep({ olderThanMs, tempOlderThanMs = 24 * 60 * 60 * 1000, isKnown } = {}) {
+    const deletedLocal = await this._sweepLocal({ olderThanMs, tempOlderThanMs, isKnown });
+    const deletedS3 = await this._sweepS3({ olderThanMs, isKnown });
+    return { deleted: deletedLocal + deletedS3, deletedLocal, deletedS3 };
+  }
+
+  async _sweepS3({ olderThanMs, isKnown }) {
+    if (!this.s3?.listObjects) return 0;
+    const now = Date.now();
+    const doomed = [];
+    try {
+      for await (const obj of this.s3.listObjects({
+        bucket: this.s3.privateBucket,
+        prefix: S3_PREFIX,
+      })) {
+        const name = obj.key.slice(S3_PREFIX.length);
+        if (!name.endsWith('.wav')) continue;
+        const age = obj.lastModified ? now - new Date(obj.lastModified).getTime() : 0;
+        let drop = olderThanMs != null && age > olderThanMs;
+        if (!drop && typeof isKnown === 'function') {
+          const id = name.slice(0, -4);
+          if (ID_RE.test(id) && !(await isKnown(id))) drop = true;
+        }
+        if (drop) doomed.push(obj.key);
+      }
+      let deleted = 0;
+      for (let i = 0; i < doomed.length; i += 1000) {
+        const res = await this.s3.deleteObjects({
+          bucket: this.s3.privateBucket,
+          keys: doomed.slice(i, i + 1000),
+        });
+        deleted += res?.deleted ?? 0;
+      }
+      return deleted;
+    } catch (err) {
+      logger.warn(`[TraceAudioStore] S3 recording cleanup failed: ${err.message}`);
+      return 0;
+    }
+  }
+
+  async _sweepLocal({ olderThanMs, tempOlderThanMs, isKnown }) {
     let names;
     try {
       names = await fsp.readdir(this.dir());
     } catch {
-      return { deleted: 0 };
+      return 0;
     }
     const now = Date.now();
     let deleted = 0;
@@ -189,7 +239,7 @@ class TraceAudioStore {
         deleted += 1;
       }
     }
-    return { deleted };
+    return deleted;
   }
 }
 
