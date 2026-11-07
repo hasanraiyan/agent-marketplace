@@ -1,6 +1,6 @@
 /** Mirrors the CUSTOM `voice_session_ready` AG-UI event's payload shape. */
 export interface VoiceSessionInfo {
-  /** Gemini Live model this session is running (e.g. `gemini-3.1-flash-live-preview`). */
+  /** Gemini Live model this session is running (e.g. `gemini-3.8-live`). */
   model: string;
   /** Prebuilt voice name (e.g. `Zephyr`). */
   voice: string;

@@ -9,7 +9,7 @@
 
 ## 1. System Overview & Mission Statement
 
-The **Voice & Telephony Gateway** provides a unified, bidirectional, low-latency conversational audio runtime for the Persona AI Platform. It enables end users, browsers, and telephony callers to converse in real time with autonomous AI agents powered by Google Gemini Multimodal Live (`gemini-3.1-flash-live-preview`).
+The **Voice & Telephony Gateway** provides a unified, bidirectional, low-latency conversational audio runtime for the Persona AI Platform. It enables end users, browsers, and telephony callers to converse in real time with autonomous AI agents powered by Google Gemini Multimodal Live (`gemini-3.8-live`).
 
 The system unifies two primary client access channels through a single core engine (`VoiceSession`):
 1. **WebRTC / Direct WebSocket Clients:** Browser and mobile clients connecting directly via `/api/v1/developer/voice` or Developer Studio test playground using signed tickets.
@@ -76,7 +76,7 @@ flowchart TB
   `[ 4-byte turnSeq (LE) ] [ PCM16 Audio Payload ]`.
 
 ### FR-3: Upstream Gemini Multimodal Live Connection
-* **FR-3.1 (Session Setup):** `VoiceSession` must establish a WebSocket connection to the Gemini Live endpoint (`gemini-3.1-flash-live-preview`) using the decrypted provider API key.
+* **FR-3.1 (Session Setup):** `VoiceSession` must establish a WebSocket connection to the Gemini Live endpoint (`gemini-3.8-live`) using the decrypted provider API key.
 * **FR-3.2 (Initial Configuration):** On connect, the session must send a `LiveConnectConfig` payload containing:
   - System Instructions (combining Agent System Prompt, Seed Excerpt, and optional Turn Context Override).
   - Voice Name (e.g. `Puck`, `Aoede`, `Charon`, `Kore`, `Fenrir`).

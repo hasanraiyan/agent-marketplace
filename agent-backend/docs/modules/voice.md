@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Implements real-time bidirectional voice agent interaction using the **Gemini Multimodal Live API** (`gemini-3.1-flash-live-preview`). The voice module bridges client WebSocket connections (both browser and telephony) to upstream AI voice models with sub-second speech-to-speech latency, automated voice activity detection (VAD), barge-in handling, dynamic tool calling, and session resumption.
+Implements real-time bidirectional voice agent interaction using the **Gemini Multimodal Live API** (`gemini-3.8-live`). The voice module bridges client WebSocket connections (both browser and telephony) to upstream AI voice models with sub-second speech-to-speech latency, automated voice activity detection (VAD), barge-in handling, dynamic tool calling, and session resumption.
 
 ## Location
 

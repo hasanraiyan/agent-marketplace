@@ -148,7 +148,7 @@ describe('Twilio Gateway Unit Tests', () => {
     ]);
     mockVoiceService.resolveVoiceProvider.mockResolvedValue({ apiKey: 'gemini_test_key' });
     mockVoiceService.buildVoiceLiveConfig.mockResolvedValue({
-      model: 'gemini-3.1-flash-live-preview',
+      model: 'gemini-3.8-live',
       voiceName: 'Aoede',
       liveConfig: { systemInstruction: 'Telephony prompt' },
       toolsByName: new Map(),

@@ -77,7 +77,7 @@ The backend (`agent-backend/src/modules/`) comprises 22 core modules partitioned
 * **`sandbox`**: Code execution sandbox integration powered by CodeSandbox SDK (`@codesandbox/sdk`), supporting isolated runtime execution for developer code inspection.
 
 ### Pillar 2: Real-Time Voice & Telephony
-* **`voice`**: Real-time bidirectional voice agent runtime using Gemini Live (`gemini-3.1-flash-live-preview`).
+* **`voice`**: Real-time bidirectional voice agent runtime using Gemini Live (`gemini-3.8-live`).
   - `voiceGateway.js`: Authenticates signed single-use voice tickets (`redeemVoiceTicket`) for both `ProjectAdmin` (Studio preview) and `ProjectRuntime` (end users).
   - `VoiceSession.js`: Bridges client WebSocket audio frames to Google Gemini Live API. Handles 16kHz PCM audio framing (`turnSeq`), barge-in/interruption detection, parallel tool execution with timeout aborts, and live `turnContext` parameter resolution.
   - `voiceTranscriptSink.js`: Fire-and-forget transcript accumulation persisted to conversation threads and LangGraph checkpoints.

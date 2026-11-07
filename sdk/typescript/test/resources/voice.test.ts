@@ -24,7 +24,7 @@ describe('VoiceResource', () => {
       wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
       expiresAt: '2026-01-01T00:01:00.000Z',
       session: {
-        model: 'gemini-3.1-flash-live-preview',
+        model: 'gemini-3.8-live',
         voice: 'Zephyr',
         inputSampleRate: 16000,
         outputSampleRate: 24000,
@@ -51,7 +51,7 @@ describe('VoiceResource', () => {
       wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
       expiresAt: '2026-01-01T00:01:00.000Z',
       session: {
-        model: 'gemini-3.1-flash-live-preview',
+        model: 'gemini-3.8-live',
         voice: 'Zephyr',
         inputSampleRate: 16000,
         outputSampleRate: 24000,
@@ -81,7 +81,7 @@ describe('VoiceResource', () => {
       wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
       expiresAt: '2026-01-01T00:01:00.000Z',
       session: {
-        model: 'gemini-3.1-flash-live-preview',
+        model: 'gemini-3.8-live',
         voice: 'Zephyr',
         inputSampleRate: 16000,
         outputSampleRate: 24000,
@@ -109,7 +109,7 @@ describe('VoiceResource', () => {
       wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
       expiresAt: '2026-01-01T00:01:00.000Z',
       session: {
-        model: 'gemini-3.1-flash-live-preview',
+        model: 'gemini-3.8-live',
         voice: 'Zephyr',
         inputSampleRate: 16000,
         outputSampleRate: 24000,
@@ -139,7 +139,7 @@ describe('VoiceResource', () => {
       wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
       expiresAt: '2026-01-01T00:01:00.000Z',
       session: {
-        model: 'gemini-3.1-flash-live-preview',
+        model: 'gemini-3.8-live',
         voice: 'Zephyr',
         inputSampleRate: 16000,
         outputSampleRate: 24000,
@@ -167,7 +167,7 @@ describe('VoiceResource', () => {
       wsUrl: 'wss://api.example.com/api/v1/developer/voice?ticket=payload.signature',
       expiresAt: '2026-01-01T00:01:00.000Z',
       session: {
-        model: 'gemini-3.1-flash-live-preview',
+        model: 'gemini-3.8-live',
         voice: 'Zephyr',
         inputSampleRate: 16000,
         outputSampleRate: 24000,

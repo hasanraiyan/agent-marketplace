@@ -4,7 +4,7 @@
 > **Status:** APPROVED & IMPLEMENTED  
 > **Date:** September 2026  
 > **Subsystem Scope:** `agent-backend/src/modules/voice/` & `agent-backend/src/modules/twilio/`  
-> **Target Upstream:** Gemini Multimodal Live API (`gemini-3.1-flash-live-preview`) & Twilio Media Streams
+> **Target Upstream:** Gemini Multimodal Live API (`gemini-3.8-live`) & Twilio Media Streams
 
 ---
 
