@@ -3,6 +3,21 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## Unreleased
+
+- **Custom tool UI — `useRenderTool`, `useRenderToolCall`, `PersonaToolCallView`.** Register a
+  render function for a server tool's name (or `"*"` for any tool) and show calls with
+  `<PersonaToolCallView toolCall={tc} fallback={…} />`. Render props are discriminated by
+  `status: "inProgress" | "executing" | "complete"` with `args` (partial while streaming),
+  `result`, `isError`, and the raw `toolCall`. Render functions may use hooks. Status is derived
+  from the call, so it works for live streams and reloaded threads alike. No backend change.
+- New exports: `PersonaToolRegistry` (one per `PersonaProvider`, exposed on
+  `usePersonaContext().toolRegistry`), `getToolCallStatus`, `buildToolRenderProps`,
+  `parsePartialJson` (tolerant parsing of streaming tool arguments), and the types
+  `PersonaToolCallStatus`, `PersonaToolRenderProps`, `PersonaToolRenderFn`, `UseRenderToolConfig`,
+  `PersonaToolCallViewProps`.
+- First step of frontend tools; `useFrontendTool` / `useHumanInTheLoop` / `useComponent` follow.
+
 ## 0.20.0
 
 - **Channel Continuity & Message Badging (`PersonaMessage.channel`, `getChannelBadgeLabel`).**

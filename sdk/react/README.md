@@ -68,6 +68,44 @@ function Chat() {
 | `useMcp`             | MCP discovery + tool listing                                                                    |
 | `useMcpConnections`  | End-user MCP OAuth connect/disconnect flow                                                      |
 | `useConnection`      | Health check — backend connectivity status                                                      |
+| `useRenderTool`      | Custom UI for a server tool's calls (generative UI) — see below                                 |
+| `useRenderToolCall`  | Returns a function that renders a tool call with its registered renderer                        |
+
+## Custom tool UI (`useRenderTool`)
+
+Render your own component for a tool that runs on the server (MCP, REST API tool, built-in…)
+instead of a generic tool card. Display only — the tool itself is unchanged.
+
+```tsx
+import { useRenderTool, PersonaToolCallView } from "@personaai/react";
+
+function ProgramSearchUI() {
+  useRenderTool<{ query: string }>({
+    name: "search_programs",
+    render: ({ status, args, result, isError }) => {
+      if (status === "inProgress") return <Skeleton label={args.query} />; // args still streaming (partial)
+      if (status === "executing") return <Spinner label={`Searching ${args.query}…`} />;
+      return isError ? <ErrorNote /> : <ProgramResults json={result} />; // "complete"
+    },
+  });
+  return null;
+}
+
+// Wherever you render a message's tool calls:
+{message.toolCalls?.map((tc) => (
+  <PersonaToolCallView key={tc.toolCallId} toolCall={tc} fallback={<DefaultToolCard call={tc} />} />
+))}
+```
+
+- `status` is `"inProgress"` (args streaming in — `args` is a best-effort partial object),
+  `"executing"` (args complete, waiting for the result), or `"complete"` (`result` is set). It's
+  derived from the call itself, so reloaded threads render the same way.
+- `name: "*"` registers a catch-all renderer for any tool without its own. Return `null` to hide
+  a call entirely.
+- Render functions may use hooks; each call keeps its own component state.
+- Registered while the calling component is mounted; the latest registration for a name wins.
+- No renderer and no `fallback` → `PersonaToolCallView` renders nothing. `useRenderToolCall()`
+  returns `undefined` for unmatched calls so you can branch yourself.
 
 ## Memory & an Agent's `/workspace/` files
 

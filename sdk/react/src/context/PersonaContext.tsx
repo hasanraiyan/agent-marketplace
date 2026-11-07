@@ -1,8 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useMemo } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 import type { PersonaProviderProps } from "../types.js";
 import { createLogger, type Logger } from "@personaai/logger";
+import { PersonaToolRegistry } from "../tools/registry.js";
 
 interface PersonaContextValue {
   baseUrl: string;
@@ -11,6 +12,8 @@ interface PersonaContextValue {
   defaultAgentId?: string;
   fetchWithAuth: (path: string, init?: RequestInit) => Promise<Response>;
   logger: Logger;
+  /** Tool renderers registered via `useRenderTool` (one per provider). */
+  toolRegistry: PersonaToolRegistry;
 }
 
 /** Structured, trackable details of a non-ok API response. */
@@ -39,6 +42,10 @@ export function PersonaProvider({
     () => baseUrl.replace(/\/+$/, ""),
     [baseUrl],
   );
+
+  // Created once per provider and never replaced, so registrations survive
+  // re-renders and config changes (baseUrl, auth) of the provider.
+  const [toolRegistry] = useState(() => new PersonaToolRegistry());
 
   const logger = useMemo<Logger>(() => {
     const l =
@@ -163,8 +170,9 @@ export function PersonaProvider({
       defaultAgentId,
       fetchWithAuth,
       logger,
+      toolRegistry,
     };
-  }, [normalizedBaseUrl, getAuthToken, defaultAgentId, logger]);
+  }, [normalizedBaseUrl, getAuthToken, defaultAgentId, logger, toolRegistry]);
 
   return (
     <PersonaContext.Provider value={value}>{children}</PersonaContext.Provider>
