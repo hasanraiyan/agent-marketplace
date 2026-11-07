@@ -4,6 +4,15 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.22.0
+
+- **`@personaai/sdk` upgraded to `^0.21.0`** (voice image types: `VoiceImageMessage`,
+  `VoiceImageEvent`, `VOICE_IMAGE_LIMITS`).
+- **Images in voice calls work through your existing `POST /voice/sessions`.** No route change:
+  images shared mid-call (`@personaai/react`'s `useVoice().sendImage`) go straight from the
+  browser to Persona over the call's WebSocket, like the audio. Needs the Agent's
+  `imageInputEnabled` and a Persona backend with voice image input.
+
 ## 0.21.0
 
 - **`@personaai/sdk` upgraded to `^0.20.0`.**

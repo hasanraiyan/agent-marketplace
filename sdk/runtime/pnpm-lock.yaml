@@ -12,8 +12,8 @@ importers:
         specifier: ^0.0.57
         version: 0.0.57
       '@personaai/sdk':
-        specifier: ^0.20.0
-        version: 0.20.0(zod@3.25.76)
+        specifier: ^0.21.0
+        version: 0.21.0(zod@3.25.76)
       rcp-sdk:
         specifier: ^0.1.0
         version: 0.1.1
@@ -442,8 +442,8 @@ packages:
     resolution: {integrity: sha512-ra5T+aBNzDmiabJ161y87SJJT9x3MHuFfAL1UCxSY3IO6AOJtF5UcXdsLVcxkugeOIto6Ppsm+adGLLR9s50Kw==}
     engines: {node: '>=18'}
 
-  '@personaai/sdk@0.20.0':
-    resolution: {integrity: sha512-tWthpMdayv3TEItV7bRe1mu6wEpAgVLKDieJ93nPMiWlgJjfx1xDKO49P0pPakvOGkzZgNvi3z/+atW5iF/zjw==}
+  '@personaai/sdk@0.21.0':
+    resolution: {integrity: sha512-jVor2peF2wzT7IA6pLca5mUpweL/vqo2Hn0j2WOMTofqDf+8xzTp3uGUf85qXjH52cSRKgn5plFvyHDwTzvbGg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.23.0 || ^4.0.0
@@ -1604,7 +1604,7 @@ snapshots:
 
   '@personaai/logger@0.1.0': {}
 
-  '@personaai/sdk@0.20.0(zod@3.25.76)':
+  '@personaai/sdk@0.21.0(zod@3.25.76)':
     dependencies:
       '@ag-ui/core': 0.0.57
       '@personaai/logger': 0.1.0
