@@ -13,6 +13,8 @@ import {
 import { VoiceSession } from './VoiceSession.js';
 import voiceThreadService from '../voiceThread.service.js';
 import VoiceTranscriptSink from '../voiceTranscriptSink.js';
+import { VOICE_IMAGE_PROMPT_SECTION } from '../voiceImage.js';
+import { attachmentSubject } from '../../agui/userContent.js';
 
 const logger = loggerService.getLogger();
 
@@ -215,6 +217,17 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
     }
   }
 
+  // Image input (same per-agent switch as text chat). Images are stored as
+  // files only when the call persists to a thread — Studio test calls just
+  // forward the picture to Gemini.
+  const imageInputEnabled = agent.imageInputEnabled === true;
+  if (imageInputEnabled) {
+    liveConfig.systemInstruction =
+      `${liveConfig.systemInstruction || ''}
+
+${VOICE_IMAGE_PROMPT_SECTION}`.trim();
+  }
+
   wss.handleUpgrade(req, socket, head, (clientWs) => {
     const session = new VoiceSession({
       clientWs,
@@ -225,7 +238,15 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
       liveConfig,
       toolsByName,
       frontendToolNames,
-      onTranscriptCommit: transcriptSink ? (role, text) => transcriptSink.commit(role, text) : null,
+      onTranscriptCommit: transcriptSink
+        ? (role, text, attachments) => transcriptSink.commit(role, text, attachments)
+        : null,
+      imageInput: {
+        enabled: imageInputEnabled,
+        subject: attachmentSubject(context, claims.subjectId),
+        agentId: String(agent._id),
+        persist: Boolean(transcriptSink),
+      },
       // At-connect seed for TURN_CONTEXT_RCP_RESOLVERS_PLAN.md's voice
       // extension — VoiceSession keeps this live-refreshable for the rest
       // of the call via a `voice.context` client message.

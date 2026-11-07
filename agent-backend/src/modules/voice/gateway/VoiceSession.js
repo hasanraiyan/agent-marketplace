@@ -5,6 +5,13 @@ import { validateTurnContext } from '../../agui/turnContext.js';
 import { connectGeminiLive } from './geminiLiveClient.js';
 import { frameAudioForClient } from './audioFraming.js';
 import {
+  VOICE_IMAGE_LIMITS,
+  UNCAPTIONED_IMAGE_PROMPT,
+  VoiceImageError,
+  resolveVoiceImage,
+} from '../voiceImage.js';
+import fileService from '../../files/file.service.js';
+import {
   INPUT_MIME_TYPE,
   INPUT_SAMPLE_RATE,
   OUTPUT_SAMPLE_RATE,
@@ -88,6 +95,7 @@ export class VoiceSession {
     frontendToolNames,
     onTranscriptCommit,
     initialContext,
+    imageInput,
   }) {
     this.clientWs = clientWs;
     this.claims = claims;
@@ -114,6 +122,21 @@ export class VoiceSession {
     // for ProjectRuntime sessions; undefined keeps Studio test sessions
     // fully ephemeral. Fire-and-forget — persistence never gates audio.
     this.onTranscriptCommit = onTranscriptCommit || null;
+    // Image input (voiceImage.js): `enabled` mirrors agent.imageInputEnabled;
+    // `persist` is true only when the call writes to a thread checkpoint,
+    // so Studio test calls never store files. `resolveImage`/`bindToThread`
+    // are injectable for tests.
+    this.imageInput = {
+      enabled: false,
+      subject: null,
+      agentId: null,
+      persist: false,
+      resolveImage: resolveVoiceImage,
+      bindToThread: (ids, key) => fileService.bindAttachmentsToThread(ids, key),
+      ...(imageInput || {}),
+    };
+    this.imagesSent = 0;
+    this.lastImageAt = 0;
     /** toolCallId -> {controller: AbortController, cancelled: boolean} */
     this.pendingToolCalls = new Map();
     // No Thread model involvement yet (Phase 4) - this only satisfies the
@@ -740,10 +763,16 @@ export class VoiceSession {
   }
 
   /** Persist one final transcript line (Phase 4). Never blocks the audio path. */
-  _commitTranscript(role, text) {
-    if (!this.onTranscriptCommit || typeof text !== 'string' || !text.trim()) return;
+  _commitTranscript(role, text, attachments) {
+    if (!this.onTranscriptCommit) return;
+    const hasText = typeof text === 'string' && text.trim();
+    if (!hasText && !attachments?.length) return;
     try {
-      Promise.resolve(this.onTranscriptCommit(role, text)).catch(() => {});
+      Promise.resolve(
+        attachments?.length
+          ? this.onTranscriptCommit(role, text || '', attachments)
+          : this.onTranscriptCommit(role, text)
+      ).catch(() => {});
     } catch {
       // sink already gone — safe to drop
     }
@@ -788,6 +817,17 @@ export class VoiceSession {
           this._sendTextChunk('user', text);
           this._commitTranscript('user', text);
         }
+        break;
+      case 'voice.image':
+        this._handleClientImage(msg).catch((err) => {
+          logger.warn('[Voice] voice.image failed', { err: err?.message });
+          this._sendCustom('voice_image', {
+            id: typeof msg.id === 'string' ? msg.id : null,
+            status: 'rejected',
+            code: 'INTERNAL_ERROR',
+            message: 'Could not process the image.',
+          });
+        });
         break;
       case 'voice.context':
         // Live refresh of turnContext (TURN_CONTEXT_RCP_RESOLVERS_PLAN.md's
@@ -862,6 +902,83 @@ export class VoiceSession {
       default:
         break;
     }
+  }
+
+  /**
+   * One `voice.image` from the client: validate, hand the picture to Gemini
+   * as a video frame, follow it with text (the caption, or a short prompt)
+   * so the model actually answers, then record the user turn with its
+   * image reference. Always answers with a `voice_image` CUSTOM event.
+   */
+  async _handleClientImage(msg) {
+    const id = typeof msg.id === 'string' ? msg.id : null;
+    const reject = (code, message) =>
+      this._sendCustom('voice_image', { id, status: 'rejected', code, message });
+
+    if (!this.imageInput.enabled) {
+      reject('IMAGE_INPUT_DISABLED', 'This agent does not accept images.');
+      return;
+    }
+    if (this.imagesSent >= VOICE_IMAGE_LIMITS.maxImagesPerCall) {
+      reject('IMAGE_LIMIT_REACHED', `At most ${VOICE_IMAGE_LIMITS.maxImagesPerCall} images per call.`);
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastImageAt < VOICE_IMAGE_LIMITS.minIntervalMs) {
+      reject('RATE_LIMITED', 'Send at most one image per second.');
+      return;
+    }
+    // Reserve the slot before the async work so a burst can't slip through.
+    this.lastImageAt = now;
+    this.imagesSent += 1;
+
+    let image;
+    try {
+      image = await this.imageInput.resolveImage(msg, {
+        subject: this.imageInput.subject,
+        agentId: this.imageInput.agentId,
+        persist: this.imageInput.persist,
+      });
+    } catch (err) {
+      this.imagesSent -= 1;
+      if (err instanceof VoiceImageError || err?.code === 'INVALID_ATTACHMENT') {
+        reject(err.code || 'INVALID_ATTACHMENT', err.message);
+        return;
+      }
+      throw err;
+    }
+    if (this.closed || !this.geminiSession) {
+      reject('SESSION_CLOSED', 'The call has ended.');
+      return;
+    }
+
+    const caption = typeof msg.text === 'string' ? msg.text.trim() : '';
+    this._beginTurnIfNeeded();
+    this.geminiSession.sendRealtimeInput({
+      video: { data: image.buffer.toString('base64'), mimeType: image.mimeType },
+    });
+    this.geminiSession.sendRealtimeInput({ text: caption || UNCAPTIONED_IMAGE_PROMPT });
+    this.lastClientAudioAt = Date.now(); // sharing an image counts as activity
+
+    const attachment = image.ref
+      ? { fileId: image.ref.fileId, mimeType: image.ref.mimeType, name: image.ref.name }
+      : { mimeType: image.mimeType };
+    if (image.ref && this.imageInput.persist && this.claims.threadId) {
+      Promise.resolve(this.imageInput.bindToThread([image.ref.fileId], this.claims.threadId)).catch(
+        (err) => logger.warn('[Voice] binding image to thread failed (non-fatal)', { err: err?.message })
+      );
+    }
+
+    this._sendCustom('voice_image', { id, status: 'accepted', attachment });
+    this._sendCustom('voice_transcript', {
+      speaker: 'user',
+      text: caption,
+      isFinal: true,
+      turnSeq: this.turnSeq,
+      attachments: [attachment],
+    });
+    if (caption) this._sendTextChunk('user', caption);
+    this._commitTranscript('user', caption, image.ref ? [image.ref] : []);
   }
 
   _forwardClientAudio(buffer) {

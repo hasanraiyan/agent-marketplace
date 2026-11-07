@@ -4,6 +4,7 @@ import agentFactory from '../agents/agent.factory.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import threadRepository from '../threads/thread.repository.js';
 import { isThreadSubject } from '../threads/thread.service.js';
+import { buildHumanContent } from '../agui/userContent.js';
 
 const logger = loggerService.getLogger();
 
@@ -21,16 +22,25 @@ function extractContentText(content) {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
-      .map((block) => (typeof block === 'string' ? block : (block?.text ?? '')))
-      .join('');
+      .map((block) => {
+        if (typeof block === 'string') return block;
+        if (block?.type === 'image') return ' [image] ';
+        return block?.text ?? '';
+      })
+      .join('')
+      .trim();
   }
   return '';
 }
 
 /** Build a LangChain message for a committed voice transcript line. */
-export function voiceTurnToMessage(role, text) {
-  const content = typeof text === 'string' ? text.trim() : '';
-  if (!content) return null;
+export function voiceTurnToMessage(role, text, attachments) {
+  const trimmed = typeof text === 'string' ? text.trim() : '';
+  const images = role === 'user' && Array.isArray(attachments) ? attachments : [];
+  if (!trimmed && images.length === 0) return null;
+  // Images shared during the call are stored like chat attachments: the
+  // checkpoint only holds `{ type: 'image', personaFileId }` references.
+  const content = images.length ? buildHumanContent(trimmed, images) : trimmed;
   return role === 'user'
     ? new HumanMessage({ content, additional_kwargs: { channel: 'voice' } })
     : new AIMessage({ content, additional_kwargs: { channel: 'voice' } });
@@ -181,7 +191,9 @@ class VoiceThreadService {
   async appendTurns({ agentId, userId, context, threadId }, turns) {
     if (!threadId || !turns || turns.length === 0) return;
 
-    const messages = turns.map((t) => voiceTurnToMessage(t.role, t.text)).filter(Boolean);
+    const messages = turns
+      .map((t) => voiceTurnToMessage(t.role, t.text, t.attachments))
+      .filter(Boolean);
     if (messages.length === 0) return;
 
     await this.assertThreadOwnedByContext(threadId, context);

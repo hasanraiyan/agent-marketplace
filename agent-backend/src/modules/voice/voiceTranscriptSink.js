@@ -36,12 +36,17 @@ class VoiceTranscriptSink {
     this.firstUserText = null;
   }
 
-  /** Enqueue one committed transcript line. Never throws to the caller. */
-  commit(role, text) {
+  /**
+   * Enqueue one committed transcript line. Never throws to the caller.
+   * `attachments` (user turns only) are stored image references
+   * `{ fileId, mimeType, name }` from voiceImage.js.
+   */
+  commit(role, text, attachments) {
     const content = typeof text === 'string' ? text.trim() : '';
-    if (!content) return;
+    const images = Array.isArray(attachments) && attachments.length ? attachments : null;
+    if (!content && !images) return;
 
-    if (role === 'user' && !this.firstUserText) {
+    if (role === 'user' && content && !this.firstUserText) {
       this.firstUserText = content;
     }
 
@@ -53,7 +58,11 @@ class VoiceTranscriptSink {
     };
 
     this.queue = this.queue
-      .then(() => voiceThreadService.appendTurns(args, [{ role, text: content }]))
+      .then(() =>
+        voiceThreadService.appendTurns(args, [
+          images ? { role, text: content, attachments: images } : { role, text: content },
+        ])
+      )
       .catch((err) => {
         // Persistence must never break the call — log and continue.
         logger.warn('[Voice] transcript commit failed (non-fatal)', {

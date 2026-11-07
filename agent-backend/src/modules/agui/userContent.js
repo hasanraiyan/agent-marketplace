@@ -190,7 +190,7 @@ export function attachmentSubject(executionContext, userId) {
   };
 }
 
-function decodeBase64(data) {
+export function decodeBase64(data) {
   const clean = data.replace(/\s+/g, '');
   if (!/^[A-Za-z0-9+/]*={0,2}$/.test(clean) && !/^[A-Za-z0-9_-]*={0,2}$/.test(clean)) {
     throw new AttachmentError('Image data is not valid base64.');
@@ -206,7 +206,7 @@ function tooLargeMessage() {
   return `Image is larger than ${IMAGE_INPUT_LIMITS.maxImageBytes / (1024 * 1024)} MB.`;
 }
 
-function checkImageBytes(buffer) {
+export function checkImageBytes(buffer) {
   if (buffer.length > IMAGE_INPUT_LIMITS.maxImageBytes)
     throw new AttachmentError(tooLargeMessage());
   const mimeType = sniffImageMime(buffer);
