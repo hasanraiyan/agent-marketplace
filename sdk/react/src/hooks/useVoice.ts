@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePersonaContext } from "../context/PersonaContext.js";
 import { recorderWorkletUrl, playerWorkletUrl } from "./voiceWorklets.js";
 import type {
+  PersonaToolCall,
   PersonaVoiceEndReason,
   PersonaVoiceState,
   PersonaVoiceToolCall,
@@ -11,6 +12,24 @@ import type {
   UseVoiceOptions,
   UseVoiceResult,
 } from "../types.js";
+
+/**
+ * A voice tool call in the shape chat tool calls use, so the renderers
+ * registered with `useFrontendTool({ render })`, `useHumanInTheLoop` and
+ * `useComponent` can show it during a call — pass it to
+ * `useRenderToolCall()` / `<PersonaToolCallView>`. A `useHumanInTheLoop`
+ * call's `respond()` answers the voice call. Done/error calls carry their
+ * `summary` as the `result`.
+ */
+export function voiceToolCallToToolCall(call: PersonaVoiceToolCall): PersonaToolCall {
+  return {
+    toolCallId: call.id,
+    toolName: call.name ?? "",
+    args: JSON.stringify(call.args ?? {}),
+    ...(call.status === "running" ? {} : { result: call.summary ?? "" }),
+    ...(call.status === "error" ? { isError: true } : {}),
+  };
+}
 
 interface VoiceSessionTicket {
   ticket: string;
@@ -398,7 +417,9 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
           const callId = (msg.callId || msg.id) as string;
           const name = msg.name as string;
           const args = (msg.args || {}) as Record<string, unknown>;
-          upsertToolCall(callId, { name, status: "running" });
+          // Keep the args: a renderer (confirm card, chart, …) needs them to
+          // show the call — see voiceToolCallToToolCall.
+          upsertToolCall(callId, { name, args, frontend: true, status: "running" });
 
           const entry = toolRegistry.getFrontendTool(name);
           if (!entry) {

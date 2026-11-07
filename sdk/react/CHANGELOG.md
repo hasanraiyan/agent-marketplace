@@ -3,6 +3,14 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.22.1
+
+- **Show voice frontend tool calls with your renderers.** A voice tool call from a frontend tool
+  now carries its `args` (and `frontend: true`) on `useVoice().toolCalls`, and the new
+  `voiceToolCallToToolCall(call)` turns it into a `PersonaToolCall` — pass that to
+  `useRenderToolCall()` / `<PersonaToolCallView>` to show the same confirm card, chart or widget
+  you registered for chat. A `useHumanInTheLoop` card's `respond()` answers the voice call.
+
 ## 0.22.0
 
 - **Images in chat — `useAttachments`, `useAttachmentUrl`.** Users can attach images to a

@@ -66,7 +66,8 @@ __export(index_exports, {
   useWorkflowRuns: () => useWorkflowRuns,
   useWorkflowStream: () => useWorkflowStream,
   useWorkflows: () => useWorkflows,
-  useWorkspaceFiles: () => useWorkspaceFiles
+  useWorkspaceFiles: () => useWorkspaceFiles,
+  voiceToolCallToToolCall: () => voiceToolCallToToolCall
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -2589,6 +2590,15 @@ function playerWorkletUrl() {
 }
 
 // src/hooks/useVoice.ts
+function voiceToolCallToToolCall(call) {
+  return {
+    toolCallId: call.id,
+    toolName: call.name ?? "",
+    args: JSON.stringify(call.args ?? {}),
+    ...call.status === "running" ? {} : { result: call.summary ?? "" },
+    ...call.status === "error" ? { isError: true } : {}
+  };
+}
 function mergeTranscriptText(prev, next) {
   if (!prev) return next;
   if (!next) return prev;
@@ -2864,7 +2874,7 @@ function useVoice(options = {}) {
           const callId = msg.callId || msg.id;
           const name = msg.name;
           const args = msg.args || {};
-          upsertToolCall(callId, { name, status: "running" });
+          upsertToolCall(callId, { name, args, frontend: true, status: "running" });
           const entry = toolRegistry.getFrontendTool(name);
           if (!entry) {
             voiceLogger.warn("frontend tool not registered", { name });
@@ -5301,7 +5311,7 @@ function useAttachmentUrl(fileId) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.22.0";
+var VERSION = "0.22.1";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ANY_TOOL,
@@ -5350,6 +5360,7 @@ var VERSION = "0.22.0";
   useWorkflowRuns,
   useWorkflowStream,
   useWorkflows,
-  useWorkspaceFiles
+  useWorkspaceFiles,
+  voiceToolCallToToolCall
 });
 //# sourceMappingURL=index.cjs.map

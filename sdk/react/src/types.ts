@@ -552,6 +552,10 @@ export interface PersonaVoiceToolCall {
   status: "running" | "done" | "error";
   /** Tool output (success) or error message — whichever applies. */
   summary?: string;
+  /** True for a frontend tool (useFrontendTool & co.) the model called during the call. */
+  frontend?: boolean;
+  /** The model's arguments — set for frontend tool calls. */
+  args?: Record<string, unknown>;
 }
 
 /** Why a voice session ended — the terminal `voice_session_ended` event's `reason`. */

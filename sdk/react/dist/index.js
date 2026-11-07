@@ -2517,6 +2517,15 @@ function playerWorkletUrl() {
 }
 
 // src/hooks/useVoice.ts
+function voiceToolCallToToolCall(call) {
+  return {
+    toolCallId: call.id,
+    toolName: call.name ?? "",
+    args: JSON.stringify(call.args ?? {}),
+    ...call.status === "running" ? {} : { result: call.summary ?? "" },
+    ...call.status === "error" ? { isError: true } : {}
+  };
+}
 function mergeTranscriptText(prev, next) {
   if (!prev) return next;
   if (!next) return prev;
@@ -2792,7 +2801,7 @@ function useVoice(options = {}) {
           const callId = msg.callId || msg.id;
           const name = msg.name;
           const args = msg.args || {};
-          upsertToolCall(callId, { name, status: "running" });
+          upsertToolCall(callId, { name, args, frontend: true, status: "running" });
           const entry = toolRegistry.getFrontendTool(name);
           if (!entry) {
             voiceLogger.warn("frontend tool not registered", { name });
@@ -5240,7 +5249,7 @@ import {
   getLogLevel,
   isLevelEnabled
 } from "@personaai/logger";
-var VERSION = "0.22.0";
+var VERSION = "0.22.1";
 export {
   ANY_TOOL,
   ARCHITECT_AGENT_ID,
@@ -5288,6 +5297,7 @@ export {
   useWorkflowRuns,
   useWorkflowStream,
   useWorkflows,
-  useWorkspaceFiles
+  useWorkspaceFiles,
+  voiceToolCallToToolCall
 };
 //# sourceMappingURL=index.js.map

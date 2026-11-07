@@ -47,4 +47,4 @@ export type {
   CreateLoggerOptions,
 } from "@personaai/logger";
 
-export const VERSION = "0.22.0";
+export const VERSION = "0.22.1";
