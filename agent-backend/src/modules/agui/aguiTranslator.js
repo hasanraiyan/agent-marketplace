@@ -1,5 +1,6 @@
 import { EventType } from '@ag-ui/core';
 import { randomUUID } from 'crypto';
+import { describeBinaryBlock } from '../agents/sanitizeMessagesForModel.js';
 
 /**
  * Translates a LangGraph `streamEvents(..., { version: 'v2' })` async iterator into
@@ -87,6 +88,15 @@ export function classifyRuntimeError(err, providerConfig) {
   const rawMessage = err?.message || 'Unknown error';
   const lower = rawMessage.toLowerCase();
   const providerName = providerConfig?.provider || providerConfig?.label;
+
+  // Image input (agents/imageContent.js, agui/userContent.js): already
+  // classified where they're thrown; their messages are user-facing.
+  if (err?.code === 'MODEL_NO_VISION' || err?.cause?.code === 'MODEL_NO_VISION') {
+    return { code: 'MODEL_NO_VISION', retryable: false, providerName };
+  }
+  if (err?.code === 'INVALID_ATTACHMENT') {
+    return { code: 'INVALID_ATTACHMENT', retryable: false, providerName };
+  }
 
   const isProviderAuthIssue =
     lower.includes('incorrect api key provided') ||
@@ -370,9 +380,13 @@ export function extractToolOutputContent(output) {
   // ToolMessage / BaseMessage: the payload lives on `.content`.
   if (typeof output.content === 'string') return output.content;
   if (Array.isArray(output.content)) {
-    // Content blocks: concatenate text parts, stringify anything else.
+    // Content blocks: concatenate text parts, stringify anything else —
+    // except binary blocks (e.g. read_file on an image), whose base64 must
+    // not be streamed to the client.
     return output.content
-      .map((b) => (typeof b === 'string' ? b : (b?.text ?? JSON.stringify(b))))
+      .map((b) =>
+        typeof b === 'string' ? b : (b?.text ?? describeBinaryBlock(b) ?? JSON.stringify(b))
+      )
       .join('');
   }
   // A single text block returned as an object rather than an array -

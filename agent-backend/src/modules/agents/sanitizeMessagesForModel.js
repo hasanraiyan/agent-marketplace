@@ -13,6 +13,22 @@ const OPENAI_SUPPORTED_CONTENT_TYPES = new Set([
   'file',
 ]);
 
+const BINARY_BLOCK_TYPES = new Set(['image', 'audio', 'video', 'file', 'image_url', 'input_audio']);
+
+/**
+ * A short text stand-in for a binary content block (image/audio/video/file),
+ * or null when the block isn't binary.
+ */
+export function describeBinaryBlock(block) {
+  if (!block || typeof block !== 'object' || !BINARY_BLOCK_TYPES.has(block.type)) return null;
+  const mime =
+    block.mimeType ||
+    block.mime_type ||
+    (typeof block.image_url?.url === 'string' && /^data:([^;,]+)/.exec(block.image_url.url)?.[1]) ||
+    block.type;
+  return `[${block.type} content omitted (${mime})]`;
+}
+
 /**
  * Inspects a message's content and returns information about incompatible blocks.
  *
@@ -201,6 +217,11 @@ export function sanitizeMessageForModel(message, providerType = 'openai') {
             if (typeof p === 'string') return p;
             if (p?.text) return p.text;
             if (p?.functionResponse?.response) return JSON.stringify(p.functionResponse.response);
+            // Never JSON-stringify binary blocks: the base64 payload would
+            // reach the model as millions of tokens of text. Images normally
+            // never get here (imageContentMiddleware moves them out first).
+            const binary = describeBinaryBlock(p);
+            if (binary) return binary;
             return JSON.stringify(p);
           })
           .filter(Boolean);

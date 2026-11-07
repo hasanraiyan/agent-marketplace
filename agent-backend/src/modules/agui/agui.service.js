@@ -15,6 +15,17 @@ import {
   describeInterrupt,
 } from './aguiTranslator.js';
 import { RunScopeTracker } from './RunScopeTracker.js';
+import {
+  AttachmentError,
+  attachmentSubject,
+  buildHumanContent,
+  droppedAttachmentNotice,
+  getLastUserMessage,
+  parseUserContent,
+  resolveUserImages,
+} from './userContent.js';
+import fileService from '../files/file.service.js';
+import BaseError from '../../utils/errors/BaseError.js';
 
 const logger = loggerService.getLogger();
 
@@ -22,11 +33,23 @@ const logger = loggerService.getLogger();
  * Read the raw JSON body from the request, parsing the stream manually
  * (AGUI reads its own body before express.json() consumes it).
  */
-export async function readJsonBody(req) {
+// Room for the largest valid image turn (4 × 5 MB inline images as base64 ≈
+// 27 MB) plus text; anything bigger is rejected before it's buffered.
+export const MAX_AGUI_BODY_BYTES = 32 * 1024 * 1024;
+
+export async function readJsonBody(req, { maxBytes = MAX_AGUI_BODY_BYTES } = {}) {
   if (req.body && typeof req.body === 'object') return req.body;
 
+  const declared = Number(req.headers?.['content-length']);
+  if (declared > maxBytes) throw new BaseError('Request body is too large', 413, 'PAYLOAD_TOO_LARGE');
+
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
+  let total = 0;
+  for await (const chunk of req) {
+    total += chunk.length;
+    if (total > maxBytes) throw new BaseError('Request body is too large', 413, 'PAYLOAD_TOO_LARGE');
+    chunks.push(chunk);
+  }
   if (chunks.length === 0) return {};
 
   const raw = Buffer.concat(chunks).toString('utf8');
@@ -47,6 +70,40 @@ export function getLastUserText(messages) {
     return content.map((part) => (typeof part === 'string' ? part : part?.text || '')).join('');
   }
   return '';
+}
+
+/**
+ * HumanMessage content for a new turn: the text, plus image references when
+ * images are allowed. When they aren't (setting off, non-web channel), the
+ * images are dropped and the model gets a one-line note instead. Throws
+ * AttachmentError for an invalid image (the whole turn is rejected).
+ */
+export async function buildTurnContent({
+  lastUserMessage,
+  text,
+  imagesAllowed,
+  subject,
+  agentId,
+  threadKey,
+  resolve = resolveUserImages,
+  bind = (ids, key) => fileService.bindAttachmentsToThread(ids, key),
+}) {
+  const { images, unsupported } = parseUserContent(lastUserMessage?.content);
+  if (images.length === 0 && unsupported.length === 0) return text;
+
+  if (!imagesAllowed) {
+    const notice = droppedAttachmentNotice({ images: images.length, unsupported });
+    return text ? `${text}\n\n${notice}` : notice;
+  }
+
+  const refs = await resolve(images, { subject, agentId });
+  await bind(
+    refs.map((r) => r.fileId),
+    threadKey
+  );
+  const notice = droppedAttachmentNotice({ unsupported });
+  const withNotice = notice ? (text ? `${text}\n\n${notice}` : notice) : text;
+  return buildHumanContent(withNotice, refs);
 }
 
 /**
@@ -197,6 +254,33 @@ export async function* runAgentAsAguiEvents({
 
   const isResuming = Boolean(pendingInterrupt);
 
+  // Images on the user's message (Agent `imageInputEnabled`, web turns only):
+  // validated, stored, and referenced by file id — see userContent.js. A
+  // resume carries no new user message, so nothing to do there.
+  let humanContent = content;
+  if (!isResuming) {
+    try {
+      humanContent = await buildTurnContent({
+        lastUserMessage: getLastUserMessage(messages),
+        text: content,
+        imagesAllowed: Boolean(agentConfig?.imageInputEnabled) && (!turnChannel || turnChannel === 'web'),
+        subject: attachmentSubject(executionContext, userId),
+        agentId,
+        threadKey: langGraphThreadId,
+      });
+    } catch (err) {
+      if (!(err instanceof AttachmentError)) throw err;
+      logger.info('[AG-UI] run rejected: invalid attachment', { agentId, reason: err.message });
+      yield {
+        type: EventType.RUN_ERROR,
+        code: err.code,
+        message: err.message,
+        retryable: false,
+      };
+      return;
+    }
+  }
+
   // Trigger concurrent auto-titling if this is a fresh conversation with default title
   const DEFAULT_TITLES = [
     'New Conversation',
@@ -219,7 +303,7 @@ export async function* runAgentAsAguiEvents({
     : {
         messages: [
           new HumanMessage({
-            content,
+            content: humanContent,
             additional_kwargs: messageChannel ? { channel: messageChannel } : {},
           }),
         ],

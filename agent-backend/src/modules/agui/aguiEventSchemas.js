@@ -101,7 +101,7 @@ export const workflowNodeFailedSchema = z.object({
   timestamp: z.string().optional(),
 });
 
-export const AGUI_SCHEMA_VERSION = '1.2.0';
+export const AGUI_SCHEMA_VERSION = '1.3.0';
 
 const AGUI_CUSTOM_EVENTS = [
   {

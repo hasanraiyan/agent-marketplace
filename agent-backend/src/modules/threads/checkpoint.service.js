@@ -10,6 +10,7 @@ import { personaExecutionContext, isThreadSubject } from './thread.service.js';
 // existing instance of this same pattern.
 import agentFactory from '../agents/agent.factory.js';
 import { describeInterrupt, buildFilesTodosSnapshot, extractReasoningDelta } from '../agui/aguiTranslator.js';
+import { extractAttachments } from '../agui/userContent.js';
 
 const logger = loggerService.getLogger();
 
@@ -74,6 +75,8 @@ function normalizeMessages(rawMessages) {
       : null;
 
     const channel = msg.additional_kwargs?.channel || msg.channel || undefined;
+    // Images the user attached (stored as file references, see agui/userContent.js).
+    const attachments = role === 'user' ? extractAttachments(msg.content) : [];
 
     // A single agent turn is routinely MULTIPLE separate AIMessage objects
     // in LangGraph's own history -- one per LLM call within the ReAct loop
@@ -110,6 +113,7 @@ function normalizeMessages(rawMessages) {
       role,
       content,
       ...(channel ? { channel } : {}),
+      ...(attachments.length > 0 ? { attachments } : {}),
       ...(toolCalls.length > 0 ? { toolCalls } : {}),
     });
     if (role === 'assistant') currentAssistantIndex = normalized.length - 1;

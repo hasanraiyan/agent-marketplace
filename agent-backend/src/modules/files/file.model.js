@@ -61,6 +61,22 @@ const developerFileSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    // 'attachment': an image sent on a chat message (agui/userContent.js) —
+    // either uploaded through this API and then referenced by id, or
+    // persisted from an inline AG-UI image part so checkpoints never hold
+    // base64. 'generic': any other upload.
+    kind: {
+      type: String,
+      enum: ['generic', 'attachment'],
+      default: 'generic',
+    },
+    // LangGraph thread ids whose messages reference this file. Scopes the
+    // agent's read-only /uploads/ folder (files/attachmentsBackend.js).
+    threadKeys: {
+      type: [String],
+      default: [],
+      index: true,
+    },
   },
   { timestamps: true }
 );

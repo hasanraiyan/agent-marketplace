@@ -27,7 +27,7 @@ class ThreadRepository {
   async findById(id) {
     // Allows searching by either Mongoose _id or the custom threadId string
     const query = idLooksLikeObjectId(id) ? { _id: id } : { threadId: id };
-    return await Conversation.findOne(query).populate('agentId', 'name avatar slug sandboxEnabled frontendToolsEnabled');
+    return await Conversation.findOne(query).populate('agentId', 'name avatar slug sandboxEnabled frontendToolsEnabled imageInputEnabled');
   }
 
   /**
@@ -55,7 +55,7 @@ class ThreadRepository {
       .sort({ lastMessageAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('agentId', 'name avatar slug sandboxEnabled frontendToolsEnabled');
+      .populate('agentId', 'name avatar slug sandboxEnabled frontendToolsEnabled imageInputEnabled');
   }
 
   async findLatestBySubjectAndAgent(subjectFilter, agentId) {
@@ -67,7 +67,7 @@ class ThreadRepository {
       isArchived: false,
     })
       .sort({ lastMessageAt: -1 })
-      .populate('agentId', 'name avatar slug sandboxEnabled frontendToolsEnabled');
+      .populate('agentId', 'name avatar slug sandboxEnabled frontendToolsEnabled imageInputEnabled');
   }
 
   async update(id, updateData) {

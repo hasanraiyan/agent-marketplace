@@ -45,6 +45,10 @@ import {
 } from '../tools/frontendTool.tool.js';
 import { sanitizeMessagesForModel, inspectMessageContent } from './sanitizeMessagesForModel.js';
 import { createToolErrorFeedbackMiddleware } from './toolErrorFeedback.middleware.js';
+// Loads/reshapes user and tool-result images for each model call (main agent
+// and subagents) — see imageContent.js.
+import { imageContentMiddleware } from './imageContent.js';
+import { createAttachmentsBackend } from '../files/attachmentsBackend.js';
 import {
   ARCHITECT_AGENT_ID,
   PROJECT_ARCHITECT_AGENT_ID,
@@ -859,7 +863,15 @@ class AgentFactory {
 
 ### SUB-AGENT WORKSPACE RULES
 - Whenever you delegate a task to a sub-agent (using the \`task\` tool), you MUST explicitly instruct that sub-agent to write all of its files, outputs, and responses inside the \`/workspace/outputs/\` directory.
-- This ensures all sub-agent deliverables are systematically gathered in one folder under the workspace.`;
+- This ensures all sub-agent deliverables are systematically gathered in one folder under the workspace.${
+      agent.imageInputEnabled
+        ? `
+
+### USER IMAGES
+- Images the user attaches appear in their message, and every image attached in this conversation is also kept read-only in \`/uploads/\`.
+- Older images are shown as a short placeholder; \`read_file\` the \`/uploads/\` file to look at one again, or hand its path to a sub-agent.`
+        : ''
+    }`;
 
     // Virtual filesystem: ephemeral thread-scoped scratch by default, with
     // persistent DB-backed routes for skills (read-only, live from the Skill
@@ -963,6 +975,12 @@ class AgentFactory {
     const sandboxBackend = agent.sandboxEnabled
       ? await getSandboxBackend({ agentId: agentIdStr, userId, domain: executionContext.domain })
       : null;
+    // Images the user attached in the current thread (read-only). The thread is
+    // resolved per call, so the cached instance serves every thread safely.
+    if (agent.imageInputEnabled) {
+      backendRoutes['/uploads/'] = readonlyBackend(createAttachmentsBackend(), '/uploads/');
+    }
+
     const backend = new CompositeBackend(
       sandboxBackend || new VersionedStateBackend(),
       backendRoutes
@@ -981,7 +999,8 @@ class AgentFactory {
       store: getGlobalStore(),
       tools: dynamicTools,
       interruptOn: interruptOnConfig,
-      middleware: [contextOverrideMiddleware, toolErrorFeedbackMiddleware],
+      // imageContentMiddleware first (outermost): later steps see provider-ready images.
+      middleware: [imageContentMiddleware, contextOverrideMiddleware, toolErrorFeedbackMiddleware],
       backend,
       // Skills are served live from the DB via the /skills/ route above.
       skills: ['/skills/'],
@@ -992,7 +1011,8 @@ class AgentFactory {
         {
           name: 'general-purpose',
           description: DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
-          middleware: [toolErrorFeedbackMiddleware],
+          // A subagent can read_file an image too (e.g. from /uploads/).
+          middleware: [imageContentMiddleware, toolErrorFeedbackMiddleware],
           // A subagent inherits the main agent's tools by default. Frontend
           // tools must stay with the main agent (their pause/resume is wired
           // to the top-level thread), so hand it the server tools explicitly.
@@ -1051,6 +1071,8 @@ class AgentFactory {
       mcpAuthRequired,
       // Names of the client-run stub tools in this build (see frontendTool.tool.js).
       frontendToolNames: frontendTools.map((t) => t.name),
+      // Whether user images are accepted (agui/userContent.js).
+      imageInputEnabled: Boolean(agent.imageInputEnabled),
     };
 
     // Cache the compiled result

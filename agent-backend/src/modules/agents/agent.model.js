@@ -146,6 +146,14 @@ const agentSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Accept images on the end user's messages (AG-UI image content parts or
+    // uploaded-file references). Off by default: while false, images are
+    // dropped and the model gets a short "image attached, can't view" note.
+    // Needs a vision-capable model. See agui/userContent.js.
+    imageInputEnabled: {
+      type: Boolean,
+      default: false,
+    },
     skills: [
       {
         type: mongoose.Schema.Types.ObjectId,

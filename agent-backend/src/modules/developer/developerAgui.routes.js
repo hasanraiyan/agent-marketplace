@@ -75,7 +75,35 @@ router.use(developerMachineAuthMiddleware);
  *                   type: object
  *                   properties:
  *                     role: { type: string, enum: [user, assistant] }
- *                     content: { type: string }
+ *                     content:
+ *                       description: >
+ *                         A string, or (user messages) an array of content parts:
+ *                         { type: "text", text }, { type: "image", fileId } (a file
+ *                         uploaded via /developer/files), or AG-UI
+ *                         { type: "image", source: { type: "data", value, mimeType } }.
+ *                         Images need the Agent's `imageInputEnabled` (otherwise
+ *                         they are dropped and the model is told one was attached).
+ *                         PNG, JPEG, WebP or GIF (checked from the bytes), up to
+ *                         5 MB each and 4 per message; `source.type: "url"` is only
+ *                         accepted for hosts in IMAGE_INPUT_URL_HOSTS. An invalid
+ *                         image fails the run with RUN_ERROR code INVALID_ATTACHMENT;
+ *                         a model without vision fails with MODEL_NO_VISION.
+ *                       oneOf:
+ *                         - type: string
+ *                         - type: array
+ *                           items:
+ *                             type: object
+ *                             required: [type]
+ *                             properties:
+ *                               type: { type: string, enum: [text, image] }
+ *                               text: { type: string }
+ *                               fileId: { type: string }
+ *                               source:
+ *                                 type: object
+ *                                 properties:
+ *                                   type: { type: string, enum: [data, url] }
+ *                                   value: { type: string }
+ *                                   mimeType: { type: string }
  *               resume:
  *                 type: object
  *                 description: >

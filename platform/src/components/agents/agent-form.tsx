@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeftIcon,
   BrowserIcon,
+  ImageIcon,
   CheckIcon,
   ClockIcon,
   CodeIcon,
@@ -132,6 +133,7 @@ interface AgentFormState {
   webSearchEnabled: boolean;
   sandboxEnabled: boolean;
   frontendToolsEnabled: boolean;
+  imageInputEnabled: boolean;
   visibility: Visibility;
   category: Category;
   isActive: boolean;
@@ -152,6 +154,7 @@ const EMPTY_FORM: AgentFormState = {
   webSearchEnabled: false,
   sandboxEnabled: false,
   frontendToolsEnabled: false,
+  imageInputEnabled: false,
   visibility: "private",
   category: "other",
   isActive: true,
@@ -329,6 +332,7 @@ export function AgentForm({
           webSearchEnabled: !!found.webSearchEnabled,
           sandboxEnabled: !!found.sandboxEnabled,
           frontendToolsEnabled: !!found.frontendToolsEnabled,
+          imageInputEnabled: !!found.imageInputEnabled,
           visibility: (found.visibility as Visibility) || "private",
           category: (found.category as Category) || "other",
           isActive: found.isActive !== false,
@@ -519,6 +523,7 @@ export function AgentForm({
       webSearchEnabled: form.webSearchEnabled,
       sandboxEnabled: form.sandboxEnabled,
       frontendToolsEnabled: form.frontendToolsEnabled,
+      imageInputEnabled: form.imageInputEnabled,
       visibility: form.visibility,
       category: form.category,
       isActive: form.isActive,
@@ -1137,6 +1142,25 @@ export function AgentForm({
                   id="frontendToolsEnabled"
                   checked={form.frontendToolsEnabled}
                   onCheckedChange={(c) => update("frontendToolsEnabled", !!c)}
+                />
+              </div>
+
+              <div className="flex items-start justify-between gap-3 rounded-none border border-dashed border-border/80 bg-muted/10 p-2.5">
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-1.5 font-medium text-foreground">
+                    <ImageIcon className="size-3.5 text-sky-500" />
+                    Image Input
+                  </div>
+                  <span className="text-[11px] leading-relaxed text-muted-foreground">
+                    Lets users attach images (PNG, JPEG, WebP, GIF) to their
+                    messages. Needs a vision-capable model (e.g. GPT-4o/4.1,
+                    Claude, Gemini). Off: attached images are ignored.
+                  </span>
+                </div>
+                <Switch
+                  id="imageInputEnabled"
+                  checked={form.imageInputEnabled}
+                  onCheckedChange={(c) => update("imageInputEnabled", !!c)}
                 />
               </div>
             </CardContent>

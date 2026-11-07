@@ -252,6 +252,10 @@ router.delete('/:id/memory/:key', agentController.deleteMemory);
  *                 type: boolean
  *                 default: false
  *                 description: Accept tools supplied by the embedding client app that run in the end user's browser. While false, client-supplied tools are ignored.
+ *               imageInputEnabled:
+ *                 type: boolean
+ *                 default: false
+ *                 description: Accept images on end-user messages (needs a vision-capable model). While false, attached images are dropped.
  *               visibility:
  *                 type: string
  *                 enum: [private, unlisted, public]
@@ -303,6 +307,8 @@ router.post('/', mutateLimiter, validateBody(createAgentSchema), agentController
  *               sandboxEnabled:
  *                 type: boolean
  *               frontendToolsEnabled:
+ *                 type: boolean
+ *               imageInputEnabled:
  *                 type: boolean
  *               visibility:
  *                 type: string

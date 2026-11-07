@@ -1,5 +1,7 @@
 import path from 'path';
+import crypto from 'crypto';
 import fs from 'fs/promises';
+import mongoose from 'mongoose';
 import fileRepository from './file.repository.js';
 
 /**
@@ -72,6 +74,64 @@ class FileService {
     await fileRepository.deleteById(fileId);
     return true;
   }
+
+  // ── Chat attachments (agui/userContent.js) ────────────────────────────────
+  // `subject` is `{ domain, externalUserId }` — a ProjectRuntimeContext's own,
+  // or a synthetic one for Persona/Project-internal callers (see
+  // attachmentSubject in userContent.js). Same mediated, subject-checked
+  // model as downloads; never a static URL.
+
+  /** A file record owned by `subject`, or null (existence-hiding, like getFileForDownload). */
+  async getOwnedFile(fileId, subject) {
+    if (!subject || !mongoose.isValidObjectId(fileId)) return null;
+    const file = await fileRepository.findById(fileId);
+    if (!file || file.domain !== subject.domain || file.externalUserId !== subject.externalUserId) {
+      return null;
+    }
+    return file;
+  }
+
+  /** Raw bytes of a stored file. Throws if the file is missing on disk. */
+  async readFileBytes(file) {
+    return await fs.readFile(path.join(developerUploadDir, path.basename(file.storageKey)));
+  }
+
+  /** Persists an in-memory image (an inline AG-UI part) as an attachment record. */
+  async createAttachmentFromBuffer(subject, { buffer, mimeType, name, agentId }) {
+    const ext = ATTACHMENT_EXTENSIONS[mimeType] || '';
+    const storageKey = `${crypto.randomUUID()}${ext}`;
+    await fs.mkdir(developerUploadDir, { recursive: true });
+    await fs.writeFile(path.join(developerUploadDir, storageKey), buffer);
+    return await fileRepository.create({
+      domain: subject.domain,
+      externalUserId: subject.externalUserId,
+      agentId: agentId || null,
+      storageKey,
+      originalName: (name || `image${ext}`).slice(0, 255),
+      mimeType,
+      size: buffer.length,
+      kind: 'attachment',
+    });
+  }
+
+  /** Marks files as attached in a LangGraph thread (idempotent). */
+  async bindAttachmentsToThread(fileIds, threadKey) {
+    if (!threadKey || !fileIds?.length) return;
+    await fileRepository.bindToThread(fileIds, threadKey);
+  }
+
+  /** Attachment records visible in a thread's /uploads/ folder. */
+  async listThreadAttachments(threadKey) {
+    if (!threadKey) return [];
+    return await fileRepository.findByThreadKey(threadKey);
+  }
 }
+
+const ATTACHMENT_EXTENSIONS = {
+  'image/png': '.png',
+  'image/jpeg': '.jpg',
+  'image/webp': '.webp',
+  'image/gif': '.gif',
+};
 
 export default new FileService();
