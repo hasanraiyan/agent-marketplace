@@ -5,6 +5,25 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-11-07
+
+### Added
+
+- **Frontend tools & generative UI**, via the upgraded dependencies — no adapter code changes:
+  - `@personaai/adapters/nextjs` (client) now re-exports `@personaai/react` 0.21.0's
+    `useFrontendTool`, `useHumanInTheLoop`, `useComponent`, `useRenderTool`,
+    `useRenderToolCall` and `PersonaToolCallView`.
+  - The server handlers (`createPersonaHandler`, `toExpressRouter`, `PersonaModule`) run on
+    `@personaai/runtime` 0.19.0, whose `POST /chat` forwards the browser's `tools` and
+    `resume.toolResults` to Persona.
+  - Requires the agent's **Frontend Tools** setting (`frontendToolsEnabled`); otherwise the
+    tools are ignored.
+
+### Changed
+
+- Dependencies: `@personaai/react` `^0.21.0`, `@personaai/runtime` `^0.19.0`,
+  `@personaai/sdk` `^0.18.0`.
+
 ## [0.9.0] - 2026-10-30
 
 ### Added
