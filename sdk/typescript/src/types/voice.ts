@@ -70,3 +70,79 @@ export interface TelephonySessionTicket {
   /** ISO 8601 — the ticket is rejected after this instant. */
   expiresAt: string;
 }
+
+/**
+ * Limits for images shared during a live voice call (`voice.image`). Stricter
+ * than chat: Gemini Live takes a still image as one video frame, JPEG or PNG
+ * only, at most one per second. Shrink images client-side first
+ * (`@personaai/react`'s `useVoice().sendImage` re-encodes to JPEG).
+ */
+export const VOICE_IMAGE_LIMITS = Object.freeze({
+  mimeTypes: Object.freeze(['image/jpeg', 'image/png'] as const),
+  maxImageBytes: 5 * 1024 * 1024,
+  minIntervalMs: 1000,
+  maxImagesPerCall: 20,
+});
+
+export type VoiceImageMimeType = (typeof VOICE_IMAGE_LIMITS.mimeTypes)[number];
+
+/**
+ * Client → server WebSocket message: share an image during a voice call.
+ * Requires the Agent's `imageInputEnabled`. Send either inline `data`
+ * (base64, or a `data:` URL) or the `fileId` of an image uploaded with
+ * `files.upload()`. `text` is an optional caption/question sent with it;
+ * without one the model is prompted to look at the image and respond.
+ * Answered by a {@link VoiceImageEvent}.
+ */
+export type VoiceImageMessage = {
+  type: 'voice.image';
+  /** Your id for this image, echoed back in the `voice_image` event. */
+  id: string;
+  text?: string;
+  /** File name, stored with the attachment when the call is saved to a thread. */
+  name?: string;
+} & ({ data: string; fileId?: never } | { fileId: string; data?: never });
+
+/** An image shared in a voice call, as reported back by the server. */
+export interface VoiceImageAttachment {
+  /** Set when the image is stored (calls saved to a thread, or `fileId` input). */
+  fileId?: string;
+  mimeType: VoiceImageMimeType;
+  name?: string;
+}
+
+/** Why a `voice.image` was refused. */
+export type VoiceImageRejectCode =
+  | 'IMAGE_INPUT_DISABLED'
+  | 'INVALID_ATTACHMENT'
+  | 'RATE_LIMITED'
+  | 'IMAGE_LIMIT_REACHED'
+  | 'SESSION_CLOSED'
+  | 'INTERNAL_ERROR';
+
+/**
+ * Payload of the CUSTOM `voice_image` event the server sends for every
+ * `voice.image`. On acceptance the user's `voice_transcript` event for that
+ * turn also carries `attachments: [attachment]`.
+ */
+export type VoiceImageEvent =
+  | { id: string | null; status: 'accepted'; attachment: VoiceImageAttachment }
+  | { id: string | null; status: 'rejected'; code: VoiceImageRejectCode; message: string };
+
+/**
+ * Builds a {@link VoiceImageMessage} ready for `ws.send(JSON.stringify(...))`.
+ * Accepts raw base64 or a `data:` URL.
+ */
+export function voiceImageMessage(
+  id: string,
+  image: { data: string } | { fileId: string },
+  options: { text?: string; name?: string } = {},
+): VoiceImageMessage {
+  return {
+    type: 'voice.image',
+    id,
+    ...image,
+    ...(options.text ? { text: options.text } : {}),
+    ...(options.name ? { name: options.name } : {}),
+  } as VoiceImageMessage;
+}

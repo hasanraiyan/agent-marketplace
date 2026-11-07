@@ -3,6 +3,21 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.21.0
+
+- **Images in voice calls.** New types for sharing an image during a live voice call over the
+  call's WebSocket: send `{ type: "voice.image", id, data | fileId, text? }`
+  (`VoiceImageMessage`; build one with `voiceImageMessage()`), and the server answers with a
+  CUSTOM `voice_image` event (`VoiceImageEvent`: `accepted` with an `attachment`, or `rejected`
+  with a `VoiceImageRejectCode`). Accepted images also appear as `attachments` on the user's
+  `voice_transcript` event, and on that user message in `threads.messages()` for calls saved to
+  a thread.
+  - Requires the Agent's `imageInputEnabled`. Limits in `VOICE_IMAGE_LIMITS`: JPEG or PNG only,
+    5 MB, one image per second, 20 per call. `@personaai/react`'s `useVoice` will send these for
+    you.
+  - Types only — no change for existing callers. Requires a Persona backend with voice image
+    input.
+
 ## 0.20.0
 
 - **Frontend tools in voice calls.** `voice.createSession(agentId, { tools })` takes the same

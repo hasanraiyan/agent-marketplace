@@ -136,7 +136,13 @@ export type {
   TelephonySessionTicket,
   VoiceSessionInfo,
   VoiceSessionTicket,
+  VoiceImageMessage,
+  VoiceImageAttachment,
+  VoiceImageEvent,
+  VoiceImageRejectCode,
+  VoiceImageMimeType,
 } from './types/voice.js';
+export { VOICE_IMAGE_LIMITS, voiceImageMessage } from './types/voice.js';
 export { MessagesResource } from './resources/messages.js';
 export type {
   MessageChannel,
