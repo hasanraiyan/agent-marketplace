@@ -14,6 +14,7 @@ import threadRepository from '../threads/thread.repository.js';
 import checkpointService from '../threads/checkpoint.service.js';
 import fileRepository from '../files/file.repository.js';
 import { developerUploadDir } from '../files/file.service.js';
+import { s3Service } from '../../services/storage/index.js';
 import externalUserRepository from '../externalUsers/externalUser.repository.js';
 import projectMembershipRepository from '../projects/projectMembership.repository.js';
 import projectCredentialRepository from '../projects/projectCredential.repository.js';
@@ -71,9 +72,13 @@ agenda.define(CLEANUP_DELETED_PROJECT_JOB, async (job) => {
   );
 
   const files = await fileRepository.findByDomain(domain);
-  for (const file of files) {
-    const storagePath = path.join(developerUploadDir, file.storageKey);
-    await fs.unlink(storagePath).catch(() => {});
+  if (files?.length) {
+    const s3Keys = files.map((f) => `files/${f.storageKey}`);
+    await s3Service.deleteObjects({ bucket: s3Service.privateBucket, keys: s3Keys }).catch(() => {});
+    for (const file of files) {
+      const storagePath = path.join(developerUploadDir, file.storageKey);
+      await fs.unlink(storagePath).catch(() => {});
+    }
   }
   await fileRepository.deleteMany({ domain });
   logger.info(`[CleanupJob] Deleted ${files.length} file(s)`);

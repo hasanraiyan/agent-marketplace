@@ -59,6 +59,7 @@ import openapiSpec from './docs/swagger.config.js';
 import config from './config/index.js';
 import database from './config/database.js';
 import { loggerService } from './utils/index.js';
+import { s3Service } from './services/storage/index.js';
 import { startAllCronJobs, stopAllCronJobs } from './modules/cron/index.js';
 import { startAgenda, stopAgenda } from './modules/jobs/agenda.js';
 // Imported for its side effect: registers the cleanup-deleted-project job
@@ -239,6 +240,9 @@ async function startServer() {
   try {
     // Connect to MongoDB
     await database.connect();
+
+    // Ensure S3 storage buckets exist
+    await s3Service.ensureBuckets();
 
     // Start cron jobs
     startAllCronJobs();

@@ -1,17 +1,25 @@
 import fs from 'fs';
 import fsp from 'fs/promises';
 import path from 'path';
+import { PassThrough } from 'stream';
 import config from '../../config/index.js';
+import { s3Service } from '../../services/storage/index.js';
+import { loggerService } from '../../utils/index.js';
+
+const logger = loggerService.getLogger();
 
 /**
- * Where voice-call recordings live. Local disk only for now (one folder,
- * TRACE_AUDIO_DIR); every read/write goes through this module so an S3/R2
- * backend can be added later without touching the recorder or the API.
+ * Where voice-call recordings live.
+ *
+ * Recordings are stored in S3-compatible object storage (MinIO in local dev, S3 in prod).
+ * Temporary raw PCM files (<traceId>.user.pcm, <traceId>.agent.pcm) are buffered locally
+ * during the active call for zero-latency streaming. Upon call termination and mixing,
+ * the final stereo <traceId>.wav is pushed to S3 and cleaned up from local disk.
  *
  * Files per traced call (`<traceId>` is a 24-hex ObjectId):
  *   <traceId>.user.pcm   temp, raw PCM s16le 16 kHz mono (during the call)
  *   <traceId>.agent.pcm  temp, raw PCM s16le 24 kHz mono (during the call)
- *   <traceId>.wav        final, stereo 16 kHz (user left, agent right)
+ *   <traceId>.wav        final, stereo 16 kHz (user left, agent right in S3)
  */
 
 const ID_RE = /^[a-f0-9]{24}$/i;
@@ -48,7 +56,7 @@ class TraceAudioStore {
     };
   }
 
-  /** Storage key of the final recording (a file name inside dir()). */
+  /** Storage key of the final recording. */
   keyFor(traceId) {
     return `${safeId(traceId)}.wav`;
   }
@@ -57,9 +65,43 @@ class TraceAudioStore {
     return path.join(this.dir(), path.basename(String(key)));
   }
 
-  async stat(key) {
+  /** Uploads the locally mixed WAV to S3 and deletes the local file. */
+  async finalizeWav(traceId) {
+    const key = this.keyFor(traceId);
+    const localPath = this.pathForKey(key);
     try {
-      return await fsp.stat(this.pathForKey(key));
+      if (fs.existsSync(localPath)) {
+        const buffer = await fsp.readFile(localPath);
+        await s3Service.uploadBuffer({
+          bucket: s3Service.privateBucket,
+          key: `traces/voice/${key}`,
+          buffer,
+          contentType: 'audio/wav',
+        });
+        await fsp.unlink(localPath).catch(() => {});
+      }
+    } catch (err) {
+      logger.warn(`[TraceAudioStore] Failed to upload final WAV to S3: ${err.message}`);
+    }
+  }
+
+  async stat(key) {
+    const local = this.pathForKey(key);
+    if (fs.existsSync(local)) {
+      try {
+        return await fsp.stat(local);
+      } catch {
+        // Fall back to S3 check
+      }
+    }
+
+    try {
+      const s3Key = `traces/voice/${path.basename(String(key))}`;
+      const streamObj = await s3Service.getReadStream({
+        bucket: s3Service.privateBucket,
+        key: s3Key,
+      });
+      return { size: streamObj.contentLength };
     } catch {
       return null;
     }
@@ -67,7 +109,30 @@ class TraceAudioStore {
 
   /** @param {{start?: number, end?: number}} [range] inclusive byte range */
   createReadStream(key, range) {
-    return fs.createReadStream(this.pathForKey(key), range || undefined);
+    const local = this.pathForKey(key);
+    if (fs.existsSync(local)) {
+      return fs.createReadStream(local, range || undefined);
+    }
+
+    const passThrough = new PassThrough();
+    const s3Key = `traces/voice/${path.basename(String(key))}`;
+    const rangeHeader = range != null ? `bytes=${range.start}-${range.end}` : undefined;
+
+    s3Service
+      .getReadStream({
+        bucket: s3Service.privateBucket,
+        key: s3Key,
+        range: rangeHeader,
+      })
+      .then(({ stream }) => {
+        stream.on('error', (err) => passThrough.emit('error', err));
+        stream.pipe(passThrough);
+      })
+      .catch((err) => {
+        passThrough.emit('error', err);
+      });
+
+    return passThrough;
   }
 
   async removeTemp(traceId) {
@@ -77,7 +142,14 @@ class TraceAudioStore {
 
   async remove(traceId) {
     await this.removeTemp(traceId);
-    await fsp.rm(this.pathForKey(this.keyFor(traceId)), { force: true });
+    const key = this.keyFor(traceId);
+    await fsp.rm(this.pathForKey(key), { force: true });
+    await s3Service
+      .deleteObject({
+        bucket: s3Service.privateBucket,
+        key: `traces/voice/${key}`,
+      })
+      .catch(() => {});
   }
 
   /**

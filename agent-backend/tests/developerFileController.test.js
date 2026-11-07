@@ -4,6 +4,7 @@ jest.unstable_mockModule('../src/modules/files/file.service.js', () => ({
   default: {
     createFile: jest.fn(),
     getFileForDownload: jest.fn(),
+    getFileReadStream: jest.fn(),
     listFiles: jest.fn(),
     deleteFile: jest.fn(),
     countFiles: jest.fn(),
@@ -33,6 +34,7 @@ describe('Developer File Controller', () => {
     mockRes = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn(),
+      setHeader: jest.fn(),
       download: jest.fn(),
     };
     next = jest.fn();
@@ -88,21 +90,26 @@ describe('Developer File Controller', () => {
   });
 
   describe('download', () => {
-    test('streams the file via res.download after mediated access check', async () => {
+    test('streams the file via getFileReadStream after mediated access check', async () => {
       mockReq.params = { fileId: 'f1' };
       fileService.getFileForDownload.mockResolvedValue({
         storageKey: 'uuid-1.txt',
         originalName: 'notes.txt',
+        mimeType: 'text/plain',
+        size: 12,
+      });
+      const mockStream = { pipe: jest.fn(), on: jest.fn() };
+      fileService.getFileReadStream.mockResolvedValue({
+        stream: mockStream,
+        contentType: 'text/plain',
+        contentLength: 12,
       });
 
       await developerFileController.download(mockReq, mockRes, next);
 
       expect(fileService.getFileForDownload).toHaveBeenCalledWith('f1', runtimeContext);
-      expect(mockRes.download).toHaveBeenCalledWith(
-        expect.stringContaining('uuid-1.txt'),
-        'notes.txt',
-        expect.any(Function)
-      );
+      expect(fileService.getFileReadStream).toHaveBeenCalled();
+      expect(mockStream.pipe).toHaveBeenCalledWith(mockRes);
     });
 
     test('collapses "File not found" to a 404, existence-hiding', async () => {
@@ -112,7 +119,7 @@ describe('Developer File Controller', () => {
       await developerFileController.download(mockReq, mockRes, next);
 
       expect(mockRes.status).toHaveBeenCalledWith(404);
-      expect(mockRes.download).not.toHaveBeenCalled();
+      expect(fileService.getFileReadStream).not.toHaveBeenCalled();
     });
   });
 

@@ -1,11 +1,7 @@
 import express from 'express';
 import multer from 'multer';
-import fs from 'fs';
-import crypto from 'crypto';
-import path from 'path';
 import developerMachineAuthMiddleware from '../auth/developerMachineAuth.middleware.js';
 import BaseError from '../../utils/errors/BaseError.js';
-import { developerUploadDir } from '../files/file.service.js';
 import { validateBody } from '../../middlewares/validationMiddleware.js';
 import { bulkDeleteSchema } from '../../utils/validators/bulkDeleteSchema.js';
 import { idempotency } from '../../middlewares/idempotencyMiddleware.js';
@@ -22,21 +18,8 @@ import developerFileController from './developerFile.controller.js';
  */
 const router = express.Router();
 
-if (!fs.existsSync(developerUploadDir)) {
-  fs.mkdirSync(developerUploadDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, developerUploadDir),
-  filename: (req, file, cb) => {
-    const uniqueSuffix = crypto.randomUUID();
-    const ext = path.extname(file.originalname).slice(0, 10);
-    cb(null, `${uniqueSuffix}${ext}`);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 20 * 1024 * 1024, // 20MB
   },

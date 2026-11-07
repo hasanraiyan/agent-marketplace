@@ -1,5 +1,4 @@
-import path from 'path';
-import fileService, { developerUploadDir } from '../files/file.service.js';
+import fileService from '../files/file.service.js';
 import { bulkDelete } from '../../utils/bulkDelete.js';
 import { paginationEnvelope } from '../../utils/pagination.js';
 
@@ -74,13 +73,24 @@ class DeveloperFileController {
   async download(req, res, next) {
     try {
       const file = await fileService.getFileForDownload(req.params.fileId, req.projectContext);
-      const storagePath = path.join(developerUploadDir, file.storageKey);
+      const { stream, contentType, contentLength } = await fileService.getFileReadStream(file);
 
-      res.download(storagePath, file.originalName, (err) => {
-        if (err && !res.headersSent) {
+      res.setHeader('Content-Type', file.mimeType || contentType || 'application/octet-stream');
+      res.setHeader(
+        'Content-Disposition',
+        `attachment; filename="${encodeURIComponent(file.originalName)}"`
+      );
+      if (contentLength) {
+        res.setHeader('Content-Length', contentLength);
+      }
+
+      stream.on('error', (err) => {
+        if (!res.headersSent) {
           next(err);
         }
       });
+
+      stream.pipe(res);
     } catch (error) {
       if (error.message === 'File not found') {
         return res.status(404).json({ success: false, message: 'File not found' });

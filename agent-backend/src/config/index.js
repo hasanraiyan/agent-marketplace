@@ -113,6 +113,16 @@ const config = {
     phoneNumber: process.env.TWILIO_PHONE_NUMBER || null,
     publicUrl: process.env.TWILIO_PUBLIC_URL || process.env.BACKEND_URL || 'http://localhost:3000',
   },
+  s3: {
+    endpoint: process.env.S3_ENDPOINT || 'http://127.0.0.1:9002',
+    region: process.env.S3_REGION || 'us-east-1',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || 'minioadmin',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || 'minioadmin',
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE !== 'false',
+    publicBucket: process.env.S3_PUBLIC_BUCKET || 'persona-public',
+    privateBucket: process.env.S3_PRIVATE_BUCKET || 'persona-private',
+    publicBaseUrl: process.env.S3_PUBLIC_BASE_URL || null,
+  },
 };
 
 export default config;

@@ -12,6 +12,7 @@
     "db:check": "node ./scripts/db-check.js",
     "migrate:memories": "node ./scripts/migrate-memories-to-files.js",
     "migrate:domain-fields": "node ./scripts/backfill-resource-domain-fields.js",
+    "migrate:s3": "node ./scripts/migrate-local-files-to-s3.js",
     "format": "prettier --write \"**/*.{js,json,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,md}\"",
     "test": "cross-env NODE_ENV=test node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage",
@@ -26,6 +27,8 @@
   "dependencies": {
     "@ag-ui/core": "^0.0.57",
     "@agendajs/mongo-backend": "^4.0.3",
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0",
     "@clerk/express": "^2.1.4",
     "@codesandbox/sdk": "^2.4.2",
     "@google/genai": "3.0.0",

@@ -244,6 +244,7 @@ export class VoiceCallTracer {
     } catch (err) {
       audio = { status: 'failed', error: err?.message || 'Mixing failed' };
     }
+    if (result) await this.store.finalizeWav?.(this.traceId).catch(() => {});
     await this.store.removeTemp(this.traceId).catch(() => {});
     await this._enqueue('audio', () => this.repo.update(this.traceId, { audio }));
   }

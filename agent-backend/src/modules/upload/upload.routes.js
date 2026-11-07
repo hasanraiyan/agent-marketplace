@@ -1,34 +1,16 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
 import authMiddleware from '../auth/auth.middleware.js';
 import successFormatter from '../../utils/formatters/successFormatter.js';
 import BaseError from '../../utils/errors/BaseError.js';
+import { s3Service } from '../../services/storage/index.js';
 
 const router = express.Router();
 
-// Ensure uploads directory exists
-const uploadDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Configure storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, `avatar-${uniqueSuffix}${ext}`);
-  },
-});
-
-// Configure upload middleware
+// Memory storage — file bytes are streamed directly to S3 without touching local disk
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
@@ -58,10 +40,10 @@ const upload = multer({
  *     tags: [Upload]
  *     summary: Upload an avatar image
  *     description: |
- *       Uploads a user avatar image. The file is saved to the local filesystem under
- *       the uploads/ directory and served statically at /uploads/{filename}.
+ *       Uploads a user avatar image directly to S3-compatible object storage (MinIO in local dev,
+ *       S3 in production) under the public bucket.
  *       Accepted formats: JPEG, PNG, WebP, GIF. Max file size: 5MB.
- *       The avatar URL is returned in the response and can be set on the user profile.
+ *       The public avatar URL is returned in the response and can be set on the user profile.
  *     security: [{ clerkAuth: [] }]
  *     requestBody:
  *       required: true
@@ -86,19 +68,31 @@ const upload = multer({
  *       401:
  *         description: Unauthorized
  */
-router.post('/avatar', authMiddleware, upload.single('file'), (req, res, next) => {
+router.post('/avatar', authMiddleware, upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
       throw new BaseError('No file uploaded', 400, 'BAD_REQUEST');
     }
 
-    const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(req.file.originalname) || '.jpg';
+    const filename = `avatar-${uniqueSuffix}${ext}`;
+    const key = `avatars/${filename}`;
+
+    const uploaded = await s3Service.uploadBuffer({
+      bucket: s3Service.publicBucket,
+      key,
+      buffer: req.file.buffer,
+      contentType: req.file.mimetype,
+      isPublic: true,
+    });
 
     res.json(
       successFormatter.formatSuccess(
         {
-          url: fileUrl,
-          filename: req.file.filename,
+          url: uploaded.url,
+          filename,
+          key,
           size: req.file.size,
         },
         'File uploaded successfully'
