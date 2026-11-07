@@ -31,9 +31,8 @@ const agentService = (await import('../src/modules/agents/agent.service.js')).de
 const { resolveVoiceProvider, buildVoiceLiveConfig } =
   await import('../src/modules/voice/voice.service.js');
 const { mintVoiceTicket } = await import('../src/modules/voice/voiceTicket.service.js');
-const developerVoiceController = (
-  await import('../src/modules/voice/developerVoice.controller.js')
-).default;
+const developerVoiceController = (await import('../src/modules/voice/developerVoice.controller.js'))
+  .default;
 
 describe('DeveloperVoiceController.createTelephonySession', () => {
   const context = {
@@ -141,5 +140,13 @@ describe('DeveloperVoiceController.createTelephonySession', () => {
 
     expect(mintVoiceTicket).not.toHaveBeenCalled();
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: 404 }));
+  });
+
+  test('can be invoked as a detached route handler without losing `this` context', async () => {
+    agentService.canUserExecuteAgent.mockReturnValue(true);
+    const { req, res, next } = fakeReqRes({ body: { from: '+919876543210' } });
+    const detachedHandler = developerVoiceController.createTelephonySession;
+    await detachedHandler(req, res, next);
+    expect(res.json).toHaveBeenCalled();
   });
 });

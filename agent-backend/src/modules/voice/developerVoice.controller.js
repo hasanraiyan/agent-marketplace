@@ -39,7 +39,6 @@ function normalizePhone(value) {
   return trimmed;
 }
 
-
 /**
  * Developer Platform machine voice route (voice-agent-plan.md §7 route (a),
  * §18 Phase 2) — mints a voice session ticket for an external app running
@@ -59,6 +58,12 @@ function normalizePhone(value) {
  * credential.
  */
 class DeveloperVoiceController {
+  constructor() {
+    this.createSession = this.createSession.bind(this);
+    this.createTelephonySession = this.createTelephonySession.bind(this);
+    this._createSession = this._createSession.bind(this);
+  }
+
   async createSession(req, res, next) {
     return this._createSession(req, res, next, { audience: 'browser' });
   }
