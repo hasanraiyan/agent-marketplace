@@ -201,7 +201,12 @@ describe('TraceRecorder', () => {
     );
     const span = rec.finalize().spans.find((s) => s.spanId === 't1');
     expect(span.kind).toBe('subagent');
-    expect(span.name).toBe('task · researcher');
+    expect(span.name).toBe('researcher');
+    expect(span.metadata).toMatchObject({
+      tool: 'task',
+      subagentType: 'researcher',
+      description: 'd',
+    });
     expect(span.output).toBe('done');
   });
 
@@ -296,5 +301,62 @@ describe('TraceRecorder', () => {
     const node = rec.finalize().spans.find((s) => s.spanId === 'node4');
     expect(node.input).toEqual([{ role: 'user', content: 'q' }]);
     expect(node.output).toEqual([{ role: 'tool', content: 'ok', tool_call_id: 'z' }]);
+  });
+
+  test('subagent spans roll up the cost of everything inside them', () => {
+    const rec = new TraceRecorder();
+    rec.handleChainStart({}, {}, 'root', undefined, [], {}, undefined, 'agent');
+    rec.handleToolStart(
+      { name: 'task' },
+      JSON.stringify({ subagent_type: 'gp', description: 'Paris' }),
+      'sub1',
+      'root',
+      [],
+      {},
+      'task'
+    );
+    rec.handleChainStart(
+      {},
+      {},
+      'sn',
+      'sub1',
+      [],
+      { langgraph_node: 'model_request' },
+      undefined,
+      'model_request'
+    );
+    rec.handleChatModelStart({}, [[]], 'sl', 'sn', {}, [], {});
+    rec.handleLLMEnd(
+      {
+        generations: [
+          [
+            {
+              text: '',
+              message: new AIMessage({
+                content: 'x',
+                usage_metadata: { input_tokens: 7, output_tokens: 3, total_tokens: 10 },
+              }),
+            },
+          ],
+        ],
+      },
+      'sl'
+    );
+    rec.handleChainEnd({}, 'sn');
+    rec.handleToolStart({ name: 'get_weather' }, '{}', 'st', 'sub1', [], {}, 'get_weather');
+    rec.handleToolError(new Error('down'), 'st');
+    rec.handleToolEnd('Paris: sunny', 'sub1');
+    rec.handleChainEnd({}, 'root');
+    const result = rec.finalize();
+    const sub = result.spans.find((s) => s.spanId === 'sub1');
+    expect(sub.metadata.rollup).toEqual({
+      llmCalls: 1,
+      toolCalls: 1,
+      errors: 1,
+      inputTokens: 7,
+      outputTokens: 3,
+      totalTokens: 10,
+    });
+    expect(result.subagentCalls).toBe(1);
   });
 });

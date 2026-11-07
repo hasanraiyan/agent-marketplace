@@ -27,7 +27,7 @@ and many **TraceSpans** (one per step), linked by `spanId`/`parentSpanId` (LangC
 | --- | --- | --- |
 | `llm` | `handleChatModelStart/LLMEnd` | model, provider, input messages, output message + tool calls, token usage, time-to-first-token, tools offered, finish reason |
 | `tool` | `handleToolStart/End/Error` | parsed input, output (ToolMessage / Command unwrapped), error |
-| `subagent` | the deepagents `task` tool | named `task · <subagent_type>` |
+| `subagent` | the deepagents `task` tool | named after `subagent_type`; `metadata.description` (the task), `metadata.rollup` (its LLM calls, tool calls, failed steps and tokens, nested subagents included). Parallel subagents are attributed by callback parent ids. Trace has `subagentCalls`. |
 | `retriever` | `handleRetrieverStart/End` | query, doc count + snippets |
 | `chain` | graph nodes only | timing and errors (no state dump) |
 

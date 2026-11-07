@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BrainIcon, CaretDownIcon, CaretRightIcon, GearSixIcon, UserIcon, WrenchIcon } from "@phosphor-icons/react";
+import { BrainIcon, CaretDownIcon, CaretRightIcon, GearSixIcon, RobotIcon, UserIcon, WrenchIcon } from "@phosphor-icons/react";
 import { MessageMarkdown } from "@/components/chat/message-markdown";
 import { CopyButton } from "@/components/chat/copy-button";
 import { JsonTreeView } from "@/components/chat/tool-cards/json-tree-view";
@@ -68,6 +68,8 @@ const ROLE: Record<string, { label: string; icon: React.ElementType; tile: strin
   assistant: { label: "AI", icon: BrainIcon, tile: "bg-orange-500" },
   system: { label: "System", icon: GearSixIcon, tile: "bg-zinc-500" },
   tool: { label: "Tool", icon: WrenchIcon, tile: "bg-emerald-600" },
+  // The instruction a main agent hands to a subagent (deepagents `task`).
+  task: { label: "Task from main agent", icon: RobotIcon, tile: "bg-violet-500" },
 };
 
 function KeyValues({ value }: { value: unknown }) {

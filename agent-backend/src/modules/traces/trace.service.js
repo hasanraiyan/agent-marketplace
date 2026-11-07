@@ -204,6 +204,7 @@ class TraceService {
           llmCalls: result.llmCalls,
           toolCalls: result.toolCalls,
           toolErrors: result.toolErrors,
+          subagentCalls: result.subagentCalls,
           spanCount: result.spans.length,
           truncated: result.truncated,
           ...(result.model ? { model: result.model } : {}),

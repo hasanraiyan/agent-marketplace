@@ -44,6 +44,7 @@ export interface TraceRow {
   llmCalls?: number;
   toolCalls?: number;
   toolErrors?: number;
+  subagentCalls?: number;
   spanCount?: number;
   truncated?: boolean;
   /** Why this run paused (status "interrupted"). */
@@ -75,6 +76,15 @@ export interface Span {
 }
 
 export type InterruptKind = "hitl" | "clarification" | "frontend_tool";
+
+export interface SubagentRollup {
+  llmCalls: number;
+  toolCalls: number;
+  errors: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
 
 export interface InterruptSummary {
   kind: InterruptKind;

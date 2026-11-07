@@ -23,6 +23,7 @@ import {
   kindMeta,
   sourceLabel,
   type Span,
+  type SubagentRollup,
   type TraceRow,
 } from "@/components/traces/trace-utils";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,27 @@ function TokenPill({ n }: { n?: number }) {
       <CoinsIcon className="size-3" />
       {formatTokens(n)}
     </span>
+  );
+}
+
+/** Under a subagent row: its task and what it cost in total. */
+function SubagentRowMeta({ span }: { span: Span }) {
+  const md = span.metadata ?? {};
+  const rollup = md.rollup as SubagentRollup | undefined;
+  const description = typeof md.description === "string" ? md.description : null;
+  return (
+    <>
+      {description && <span className="line-clamp-2 text-xs text-muted-foreground">{description}</span>}
+      {rollup && (
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+          <TokenPill n={rollup.totalTokens} />
+          <span className="font-mono">
+            {rollup.llmCalls} llm · {rollup.toolCalls} tool
+          </span>
+          {rollup.errors > 0 && <span className="font-mono text-destructive">· {rollup.errors} err</span>}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -150,6 +172,7 @@ export function TraceView({
             value={`${formatTokens(trace.usage?.totalTokens)} (${formatTokens(trace.usage?.inputTokens)} → ${formatTokens(trace.usage?.outputTokens)})`}
           />
           <Stat label="Model" value={trace.model || "—"} />
+          {trace.subagentCalls ? <Stat label="Subagents" value={trace.subagentCalls} /> : null}
           <Stat
             label="Source"
             value={`${sourceLabel(trace.source)}${trace.channel && trace.channel !== "web" ? ` · ${trace.channel}` : ""}`}
@@ -240,6 +263,9 @@ export function TraceView({
                           <span className="font-mono text-xs text-muted-foreground">{formatDuration(span.durationMs)}</span>
                           <TokenPill n={span.usage?.totalTokens} />
                         </div>
+                      )}
+                      {span.kind === "subagent" && (
+                        <SubagentRowMeta span={span} />
                       )}
                     </div>
                     {children.length > 0 && (

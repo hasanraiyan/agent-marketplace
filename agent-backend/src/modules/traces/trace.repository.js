@@ -24,6 +24,7 @@ const LIST_PROJECTION = {
   llmCalls: 1,
   toolCalls: 1,
   toolErrors: 1,
+  subagentCalls: 1,
   spanCount: 1,
   'interrupt.kind': 1,
   'interrupt.summary': 1,

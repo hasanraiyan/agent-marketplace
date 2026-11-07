@@ -3,6 +3,7 @@
 import * as React from "react";
 import { CaretDownIcon, CaretRightIcon, TreeStructureIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JsonTreeView } from "@/components/chat/tool-cards/json-tree-view";
 import { CopyButton } from "@/components/chat/copy-button";
@@ -17,6 +18,7 @@ import {
   type InterruptSummary,
   type ResumeSummary,
   type Span,
+  type SubagentRollup,
 } from "@/components/traces/trace-utils";
 
 export function spanIcon(span: Span) {
@@ -58,6 +60,53 @@ function newOutputMessages(input: unknown, output: unknown): unknown {
   if (!Array.isArray(input) || !Array.isArray(output) || output.length <= input.length) return output;
   const same = input.every((m, i) => JSON.stringify(m) === JSON.stringify(output[i]));
   return same ? output.slice(input.length) : output;
+}
+
+/** A subagent (deepagents `task`): the task it was given, its answer, and its total cost. */
+function SubagentRun({ span }: { span: Span }) {
+  const md = span.metadata ?? {};
+  const rollup = md.rollup as SubagentRollup | undefined;
+  const description =
+    typeof md.description === "string"
+      ? md.description
+      : typeof (span.input as { description?: unknown })?.description === "string"
+        ? String((span.input as { description: string }).description)
+        : null;
+  return (
+    <>
+      {rollup && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[
+            ["Tokens", formatTokens(rollup.totalTokens)],
+            ["LLM calls", String(rollup.llmCalls)],
+            ["Tool calls", String(rollup.toolCalls)],
+            ["Failed steps", String(rollup.errors)],
+          ].map(([label, value]) => (
+            <div key={label} className="flex flex-col gap-0.5 rounded-md border border-border px-3 py-2">
+              <span className="text-[10px] text-muted-foreground">{label}</span>
+              <span className={cn("font-mono text-sm", label === "Failed steps" && rollup.errors > 0 && "text-destructive")}>
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      <Collapsible title="Task">
+        {description ? (
+          <PayloadView value={{ role: "task", content: description, name: md.subagentType ? `→ ${String(md.subagentType)}` : undefined }} />
+        ) : (
+          <PayloadView value={span.input} argsStyle />
+        )}
+      </Collapsible>
+      <Collapsible title="Answer">
+        {typeof span.output === "string" ? (
+          <PayloadView value={{ role: "assistant", content: span.output }} />
+        ) : (
+          <PayloadView value={span.output} />
+        )}
+      </Collapsible>
+    </>
+  );
 }
 
 /** An `interrupt` step stores the pending actions/questions as its input. */
@@ -112,6 +161,8 @@ export function SpanDetail({ span }: { span: Span }) {
             <Collapsible title="Waiting for">
               <InterruptView interrupt={interruptFromSpan(span)} />
             </Collapsible>
+          ) : span.kind === "subagent" ? (
+            <SubagentRun span={span} />
           ) : span.kind === "human" ? (
             <>
               <Collapsible title="Asked">

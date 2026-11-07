@@ -60,6 +60,7 @@ const traceSchema = new mongoose.Schema(
     llmCalls: { type: Number, default: 0 },
     toolCalls: { type: Number, default: 0 },
     toolErrors: { type: Number, default: 0 },
+    subagentCalls: { type: Number, default: 0 },
     spanCount: { type: Number, default: 0 },
     // Human-in-the-loop. `interrupt`: why this run paused (status
     // `interrupted`) — summarizeInterrupt(). `resume`: the human's answer

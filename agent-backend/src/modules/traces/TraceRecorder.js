@@ -347,16 +347,23 @@ export class TraceRecorder extends BaseCallbackHandler {
     if (this._seen(runId)) return;
     const name = runName || serializedName(tool) || 'tool';
     const parsed = parseToolInput(input);
+    // deepagents' `task` tool runs a subagent: name the span by its type and
+    // keep the task description, so parallel subagents are told apart.
     const isSubagent = name === 'task';
+    const args = parsed && typeof parsed === 'object' ? parsed : {};
     const span = this._open(runId, parentRunId, {
       kind: isSubagent ? SPAN_KIND.SUBAGENT : SPAN_KIND.TOOL,
-      name:
-        isSubagent && parsed && typeof parsed === 'object' && parsed.subagent_type
-          ? `task · ${parsed.subagent_type}`
-          : name,
+      name: isSubagent ? String(args.subagent_type || 'subagent') : name,
       input: serializeForTrace(parsed, TOOL_IO_CHARS),
     });
     if (span && toolCallId) span.metadata.toolCallId = toolCallId;
+    if (span && isSubagent) {
+      span.metadata.tool = 'task';
+      span.metadata.subagentType = args.subagent_type || null;
+      if (typeof args.description === 'string') {
+        span.metadata.description = args.description.slice(0, 2000);
+      }
+    }
   }
 
   handleToolEnd(output, runId) {
@@ -469,10 +476,12 @@ export class TraceRecorder extends BaseCallbackHandler {
       });
     });
     const spans = real.sort((a, b) => a.startedAt - b.startedAt);
+    this._rollUpSubagents(spans);
     const usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
     let llmCalls = 0;
     let toolCalls = 0;
     let toolErrors = 0;
+    let subagentCalls = 0;
     let model = null;
     let provider = null;
     for (const s of spans) {
@@ -485,6 +494,7 @@ export class TraceRecorder extends BaseCallbackHandler {
         if (!provider && s.provider) provider = s.provider;
       } else if (s.kind === SPAN_KIND.TOOL || s.kind === SPAN_KIND.SUBAGENT) {
         toolCalls += 1;
+        if (s.kind === SPAN_KIND.SUBAGENT) subagentCalls += 1;
         if (s.status === 'error') toolErrors += 1;
       }
     }
@@ -495,11 +505,55 @@ export class TraceRecorder extends BaseCallbackHandler {
       llmCalls,
       toolCalls,
       toolErrors,
+      subagentCalls,
       model,
       provider,
       truncated: this.truncated,
       output: this.finalOutputText(),
     };
+  }
+
+  /**
+   * Totals of everything a subagent did (its LLM calls, tokens, tool calls
+   * and failed steps, nested subagents included) on its span's
+   * `metadata.rollup` — the subagent's own cost at a glance.
+   */
+  _rollUpSubagents(spans) {
+    const children = new Map();
+    for (const s of spans) {
+      if (!s.parentSpanId) continue;
+      if (!children.has(s.parentSpanId)) children.set(s.parentSpanId, []);
+      children.get(s.parentSpanId).push(s);
+    }
+    for (const sub of spans) {
+      if (sub.kind !== SPAN_KIND.SUBAGENT) continue;
+      const rollup = {
+        llmCalls: 0,
+        toolCalls: 0,
+        errors: 0,
+        inputTokens: 0,
+        outputTokens: 0,
+        totalTokens: 0,
+      };
+      const stack = [...(children.get(sub.spanId) || [])];
+      const seen = new Set();
+      while (stack.length) {
+        const s = stack.pop();
+        if (seen.has(s.spanId)) continue;
+        seen.add(s.spanId);
+        if (s.kind === SPAN_KIND.LLM) {
+          rollup.llmCalls += 1;
+          rollup.inputTokens += s.usage.inputTokens;
+          rollup.outputTokens += s.usage.outputTokens;
+          rollup.totalTokens += s.usage.totalTokens;
+        } else if (s.kind === SPAN_KIND.TOOL || s.kind === SPAN_KIND.SUBAGENT) {
+          rollup.toolCalls += 1;
+        }
+        if (s.status === 'error') rollup.errors += 1;
+        stack.push(...(children.get(s.spanId) || []));
+      }
+      sub.metadata.rollup = rollup;
+    }
   }
 
   /** Text of the last assistant message in the root graph's final state. */
