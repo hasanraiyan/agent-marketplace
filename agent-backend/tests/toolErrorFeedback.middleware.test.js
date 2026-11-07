@@ -65,12 +65,13 @@ function toolCallAgent({ args, middleware }) {
 }
 
 describe('toolErrorFeedback middleware', () => {
-  it('reproduces the failure mode: bad arguments abort the run through a wrapToolCall chain', async () => {
+  it('handles bad arguments gracefully without aborting the run through a wrapToolCall chain', async () => {
     const agent = toolCallAgent({ args: { a: 'nope', b: 2 }, middleware: [evalLikeMiddleware] });
 
-    await expect(agent.invoke({ messages: [new HumanMessage('add')] })).rejects.toThrow(
-      /did not match expected schema/
-    );
+    const result = await agent.invoke({ messages: [new HumanMessage('add')] });
+    const toolMessage = result.messages.find((message) => ToolMessage.isInstance(message));
+    expect(toolMessage).toBeDefined();
+    expect(String(toolMessage.content)).toContain('did not match expected schema');
   });
 
   it('feeds a bad-argument tool call back to the model as an error ToolMessage', async () => {

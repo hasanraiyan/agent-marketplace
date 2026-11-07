@@ -50,6 +50,7 @@ jest.unstable_mockModule('../src/modules/auth/developerMachineAuth.middleware.js
       : { principalType: 'ProjectMachine', domain: 'proj-1', credentialId: 'cred-1' };
     next();
   },
+  parseProjectCredential: jest.fn(),
 }));
 
 const { runAgentAsAguiEvents } = await import('../src/modules/agui/agui.service.js');

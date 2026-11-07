@@ -170,7 +170,7 @@ describe('developerMachineAuthMiddleware', () => {
 
     await developerMachineAuthMiddleware(req, res, next);
 
-    expect(externalUserService.resolveOrCreate).toHaveBeenCalledWith(projectId, 'sabik');
+    expect(externalUserService.resolveOrCreate).toHaveBeenCalledWith(projectId, 'sabik', {});
     expect(req.projectContext).toEqual({
       domain: projectId,
       principalType: 'ProjectRuntime',

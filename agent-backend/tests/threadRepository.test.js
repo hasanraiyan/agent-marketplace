@@ -9,6 +9,7 @@ describe('Thread Repository', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mongoose.connection.readyState = 1;
 
     mockThread = {
       _id: '60c72b2f9b1d8b3a1c8e4d5a',

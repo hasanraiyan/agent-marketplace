@@ -245,7 +245,7 @@ class KnowledgeService {
       if (probed !== requestedDimensions) {
         throw new BaseError(
           `Model "${embeddingModel}" ignored the requested ${requestedDimensions} dimensions and returned ${probed}. ` +
-            'Use the model\'s native dimensionality or a supported MRL value.',
+            "Use the model's native dimensionality or a supported MRL value.",
           400,
           'INVALID_EMBEDDING_DIMENSIONS'
         );
@@ -505,15 +505,20 @@ class KnowledgeService {
         if (defaultProvider) {
           resolvedProviderId = defaultProvider._id;
         }
+      } else if (context.principalType === 'ProjectRuntime') {
+        throw new Error(
+          'providerId is required when creating a Knowledge Base via the Developer API'
+        );
       } else {
         // Developer / Project context: auto-resolve the project's Ollama provider
         // (prefer default, then any Ollama, then any provider) so the form
         // doesn't need to ask for one — the platform always defaults to Ollama
         // + embeddinggemma-2 for local debugging.
         const domain = context.domain;
-        const projectProviders = domain
-          ? await providerRepository.findByDomain(domain)
-          : [];
+        const projectProviders =
+          domain && typeof providerRepository.findByDomain === 'function'
+            ? await providerRepository.findByDomain(domain)
+            : [];
         const ollamaDefault = projectProviders.find((p) => p.type === 'ollama' && p.isDefault);
         const anyOllama = projectProviders.find((p) => p.type === 'ollama');
         const anyDefault = projectProviders.find((p) => p.isDefault);
@@ -686,7 +691,8 @@ class KnowledgeService {
       updateData.providerId !== undefined ? String(updateData.providerId) : currentProviderId;
 
     const embeddingConfigChanged =
-      (updateData.embeddingModel !== undefined && updateData.embeddingModel !== kb.embeddingModel) ||
+      (updateData.embeddingModel !== undefined &&
+        updateData.embeddingModel !== kb.embeddingModel) ||
       nextProviderId !== currentProviderId ||
       (updateData.embeddingDimensions !== undefined &&
         updateData.embeddingDimensions !== kb.embeddingDimensions);
