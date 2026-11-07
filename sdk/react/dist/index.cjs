@@ -27,6 +27,7 @@ __export(index_exports, {
   PersonaToolCallView: () => PersonaToolCallView,
   PersonaToolRegistry: () => PersonaToolRegistry,
   VERSION: () => VERSION,
+  VOICE_IMAGE_LIMITS: () => VOICE_IMAGE_LIMITS,
   buildToolRenderProps: () => buildToolRenderProps,
   createLogger: () => import_logger2.createLogger,
   createNoopLogger: () => import_logger2.createNoopLogger,
@@ -36,6 +37,7 @@ __export(index_exports, {
   isLevelEnabled: () => import_logger2.isLevelEnabled,
   openSSEStream: () => openSSEStream,
   parsePartialJson: () => parsePartialJson,
+  prepareVoiceImage: () => prepareVoiceImage,
   resolveToolParameters: () => resolveToolParameters,
   setLogLevel: () => import_logger2.setLogLevel,
   supportsStreamingFetch: () => supportsStreamingFetch,
@@ -2589,6 +2591,78 @@ function playerWorkletUrl() {
   return toModuleUrl(PLAYER_WORKLET_SOURCE);
 }
 
+// src/hooks/voiceImage.ts
+var VOICE_IMAGE_LIMITS = Object.freeze({
+  mimeTypes: Object.freeze(["image/jpeg", "image/png"]),
+  maxImageBytes: 5 * 1024 * 1024,
+  /** Server accepts at most one image per second. */
+  minIntervalMs: 1e3,
+  maxImagesPerCall: 20,
+  /** Longest side after shrinking. */
+  maxDimension: 1024,
+  jpegQuality: 0.85
+});
+var VoiceImageInputError = class extends Error {
+  code = "UNSUPPORTED_IMAGE";
+};
+function makeCanvas(width, height) {
+  if (typeof OffscreenCanvas !== "undefined") return new OffscreenCanvas(width, height);
+  if (typeof document !== "undefined") {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    return canvas;
+  }
+  return null;
+}
+async function canvasToJpeg(canvas) {
+  const { jpegQuality } = VOICE_IMAGE_LIMITS;
+  if ("convertToBlob" in canvas) {
+    return canvas.convertToBlob({ type: "image/jpeg", quality: jpegQuality });
+  }
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", jpegQuality));
+}
+async function prepareVoiceImage(image) {
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(image);
+      const scale = Math.min(
+        1,
+        VOICE_IMAGE_LIMITS.maxDimension / Math.max(bitmap.width, bitmap.height)
+      );
+      const width = Math.max(1, Math.round(bitmap.width * scale));
+      const height = Math.max(1, Math.round(bitmap.height * scale));
+      const canvas = makeCanvas(width, height);
+      const ctx = canvas?.getContext("2d");
+      if (canvas && ctx) {
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(bitmap, 0, 0, width, height);
+        bitmap.close?.();
+        const jpeg = await canvasToJpeg(canvas);
+        if (jpeg && jpeg.size > 0) return { blob: jpeg, mimeType: "image/jpeg" };
+      } else {
+        bitmap.close?.();
+      }
+    } catch {
+    }
+  }
+  const type = image.type;
+  if (VOICE_IMAGE_LIMITS.mimeTypes.includes(type)) return { blob: image, mimeType: type };
+  throw new VoiceImageInputError(
+    "This image can't be sent in a voice call. Use a JPEG or PNG image."
+  );
+}
+async function blobToBase64(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = "";
+  const CHUNK = 32768;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
 // src/hooks/useVoice.ts
 function voiceToolCallToToolCall(call) {
   return {
@@ -2615,6 +2689,12 @@ function toSerializable2(value) {
   } catch {
     return String(value);
   }
+}
+function newImageId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `img-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 function useVoice(options = {}) {
   const { defaultAgentId, fetchWithAuth, logger, toolRegistry } = usePersonaContext();
@@ -2647,13 +2727,56 @@ function useVoice(options = {}) {
   const lastFinalTurnRef = (0, import_react7.useRef)(
     null
   );
+  const imagesRef = (0, import_react7.useRef)(/* @__PURE__ */ new Map());
+  const pendingImagesRef = (0, import_react7.useRef)(/* @__PURE__ */ new Map());
+  const previewUrlsRef = (0, import_react7.useRef)([]);
+  const imageQueueRef = (0, import_react7.useRef)(Promise.resolve());
+  const lastImageSentAtRef = (0, import_react7.useRef)(0);
+  const revokePreviews = (0, import_react7.useCallback)(() => {
+    for (const url of previewUrlsRef.current) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+      }
+    }
+    previewUrlsRef.current = [];
+  }, []);
   (0, import_react7.useEffect)(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      revokePreviews();
     };
+  }, [revokePreviews]);
+  const updateImage = (0, import_react7.useCallback)((id, patch) => {
+    const current = imagesRef.current.get(id);
+    if (!current) return;
+    const next = { ...current, ...patch };
+    imagesRef.current.set(id, next);
+    if (mountedRef.current) {
+      setTranscript(
+        (prev) => prev.map(
+          (line) => line.attachments?.some((a) => a.id === id) ? { ...line, attachments: line.attachments.map((a) => a.id === id ? next : a) } : line
+        )
+      );
+    }
+    if (next.status !== "sending") {
+      const resolve = pendingImagesRef.current.get(id);
+      pendingImagesRef.current.delete(id);
+      resolve?.(next);
+    }
   }, []);
+  const rejectImage = (0, import_react7.useCallback)(
+    (id, code, message) => updateImage(id, { status: "rejected", error: { code, message } }),
+    [updateImage]
+  );
+  const rejectPendingImages = (0, import_react7.useCallback)(() => {
+    for (const id of [...pendingImagesRef.current.keys()]) {
+      rejectImage(id, "SESSION_CLOSED", "The call ended before the image was sent.");
+    }
+  }, [rejectImage]);
   const teardownAudio = (0, import_react7.useCallback)(() => {
+    rejectPendingImages();
     try {
       streamRef.current?.getTracks().forEach((track) => track.stop());
     } catch {
@@ -2679,7 +2802,7 @@ function useVoice(options = {}) {
     } catch {
     }
     outputCtxRef.current = null;
-  }, []);
+  }, [rejectPendingImages]);
   const stop = (0, import_react7.useCallback)(() => {
     voiceLogger.debug("stop() called");
     try {
@@ -2739,6 +2862,7 @@ function useVoice(options = {}) {
   );
   const handleTranscript = (0, import_react7.useCallback)((value) => {
     const { speaker, text, isFinal, turnSeq } = value;
+    if (speaker === "user" && value.attachments?.length) return;
     if (!isFinal) {
       setPartial({ id: "partial", speaker, text });
       return;
@@ -2794,6 +2918,24 @@ function useVoice(options = {}) {
         case "voice_transcript":
           handleTranscript(value);
           break;
+        case "voice_image": {
+          const id = typeof value.id === "string" ? value.id : null;
+          if (!id) break;
+          if (value.status === "accepted") {
+            const attachment = value.attachment ?? {};
+            updateImage(id, {
+              status: "accepted",
+              ...attachment.fileId ? { fileId: attachment.fileId } : {}
+            });
+          } else {
+            rejectImage(
+              id,
+              value.code ?? "INTERNAL_ERROR",
+              typeof value.message === "string" ? value.message : "The image was not accepted."
+            );
+          }
+          break;
+        }
         case "voice_interrupted":
           acceptedTurnSeqRef.current = value.turnSeq;
           playerNodeRef.current?.port.postMessage({ type: "flush" });
@@ -2816,7 +2958,7 @@ function useVoice(options = {}) {
           break;
       }
     },
-    [handleTranscript, setupPlayback, startCapture, teardownAudio, voiceLogger]
+    [handleTranscript, rejectImage, setupPlayback, startCapture, teardownAudio, updateImage, voiceLogger]
   );
   const handleMessage = (0, import_react7.useCallback)(
     (event) => {
@@ -2989,6 +3131,10 @@ function useVoice(options = {}) {
     setError(null);
     setEndReason(null);
     setTranscript([]);
+    rejectPendingImages();
+    imagesRef.current.clear();
+    revokePreviews();
+    lastImageSentAtRef.current = 0;
     setPartial(null);
     setToolCalls([]);
     acceptedTurnSeqRef.current = 0;
@@ -3032,6 +3178,7 @@ function useVoice(options = {}) {
         }
       };
       ws.onclose = () => {
+        if (wsRef.current === ws) rejectPendingImages();
         if (mountedRef.current && wsRef.current === ws) {
           setState((prev) => prev === "error" ? prev : "idle");
         }
@@ -3045,7 +3192,7 @@ function useVoice(options = {}) {
       }
       teardownAudio();
     }
-  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, teardownAudio, toolRegistry, voiceLogger]);
+  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, rejectPendingImages, revokePreviews, teardownAudio, toolRegistry, voiceLogger]);
   const mute = (0, import_react7.useCallback)((muted) => {
     setIsMuted(muted);
     streamRef.current?.getAudioTracks().forEach((track) => {
@@ -3056,6 +3203,77 @@ function useVoice(options = {}) {
     if (!text?.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({ type: "voice.text", text }));
   }, []);
+  const sendImage = (0, import_react7.useCallback)(
+    (image, options2 = {}) => {
+      const id = newImageId();
+      const text = options2.text?.trim() ?? "";
+      const name = options2.name ?? (typeof File !== "undefined" && image instanceof File ? image.name : void 0);
+      if (wsRef.current?.readyState !== WebSocket.OPEN) {
+        return Promise.resolve({
+          id,
+          status: "rejected",
+          mimeType: "image/jpeg",
+          ...name ? { name } : {},
+          error: { code: "NOT_CONNECTED", message: "Start the call before sending an image." }
+        });
+      }
+      const result = new Promise((resolve) => {
+        pendingImagesRef.current.set(id, resolve);
+      });
+      const initial = {
+        id,
+        status: "sending",
+        mimeType: "image/jpeg",
+        ...name ? { name } : {}
+      };
+      imagesRef.current.set(id, initial);
+      setTranscript((prev) => [
+        ...prev,
+        { id: `user-image-${id}`, speaker: "user", text, attachments: [initial] }
+      ]);
+      lastFinalTurnRef.current = { speaker: "user" };
+      imageQueueRef.current = imageQueueRef.current.then(async () => {
+        try {
+          const prepared = await prepareVoiceImage(image);
+          if (prepared.blob.size > VOICE_IMAGE_LIMITS.maxImageBytes) {
+            rejectImage(id, "INVALID_ATTACHMENT", "The image is larger than 5 MB.");
+            return;
+          }
+          const previewUrl = typeof URL !== "undefined" && typeof URL.createObjectURL === "function" ? URL.createObjectURL(prepared.blob) : void 0;
+          if (previewUrl) previewUrlsRef.current.push(previewUrl);
+          updateImage(id, { mimeType: prepared.mimeType, ...previewUrl ? { previewUrl } : {} });
+          const data = await blobToBase64(prepared.blob);
+          const wait = lastImageSentAtRef.current + VOICE_IMAGE_LIMITS.minIntervalMs - Date.now();
+          if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+          const ws = wsRef.current;
+          if (!pendingImagesRef.current.has(id)) return;
+          if (ws?.readyState !== WebSocket.OPEN) {
+            rejectImage(id, "SESSION_CLOSED", "The call ended before the image was sent.");
+            return;
+          }
+          lastImageSentAtRef.current = Date.now();
+          ws.send(
+            JSON.stringify({
+              type: "voice.image",
+              id,
+              data,
+              ...text ? { text } : {},
+              ...name ? { name } : {}
+            })
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "The image could not be prepared.";
+          rejectImage(
+            id,
+            err instanceof VoiceImageInputError ? err.code : "INVALID_ATTACHMENT",
+            message
+          );
+        }
+      });
+      return result;
+    },
+    [rejectImage, updateImage]
+  );
   const updateContext = (0, import_react7.useCallback)((newContext) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({ type: "voice.context", context: newContext }));
@@ -3072,6 +3290,7 @@ function useVoice(options = {}) {
     stop,
     mute,
     sendText,
+    sendImage,
     updateContext
   };
 }
@@ -5311,7 +5530,7 @@ function useAttachmentUrl(fileId) {
 
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.22.1";
+var VERSION = "0.23.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ANY_TOOL,
@@ -5321,6 +5540,7 @@ var VERSION = "0.22.1";
   PersonaToolCallView,
   PersonaToolRegistry,
   VERSION,
+  VOICE_IMAGE_LIMITS,
   buildToolRenderProps,
   createLogger,
   createNoopLogger,
@@ -5330,6 +5550,7 @@ var VERSION = "0.22.1";
   isLevelEnabled,
   openSSEStream,
   parsePartialJson,
+  prepareVoiceImage,
   resolveToolParameters,
   setLogLevel,
   supportsStreamingFetch,

@@ -3,6 +3,24 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.23.0
+
+- **Share images during a voice call.** `useVoice().sendImage(fileOrBlob, { text?, name? })`
+  sends a picture into the live call (the Agent needs `imageInputEnabled`). The image is shrunk
+  to at most 1024 px and re-encoded as JPEG in the browser, then sent as
+  `{ type: "voice.image" }` on the call's WebSocket; the agent looks at it and answers out loud.
+  - It shows up immediately as a user line in `transcript` with `attachments`
+    (`PersonaVoiceImage`: `status` `sending` → `accepted` | `rejected`, `previewUrl` for a
+    thumbnail, `fileId` once stored on calls saved to a thread, `error` when refused).
+  - Returns a promise of the final `PersonaVoiceImage`; it never throws. Error codes
+    (`PersonaVoiceImageErrorCode`): `IMAGE_INPUT_DISABLED`, `INVALID_ATTACHMENT`, `RATE_LIMITED`,
+    `IMAGE_LIMIT_REACHED`, `SESSION_CLOSED`, `NOT_CONNECTED`, `UNSUPPORTED_IMAGE`,
+    `INTERNAL_ERROR`.
+  - Sends are queued at least 1 s apart (the server's limit); 20 images per call, 5 MB each,
+    JPEG/PNG after preparation — see the new `VOICE_IMAGE_LIMITS` export. `prepareVoiceImage()`
+    is exported too if you want to shrink images yourself.
+  - Requires a Persona backend with voice image input. No change for existing callers.
+
 ## 0.22.1
 
 - **Show voice frontend tool calls with your renderers.** A voice tool call from a frontend tool

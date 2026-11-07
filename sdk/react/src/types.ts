@@ -544,6 +544,42 @@ export interface PersonaVoiceTranscriptLine {
   id: string;
   speaker: "user" | "agent";
   text: string;
+  /** Images the user shared on this line with `useVoice().sendImage()`. */
+  attachments?: PersonaVoiceImage[];
+}
+
+/** Why the server refused an image shared during a voice call. */
+export type PersonaVoiceImageErrorCode =
+  | "IMAGE_INPUT_DISABLED"
+  | "INVALID_ATTACHMENT"
+  | "RATE_LIMITED"
+  | "IMAGE_LIMIT_REACHED"
+  | "SESSION_CLOSED"
+  | "INTERNAL_ERROR"
+  | "NOT_CONNECTED"
+  | "UNSUPPORTED_IMAGE";
+
+/** An image shared during a voice call (on a user transcript line). */
+export interface PersonaVoiceImage {
+  /** Client id of this send. */
+  id: string;
+  status: "sending" | "accepted" | "rejected";
+  /** Type actually sent (images are re-encoded to JPEG when the browser can). */
+  mimeType: "image/jpeg" | "image/png";
+  name?: string;
+  /** Object URL of the sent image, for thumbnails. Revoked when the next call starts or the hook unmounts. */
+  previewUrl?: string;
+  /** Stored file id — set once accepted on a call saved to a thread. Use with `useAttachmentUrl`. */
+  fileId?: string;
+  /** Set when `status` is `rejected`. */
+  error?: { code: PersonaVoiceImageErrorCode; message: string };
+}
+
+export interface PersonaVoiceSendImageOptions {
+  /** Caption or question sent with the image. Without one the agent is asked to look at it and respond. */
+  text?: string;
+  /** File name stored with the image. Defaults to the File's name. */
+  name?: string;
 }
 
 export interface PersonaVoiceToolCall {
@@ -618,6 +654,15 @@ export interface UseVoiceResult {
   mute: (muted: boolean) => void;
   /** Sends a typed message mid-call instead of speaking — the agent may reply in either voice or text. */
   sendText: (text: string) => void;
+  /**
+   * Shares an image mid-call (Agent needs `imageInputEnabled`). The image is
+   * shrunk to at most 1024 px and re-encoded as JPEG in the browser, shown
+   * right away as a user transcript line with `attachments`, and sent as
+   * `{ type: 'voice.image' }`. Sends are spaced at least 1 s apart (server
+   * limit). Resolves with the final image state — `accepted` or `rejected`
+   * (never throws).
+   */
+  sendImage: (image: Blob, options?: PersonaVoiceSendImageOptions) => Promise<PersonaVoiceImage>;
   /**
    * Live-refreshes context for the rest of this already-open call — merged
    * into, not replacing, whatever context is already set (from `start()`'s

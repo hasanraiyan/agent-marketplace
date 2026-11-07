@@ -508,6 +508,34 @@ interface PersonaVoiceTranscriptLine {
     id: string;
     speaker: "user" | "agent";
     text: string;
+    /** Images the user shared on this line with `useVoice().sendImage()`. */
+    attachments?: PersonaVoiceImage[];
+}
+/** Why the server refused an image shared during a voice call. */
+type PersonaVoiceImageErrorCode = "IMAGE_INPUT_DISABLED" | "INVALID_ATTACHMENT" | "RATE_LIMITED" | "IMAGE_LIMIT_REACHED" | "SESSION_CLOSED" | "INTERNAL_ERROR" | "NOT_CONNECTED" | "UNSUPPORTED_IMAGE";
+/** An image shared during a voice call (on a user transcript line). */
+interface PersonaVoiceImage {
+    /** Client id of this send. */
+    id: string;
+    status: "sending" | "accepted" | "rejected";
+    /** Type actually sent (images are re-encoded to JPEG when the browser can). */
+    mimeType: "image/jpeg" | "image/png";
+    name?: string;
+    /** Object URL of the sent image, for thumbnails. Revoked when the next call starts or the hook unmounts. */
+    previewUrl?: string;
+    /** Stored file id — set once accepted on a call saved to a thread. Use with `useAttachmentUrl`. */
+    fileId?: string;
+    /** Set when `status` is `rejected`. */
+    error?: {
+        code: PersonaVoiceImageErrorCode;
+        message: string;
+    };
+}
+interface PersonaVoiceSendImageOptions {
+    /** Caption or question sent with the image. Without one the agent is asked to look at it and respond. */
+    text?: string;
+    /** File name stored with the image. Defaults to the File's name. */
+    name?: string;
 }
 interface PersonaVoiceToolCall {
     id: string;
@@ -572,6 +600,15 @@ interface UseVoiceResult {
     mute: (muted: boolean) => void;
     /** Sends a typed message mid-call instead of speaking — the agent may reply in either voice or text. */
     sendText: (text: string) => void;
+    /**
+     * Shares an image mid-call (Agent needs `imageInputEnabled`). The image is
+     * shrunk to at most 1024 px and re-encoded as JPEG in the browser, shown
+     * right away as a user transcript line with `attachments`, and sent as
+     * `{ type: 'voice.image' }`. Sends are spaced at least 1 s apart (server
+     * limit). Resolves with the final image state — `accepted` or `rejected`
+     * (never throws).
+     */
+    sendImage: (image: Blob, options?: PersonaVoiceSendImageOptions) => Promise<PersonaVoiceImage>;
     /**
      * Live-refreshes context for the rest of this already-open call — merged
      * into, not replacing, whatever context is already set (from `start()`'s
@@ -1651,6 +1688,33 @@ declare function useWorkspaceFiles(agentId: string | undefined, autoFetch?: bool
 };
 
 /**
+ * Image preparation for `useVoice().sendImage()`. Gemini Live takes a still
+ * image as one video frame (JPEG or PNG); a phone photo is several MB, so
+ * the image is shrunk and re-encoded as JPEG in the browser before it goes
+ * over the call's WebSocket — faster to send and far cheaper in tokens.
+ */
+declare const VOICE_IMAGE_LIMITS: Readonly<{
+    mimeTypes: readonly ["image/jpeg", "image/png"];
+    maxImageBytes: number;
+    /** Server accepts at most one image per second. */
+    minIntervalMs: 1000;
+    maxImagesPerCall: 20;
+    /** Longest side after shrinking. */
+    maxDimension: 1024;
+    jpegQuality: 0.85;
+}>;
+type VoiceImageMimeType = (typeof VOICE_IMAGE_LIMITS.mimeTypes)[number];
+/**
+ * Shrinks to {@link VOICE_IMAGE_LIMITS.maxDimension} and re-encodes as JPEG
+ * (transparent areas become white). Falls back to the original bytes when
+ * the browser can't decode/encode it and it's already JPEG or PNG.
+ */
+declare function prepareVoiceImage(image: Blob): Promise<{
+    blob: Blob;
+    mimeType: VoiceImageMimeType;
+}>;
+
+/**
  * A voice tool call in the shape chat tool calls use, so the renderers
  * registered with `useFrontendTool({ render })`, `useHumanInTheLoop` and
  * `useComponent` can show it during a call — pass it to
@@ -1659,6 +1723,7 @@ declare function useWorkspaceFiles(agentId: string | undefined, autoFetch?: bool
  * `summary` as the `result`.
  */
 declare function voiceToolCallToToolCall(call: PersonaVoiceToolCall): PersonaToolCall;
+
 /**
  * Drives a real-time voice call with an Agent (powered by Gemini Live).
  *
@@ -2288,6 +2353,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.22.1";
+declare const VERSION = "0.23.0";
 
-export { ANY_TOOL, ARCHITECT_AGENT_ID, ATTACHMENT_LIMITS, type CreatePersonaAgentInput, type CreatePersonaKnowledgeBaseInput, type CreatePersonaMcpInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreatePersonaWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentMessageDelivery, type PersonaAgentSnapshot, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaAttachment, type PersonaBulkDeleteResult, type PersonaChannel, type PersonaClarificationQuestion, type PersonaDeleteDocumentResult, type PersonaFailureResponse, type PersonaFileItem, type PersonaFrontendToolCall, type PersonaFrontendToolContext, type PersonaFrontendToolDefinition, type PersonaFrontendToolEntry, type PersonaFrontendToolKind, type PersonaFrontendToolResult, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaHttpFailureInfo, type PersonaInterrupt, type PersonaKnowledgeBase, type PersonaKnowledgeBaseUsage, type PersonaKnowledgeDocument, type PersonaKnowledgeSearchResult, type PersonaMcp, type PersonaMcpAuthMode, type PersonaMcpAuthRequiredServer, type PersonaMcpAuthType, type PersonaMcpConnection, type PersonaMcpConnectionStatus, type PersonaMcpOAuthConfig, type PersonaMcpOAuthInput, type PersonaMcpResourceSummary, type PersonaMcpResourceTemplate, type PersonaMcpTestConnectionResult, type PersonaMcpTool, type PersonaMcpTransport, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaMessageAttachment, type PersonaMessageChannel, type PersonaMessageDelivery, type PersonaNodeOnErrorAction, type PersonaNodeRetryPolicy, type PersonaNodeRun, type PersonaNodeRunState, type PersonaNodeRunStatus, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaToolCallStatus, PersonaToolCallView, type PersonaToolCallViewProps, type PersonaToolParameters, PersonaToolRegistry, type PersonaToolRenderFn, type PersonaToolRenderProps, type PersonaUploadDocumentsResult, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeData, type PersonaWorkflowNodeType, type PersonaWorkflowOwnerType, type PersonaWorkflowRun, type PersonaWorkflowRunStatus, type PersonaWorkflowTrigger, type PersonaWorkflowTriggerType, type PersonaWorkflowUsage, type PersonaWorkflowVersion, type PersonaWorkflowVisibility, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type SendPersonaAgentMessageInput, type SendPersonaMessageInput, type UpdatePersonaAgentInput, type UpdatePersonaKnowledgeBaseInput, type UpdatePersonaMcpInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdatePersonaWorkflowInput, type UploadKnowledgeDocumentInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseAttachmentUrlResult, type UseAttachmentsOptions, type UseAttachmentsResult, type UseChatOptions, type UseComponentConfig, type UseFrontendToolConfig, type UseHumanInTheLoopConfig, type UseKnowledgeBasesOptions, type UseMcpAdminOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseMessagesResult, type UseRcpSourcesOptions, type UseRenderToolConfig, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, buildToolRenderProps, getChannelBadgeLabel, getToolCallStatus, openSSEStream, parsePartialJson, resolveToolParameters, supportsStreamingFetch, useAgents, useArchitectChat, useAttachmentUrl, useAttachments, useChat, useComponent, useConnection, useFiles, useFrontendTool, useHumanInTheLoop, useKnowledgeBases, useMcp, useMcpAdmin, useMcpConnections, useMemory, useMessages, usePersonaContext, useRcpSources, useRenderTool, useRenderToolCall, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows, useWorkspaceFiles, voiceToolCallToToolCall };
+export { ANY_TOOL, ARCHITECT_AGENT_ID, ATTACHMENT_LIMITS, type CreatePersonaAgentInput, type CreatePersonaKnowledgeBaseInput, type CreatePersonaMcpInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreatePersonaWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentMessageDelivery, type PersonaAgentSnapshot, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaAttachment, type PersonaBulkDeleteResult, type PersonaChannel, type PersonaClarificationQuestion, type PersonaDeleteDocumentResult, type PersonaFailureResponse, type PersonaFileItem, type PersonaFrontendToolCall, type PersonaFrontendToolContext, type PersonaFrontendToolDefinition, type PersonaFrontendToolEntry, type PersonaFrontendToolKind, type PersonaFrontendToolResult, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaHttpFailureInfo, type PersonaInterrupt, type PersonaKnowledgeBase, type PersonaKnowledgeBaseUsage, type PersonaKnowledgeDocument, type PersonaKnowledgeSearchResult, type PersonaMcp, type PersonaMcpAuthMode, type PersonaMcpAuthRequiredServer, type PersonaMcpAuthType, type PersonaMcpConnection, type PersonaMcpConnectionStatus, type PersonaMcpOAuthConfig, type PersonaMcpOAuthInput, type PersonaMcpResourceSummary, type PersonaMcpResourceTemplate, type PersonaMcpTestConnectionResult, type PersonaMcpTool, type PersonaMcpTransport, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaMessageAttachment, type PersonaMessageChannel, type PersonaMessageDelivery, type PersonaNodeOnErrorAction, type PersonaNodeRetryPolicy, type PersonaNodeRun, type PersonaNodeRunState, type PersonaNodeRunStatus, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaToolCallStatus, PersonaToolCallView, type PersonaToolCallViewProps, type PersonaToolParameters, PersonaToolRegistry, type PersonaToolRenderFn, type PersonaToolRenderProps, type PersonaUploadDocumentsResult, type PersonaVoiceEndReason, type PersonaVoiceImage, type PersonaVoiceImageErrorCode, type PersonaVoiceSendImageOptions, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeData, type PersonaWorkflowNodeType, type PersonaWorkflowOwnerType, type PersonaWorkflowRun, type PersonaWorkflowRunStatus, type PersonaWorkflowTrigger, type PersonaWorkflowTriggerType, type PersonaWorkflowUsage, type PersonaWorkflowVersion, type PersonaWorkflowVisibility, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type SendPersonaAgentMessageInput, type SendPersonaMessageInput, type UpdatePersonaAgentInput, type UpdatePersonaKnowledgeBaseInput, type UpdatePersonaMcpInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdatePersonaWorkflowInput, type UploadKnowledgeDocumentInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseAttachmentUrlResult, type UseAttachmentsOptions, type UseAttachmentsResult, type UseChatOptions, type UseComponentConfig, type UseFrontendToolConfig, type UseHumanInTheLoopConfig, type UseKnowledgeBasesOptions, type UseMcpAdminOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseMessagesResult, type UseRcpSourcesOptions, type UseRenderToolConfig, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, VOICE_IMAGE_LIMITS, type WorkflowsPagination, buildToolRenderProps, getChannelBadgeLabel, getToolCallStatus, openSSEStream, parsePartialJson, prepareVoiceImage, resolveToolParameters, supportsStreamingFetch, useAgents, useArchitectChat, useAttachmentUrl, useAttachments, useChat, useComponent, useConnection, useFiles, useFrontendTool, useHumanInTheLoop, useKnowledgeBases, useMcp, useMcpAdmin, useMcpConnections, useMemory, useMessages, usePersonaContext, useRcpSources, useRenderTool, useRenderToolCall, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows, useWorkspaceFiles, voiceToolCallToToolCall };

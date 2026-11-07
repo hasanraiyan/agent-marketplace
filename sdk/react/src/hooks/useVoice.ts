@@ -3,8 +3,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePersonaContext } from "../context/PersonaContext.js";
 import { recorderWorkletUrl, playerWorkletUrl } from "./voiceWorklets.js";
+import {
+  VOICE_IMAGE_LIMITS,
+  VoiceImageInputError,
+  blobToBase64,
+  prepareVoiceImage,
+} from "./voiceImage.js";
 import type {
   PersonaToolCall,
+  PersonaVoiceImage,
+  PersonaVoiceImageErrorCode,
+  PersonaVoiceSendImageOptions,
   PersonaVoiceEndReason,
   PersonaVoiceState,
   PersonaVoiceToolCall,
@@ -78,6 +87,17 @@ interface VoiceTranscriptValue {
   text: string;
   isFinal: boolean;
   turnSeq?: number;
+  /** Set on the user line of a `voice.image` — already shown locally by sendImage. */
+  attachments?: unknown[];
+}
+
+export { VOICE_IMAGE_LIMITS, prepareVoiceImage } from "./voiceImage.js";
+
+function newImageId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `img-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 /**
@@ -136,14 +156,70 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     null,
   );
 
+  // Images shared with sendImage(): latest state per id, the resolver of
+  // each still-unanswered send, object URLs to revoke, and send pacing.
+  const imagesRef = useRef(new Map<string, PersonaVoiceImage>());
+  const pendingImagesRef = useRef(new Map<string, (image: PersonaVoiceImage) => void>());
+  const previewUrlsRef = useRef<string[]>([]);
+  const imageQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const lastImageSentAtRef = useRef(0);
+
+  const revokePreviews = useCallback(() => {
+    for (const url of previewUrlsRef.current) {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // ignore
+      }
+    }
+    previewUrlsRef.current = [];
+  }, []);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
+      revokePreviews();
     };
+  }, [revokePreviews]);
+
+  /** Updates one shared image in the transcript; resolves its send when final. */
+  const updateImage = useCallback((id: string, patch: Partial<PersonaVoiceImage>) => {
+    const current = imagesRef.current.get(id);
+    if (!current) return;
+    const next = { ...current, ...patch } as PersonaVoiceImage;
+    imagesRef.current.set(id, next);
+    if (mountedRef.current) {
+      setTranscript((prev) =>
+        prev.map((line) =>
+          line.attachments?.some((a) => a.id === id)
+            ? { ...line, attachments: line.attachments.map((a) => (a.id === id ? next : a)) }
+            : line,
+        ),
+      );
+    }
+    if (next.status !== "sending") {
+      const resolve = pendingImagesRef.current.get(id);
+      pendingImagesRef.current.delete(id);
+      resolve?.(next);
+    }
   }, []);
 
+  const rejectImage = useCallback(
+    (id: string, code: PersonaVoiceImageErrorCode, message: string) =>
+      updateImage(id, { status: "rejected", error: { code, message } }),
+    [updateImage],
+  );
+
+  /** Settles every unanswered send — the call ended before the server replied. */
+  const rejectPendingImages = useCallback(() => {
+    for (const id of [...pendingImagesRef.current.keys()]) {
+      rejectImage(id, "SESSION_CLOSED", "The call ended before the image was sent.");
+    }
+  }, [rejectImage]);
+
   const teardownAudio = useCallback(() => {
+    rejectPendingImages();
     try {
       streamRef.current?.getTracks().forEach((track) => track.stop());
     } catch {
@@ -178,7 +254,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
       // ignore
     }
     outputCtxRef.current = null;
-  }, []);
+  }, [rejectPendingImages]);
 
   const stop = useCallback(() => {
     voiceLogger.debug("stop() called");
@@ -248,6 +324,9 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
 
   const handleTranscript = useCallback((value: VoiceTranscriptValue) => {
     const { speaker, text, isFinal, turnSeq } = value;
+    // The server echoes a shared image's user line; sendImage already added
+    // it (with the local preview), so it is not added twice.
+    if (speaker === "user" && value.attachments?.length) return;
     if (!isFinal) {
       setPartial({ id: "partial", speaker, text });
       return;
@@ -323,6 +402,24 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
         case "voice_transcript":
           handleTranscript(value as unknown as VoiceTranscriptValue);
           break;
+        case "voice_image": {
+          const id = typeof value.id === "string" ? value.id : null;
+          if (!id) break;
+          if (value.status === "accepted") {
+            const attachment = (value.attachment ?? {}) as { fileId?: string };
+            updateImage(id, {
+              status: "accepted",
+              ...(attachment.fileId ? { fileId: attachment.fileId } : {}),
+            });
+          } else {
+            rejectImage(
+              id,
+              (value.code as PersonaVoiceImageErrorCode) ?? "INTERNAL_ERROR",
+              typeof value.message === "string" ? value.message : "The image was not accepted.",
+            );
+          }
+          break;
+        }
         case "voice_interrupted":
           acceptedTurnSeqRef.current = value.turnSeq as number;
           playerNodeRef.current?.port.postMessage({ type: "flush" });
@@ -346,7 +443,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
           break;
       }
     },
-    [handleTranscript, setupPlayback, startCapture, teardownAudio, voiceLogger],
+    [handleTranscript, rejectImage, setupPlayback, startCapture, teardownAudio, updateImage, voiceLogger],
   );
 
   const handleMessage = useCallback(
@@ -550,6 +647,10 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     setError(null);
     setEndReason(null);
     setTranscript([]);
+    rejectPendingImages();
+    imagesRef.current.clear();
+    revokePreviews();
+    lastImageSentAtRef.current = 0;
     setPartial(null);
     setToolCalls([]);
     acceptedTurnSeqRef.current = 0;
@@ -596,6 +697,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
         }
       };
       ws.onclose = () => {
+        if (wsRef.current === ws) rejectPendingImages();
         if (mountedRef.current && wsRef.current === ws) {
           setState((prev) => (prev === "error" ? prev : "idle"));
         }
@@ -609,7 +711,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
       }
       teardownAudio();
     }
-  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, teardownAudio, toolRegistry, voiceLogger]);
+  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, rejectPendingImages, revokePreviews, teardownAudio, toolRegistry, voiceLogger]);
 
   const mute = useCallback((muted: boolean) => {
     setIsMuted(muted);
@@ -622,6 +724,90 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     if (!text?.trim() || wsRef.current?.readyState !== WebSocket.OPEN) return;
     wsRef.current.send(JSON.stringify({ type: "voice.text", text }));
   }, []);
+
+  const sendImage = useCallback(
+    (image: Blob, options: PersonaVoiceSendImageOptions = {}): Promise<PersonaVoiceImage> => {
+      const id = newImageId();
+      const text = options.text?.trim() ?? "";
+      const name =
+        options.name ??
+        (typeof File !== "undefined" && image instanceof File ? image.name : undefined);
+
+      if (wsRef.current?.readyState !== WebSocket.OPEN) {
+        return Promise.resolve({
+          id,
+          status: "rejected",
+          mimeType: "image/jpeg",
+          ...(name ? { name } : {}),
+          error: { code: "NOT_CONNECTED", message: "Start the call before sending an image." },
+        });
+      }
+
+      const result = new Promise<PersonaVoiceImage>((resolve) => {
+        pendingImagesRef.current.set(id, resolve);
+      });
+      const initial: PersonaVoiceImage = {
+        id,
+        status: "sending",
+        mimeType: "image/jpeg",
+        ...(name ? { name } : {}),
+      };
+      imagesRef.current.set(id, initial);
+      // Show the user's line right away; a later spoken line must not merge into it.
+      setTranscript((prev) => [
+        ...prev,
+        { id: `user-image-${id}`, speaker: "user", text, attachments: [initial] },
+      ]);
+      lastFinalTurnRef.current = { speaker: "user" };
+
+      // One at a time, at least minIntervalMs apart (the server's rate limit).
+      imageQueueRef.current = imageQueueRef.current.then(async () => {
+        try {
+          const prepared = await prepareVoiceImage(image);
+          if (prepared.blob.size > VOICE_IMAGE_LIMITS.maxImageBytes) {
+            rejectImage(id, "INVALID_ATTACHMENT", "The image is larger than 5 MB.");
+            return;
+          }
+          const previewUrl =
+            typeof URL !== "undefined" && typeof URL.createObjectURL === "function"
+              ? URL.createObjectURL(prepared.blob)
+              : undefined;
+          if (previewUrl) previewUrlsRef.current.push(previewUrl);
+          updateImage(id, { mimeType: prepared.mimeType, ...(previewUrl ? { previewUrl } : {}) });
+
+          const data = await blobToBase64(prepared.blob);
+          const wait = lastImageSentAtRef.current + VOICE_IMAGE_LIMITS.minIntervalMs - Date.now();
+          if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+
+          const ws = wsRef.current;
+          if (!pendingImagesRef.current.has(id)) return; // call ended meanwhile
+          if (ws?.readyState !== WebSocket.OPEN) {
+            rejectImage(id, "SESSION_CLOSED", "The call ended before the image was sent.");
+            return;
+          }
+          lastImageSentAtRef.current = Date.now();
+          ws.send(
+            JSON.stringify({
+              type: "voice.image",
+              id,
+              data,
+              ...(text ? { text } : {}),
+              ...(name ? { name } : {}),
+            }),
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "The image could not be prepared.";
+          rejectImage(
+            id,
+            err instanceof VoiceImageInputError ? err.code : "INVALID_ATTACHMENT",
+            message,
+          );
+        }
+      });
+      return result;
+    },
+    [rejectImage, updateImage],
+  );
 
   // Live refresh for the rest of an already-open call — the backend merges
   // this into whatever turnContext it already has (the start() seed, or an
@@ -645,6 +831,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     stop,
     mute,
     sendText,
+    sendImage,
     updateContext,
   };
 }
