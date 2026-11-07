@@ -100,6 +100,7 @@ class ProjectAgentTestController {
         threadDbId: resolvedThread?._id,
         messages: input.messages || [],
         resume: input.resume,
+        frontendTools: input.tools,
         signal: controller.signal,
         executionContext: context,
       })) {

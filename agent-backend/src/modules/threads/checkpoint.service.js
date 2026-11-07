@@ -243,13 +243,26 @@ class CheckpointService {
           // aguiTranslator.js) — not describeInterrupt()'s own raw fields —
           // so SDK consumers can feed this straight into the identical
           // handling they already have for the live-stream case.
-          pendingInterrupt =
-            info.kind === 'hitl'
-              ? {
-                  kind: 'hitl',
-                  value: { actionRequests: info.actionRequests, reviewConfigs: info.reviewConfigs },
-                }
-              : { kind: 'clarification', value: { questions: info.questions, currentIndex: 0 } };
+          if (info.kind === 'hitl') {
+            pendingInterrupt = {
+              kind: 'hitl',
+              value: { actionRequests: info.actionRequests, reviewConfigs: info.reviewConfigs },
+            };
+          } else if (info.kind === 'frontend_tool') {
+            // Same payload as the live `frontend_tool_request` event (interrupt
+            // ids stay server-side) — a reloaded page re-runs/re-shows these.
+            pendingInterrupt = {
+              kind: 'frontend_tool',
+              value: {
+                calls: info.calls.map(({ toolCallId, name, args }) => ({ toolCallId, name, args })),
+              },
+            };
+          } else {
+            pendingInterrupt = {
+              kind: 'clarification',
+              value: { questions: info.questions, currentIndex: 0 },
+            };
+          }
         }
       } catch (err) {
         logger.warn('[CheckpointService] failed to check graph state for interrupts', {

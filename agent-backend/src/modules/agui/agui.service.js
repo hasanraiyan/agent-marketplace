@@ -73,6 +73,9 @@ export async function* runAgentAsAguiEvents({
   signal,
   executionContext = personaExecutionContext(userId),
   allowPrivateExecution = false,
+  // Client-supplied tools that run in the browser (AG-UI `RunAgentInput.tools`).
+  // Validated and gated on the Agent's `frontendToolsEnabled` in agent.factory.js.
+  frontendTools,
 }) {
   if (!agentId) {
     logger.warn('[AG-UI] run rejected: missing agentId');
@@ -103,6 +106,17 @@ export async function* runAgentAsAguiEvents({
     }
   }
 
+  // Frontend tools need a browser to run in: voice/SMS/WhatsApp turns never
+  // get them, even if a caller forwarded some.
+  const turnChannel =
+    turnContext?.channel || messages?.findLast?.((m) => m?.role === 'user')?.channel;
+  const effectiveFrontendTools =
+    Array.isArray(frontendTools) &&
+    frontendTools.length > 0 &&
+    (!turnChannel || turnChannel === 'web')
+      ? frontendTools
+      : undefined;
+
   let agentBuild;
   try {
     agentBuild = await agentFactory.buildAgent(
@@ -110,7 +124,7 @@ export async function* runAgentAsAguiEvents({
       userId,
       checkpointService.checkpointer,
       executionContext,
-      { allowPrivateExecution }
+      { allowPrivateExecution, frontendTools: effectiveFrontendTools }
     );
   } catch (err) {
     logger.error(`[AG-UI] agent build failed: ${err?.message}`, { agentId });

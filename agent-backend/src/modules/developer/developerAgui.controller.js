@@ -195,6 +195,7 @@ class DeveloperAguiController {
         resume: input.resume,
         contextOverride: input.contextOverride,
         turnContext,
+        frontendTools: input.tools,
         signal: controller.signal,
         executionContext: context,
       })) {

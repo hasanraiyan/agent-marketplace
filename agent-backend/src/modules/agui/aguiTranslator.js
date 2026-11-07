@@ -204,7 +204,26 @@ export function normalizeClarificationQuestions(graphInterrupts, err) {
 // reviewConfigs; they must be resumed with `{ decisions: [...] }`. Other interrupt
 // payloads resume with raw user text.
 export function describeInterrupt(graphInterrupts, err) {
-  const interruptValue = (graphInterrupts ?? err?.interrupts)?.[0]?.value;
+  const allInterrupts = graphInterrupts ?? err?.interrupts ?? [];
+
+  // Frontend tools (frontendTool.tool.js): the model may call several at
+  // once, each its own LangGraph task with its own interrupt id, so collect
+  // ALL of them — not just [0] — keeping each id for a per-interrupt resume
+  // map. Checked first: any other interrupt pending alongside (e.g. a
+  // parallel ask_clarification) simply re-surfaces on the next run.
+  const frontendCalls = (Array.isArray(allInterrupts) ? allInterrupts : [])
+    .filter((i) => i?.value?.kind === 'frontend_tool')
+    .map((i) => ({
+      interruptId: i.id,
+      toolCallId: i.value.toolCallId ?? null,
+      name: i.value.name,
+      args: i.value.args ?? {},
+    }));
+  if (frontendCalls.length > 0) {
+    return { kind: 'frontend_tool', actionCount: frontendCalls.length, calls: frontendCalls };
+  }
+
+  const interruptValue = allInterrupts?.[0]?.value;
   const actionRequests = interruptValue?.actionRequests;
 
   if (Array.isArray(actionRequests) && actionRequests.length > 0) {
@@ -230,6 +249,9 @@ export function describeInterrupt(graphInterrupts, err) {
 // and a plain text reply is translated into reject-with-feedback so the model
 // re-plans with the user's message. Clarification interrupts resume with raw text.
 export function buildResumeValue(pendingInterrupt, resume, content) {
+  if (pendingInterrupt?.kind === 'frontend_tool') {
+    return buildFrontendToolResume(pendingInterrupt, resume, content);
+  }
   if (pendingInterrupt?.kind !== 'hitl') {
     if (Array.isArray(resume?.answers) && resume.answers.length > 0) {
       return {
@@ -251,6 +273,46 @@ export function buildResumeValue(pendingInterrupt, resume, content) {
       message: content || 'User declined the action.',
     })),
   };
+}
+
+// Resume for paused frontend tools. The client answers with
+// `resume: { toolResults: [{ toolCallId, result?, error? }] }`; each answer
+// is matched to its call by toolCallId and keyed by that call's interrupt id
+// (LangGraph's per-interrupt resume map), so parallel calls resume
+// independently. Every pending call is ALWAYS answered: a call the client
+// didn't answer (tab closed, user typed a new message instead) gets an
+// error the model can recover from — never a dangling, unanswered pause.
+export function buildFrontendToolResume(pendingInterrupt, resume, content) {
+  const results = Array.isArray(resume?.toolResults) ? resume.toolResults : [];
+  const byToolCallId = new Map(
+    results.filter((r) => r && typeof r.toolCallId === 'string').map((r) => [r.toolCallId, r])
+  );
+  const unanswered = content
+    ? `The user did not complete this action and instead said: ${content}`
+    : 'No result was returned by the client.';
+
+  const calls = pendingInterrupt.calls || [];
+  const answerFor = (call) => {
+    let r = call.toolCallId ? byToolCallId.get(call.toolCallId) : undefined;
+    // One call, one answer, ids differ: some providers synthesize different
+    // tool-call ids for the streamed chunks vs the final message (see
+    // subagentTrace.js's reconcileSubagentTraceKeys), so a client that keyed
+    // its answer off the streamed card can miss. Unambiguous — accept it.
+    if (!r && calls.length === 1 && results.length === 1) r = results[0];
+    if (!r) return { error: unanswered };
+    if (r.error != null && r.error !== false) {
+      return { error: typeof r.error === 'string' ? r.error : 'The client tool failed.' };
+    }
+    return { result: r.result };
+  };
+
+  // Command({ resume }) only treats an object as a per-interrupt map when
+  // every key is an interrupt id; without ids (shouldn't happen on
+  // LangGraph >=1) fall back to a plain value for a single call.
+  if (calls.length > 0 && calls.every((c) => typeof c.interruptId === 'string' && c.interruptId)) {
+    return Object.fromEntries(calls.map((c) => [c.interruptId, answerFor(c)]));
+  }
+  return answerFor(calls[0] || {});
 }
 
 // Build the user-facing prompt shown when the graph pauses at an interrupt
@@ -387,6 +449,28 @@ function buildToolCompletionNotice(toolName, resultContent) {
   }
 
   return `${prettyName} completed.`;
+}
+
+// Asks the client to run its frontend tools. Interrupt ids stay server-side;
+// the client answers by toolCallId (see buildFrontendToolResume).
+function buildFrontendToolCustomEvent(interruptInfo) {
+  if (interruptInfo.kind !== 'frontend_tool' || interruptInfo.calls.length === 0) return null;
+  return {
+    type: EventType.CUSTOM,
+    name: 'frontend_tool_request',
+    value: {
+      calls: interruptInfo.calls.map(({ toolCallId, name, args }) => ({ toolCallId, name, args })),
+    },
+  };
+}
+
+// A tool that paused the graph (interrupt()) surfaces as on_tool_error with a
+// GraphInterrupt — that's a pause, not a failure, and must not be reported
+// to the client as an error result. Stricter than isInterruptError (no
+// message-text matching), so a real tool error mentioning "interrupt" still
+// shows as an error.
+export function isToolPause(err) {
+  return err?.name === 'GraphInterrupt' || extractGraphInterrupts(err) != null;
 }
 
 function buildClarificationCustomEvent(interruptInfo) {
@@ -1022,6 +1106,14 @@ export async function* translateLangGraphStream(stream, opts = {}) {
           continue;
         }
 
+        if (event.event === 'on_tool_error' && isToolPause(event.data?.error)) {
+          // Paused (e.g. a frontend tool awaiting the browser) — the call
+          // stays open; its real result arrives when the thread resumes.
+          logger?.debug('[AG-UI] tool paused at interrupt', { name: event.name });
+          pendingToolCalls.delete(event.run_id);
+          continue;
+        }
+
         const tc = pendingToolCalls.get(event.run_id);
         if (tc) {
           pendingToolCalls.delete(event.run_id);
@@ -1084,6 +1176,9 @@ export async function* translateLangGraphStream(stream, opts = {}) {
             reviewConfigs: interruptInfo.reviewConfigs,
           },
         };
+      } else if (interruptInfo.kind === 'frontend_tool') {
+        const customEvent = buildFrontendToolCustomEvent(interruptInfo);
+        if (customEvent) yield customEvent;
       } else {
         const customEvent = buildClarificationCustomEvent(interruptInfo);
         if (customEvent) yield customEvent;
@@ -1091,9 +1186,11 @@ export async function* translateLangGraphStream(stream, opts = {}) {
 
       // A HITL approval already renders fully through the `hitl_request`
       // CUSTOM event (tool name + args) — a text notice here would just
-      // duplicate it as an ugly, argument-less assistant message. Only
-      // clarification still needs one (it has no structured card).
-      if (interruptInfo.kind !== 'hitl') {
+      // duplicate it as an ugly, argument-less assistant message. Frontend
+      // tools are answered by the client app, not the user, so they get no
+      // notice either. Only clarification still needs one (it has no
+      // structured card).
+      if (interruptInfo.kind === 'clarification') {
         yield {
           type: EventType.TEXT_MESSAGE_CHUNK,
           messageId: randomUUID(),
@@ -1153,14 +1250,18 @@ export async function* translateLangGraphStream(stream, opts = {}) {
             reviewConfigs: interruptInfo.reviewConfigs,
           },
         };
+      } else if (interruptInfo.kind === 'frontend_tool') {
+        const customEvent = buildFrontendToolCustomEvent(interruptInfo);
+        if (customEvent) yield customEvent;
       } else {
         const customEvent = buildClarificationCustomEvent(interruptInfo);
         if (customEvent) yield customEvent;
       }
 
-      // Same reasoning as the streamInterrupts branch above: a HITL approval
-      // already has its own structured card, so skip the redundant text notice.
-      if (interruptInfo.kind !== 'hitl') {
+      // Same reasoning as the streamInterrupts branch above: HITL approvals
+      // and frontend tools have their own structured events, so skip the
+      // redundant text notice.
+      if (interruptInfo.kind === 'clarification') {
         yield {
           type: EventType.TEXT_MESSAGE_CHUNK,
           messageId: randomUUID(),

@@ -38,6 +38,11 @@ import encryption from '../../utils/encryption.js';
 
 import { resolveAgentTools } from '../tools/index.js';
 import { sanitizeToolsForGemini } from './sanitizeToolsForGemini.js';
+import {
+  createFrontendTool,
+  hashFrontendTools,
+  normalizeFrontendTools,
+} from '../tools/frontendTool.tool.js';
 import { sanitizeMessagesForModel, inspectMessageContent } from './sanitizeMessagesForModel.js';
 import { createToolErrorFeedbackMiddleware } from './toolErrorFeedback.middleware.js';
 import {
@@ -685,8 +690,27 @@ class AgentFactory {
       usesPerUserMcp = (agent.mcps || []).some((mcp) => mcp.authMode === 'user');
     }
 
+    // Frontend tools (options.frontendTools = the client's `tools`) only
+    // count when the Agent opted in. They vary per client, so their hash is
+    // part of the cache key; clients send the same set every turn, so this
+    // adds one variant per distinct tool set, not one per request. Shape is
+    // normalized here (no reserved-name filtering yet — that needs the
+    // resolved server tools below and is deterministic given the same input).
+    const frontendToolDefs = agent.frontendToolsEnabled
+      ? normalizeFrontendTools(options.frontendTools).tools
+      : [];
+    if (!agent.frontendToolsEnabled && options.frontendTools?.length) {
+      logger.debug('[AgentFactory] ignoring client tools: frontendToolsEnabled is off', {
+        agentId: agentIdStr,
+        count: options.frontendTools.length,
+      });
+    }
+    const frontendToolsSuffix = frontendToolDefs.length
+      ? `:ft:${hashFrontendTools(frontendToolDefs)}`
+      : '';
+
     const dryRunSuffix = executionContext?.isDryRun ? ':dryrun' : '';
-    const effectiveCacheKey = `${cacheKey}:${identityKey}${dryRunSuffix}`;
+    const effectiveCacheKey = `${cacheKey}:${identityKey}${dryRunSuffix}${frontendToolsSuffix}`;
 
     // 2. Cache Validation
     const cached = agentCache.get(effectiveCacheKey);
@@ -737,8 +761,26 @@ class AgentFactory {
     // exclusiveMaximum from a .positive()/.gt() constraint, from either
     // this repo's own built-in tools or an attached MCP server's, being the
     // concrete case seen in production. See sanitizeToolsForGemini.js.
-    const dynamicTools =
-      provider.type === 'gemini' ? sanitizeToolsForGemini(resolvedTools) : resolvedTools;
+    // Client-run stubs, never allowed to shadow a server tool of the same name.
+    const { tools: acceptedFrontendDefs, dropped: droppedFrontendTools } = frontendToolDefs.length
+      ? normalizeFrontendTools(frontendToolDefs, {
+          reservedNames: resolvedTools.map((t) => t.name),
+        })
+      : { tools: [], dropped: [] };
+    if (droppedFrontendTools.length) {
+      logger.warn('[AgentFactory] dropped frontend tools', {
+        agentId: agentIdStr,
+        dropped: droppedFrontendTools,
+      });
+    }
+    const frontendTools = acceptedFrontendDefs.map(createFrontendTool);
+    const sanitize = (tools) =>
+      provider.type === 'gemini' ? sanitizeToolsForGemini(tools) : tools;
+    // Server-side tools only — what subagents get (see createDeepAgent below).
+    const serverTools = sanitize(resolvedTools);
+    const dynamicTools = frontendTools.length
+      ? [...serverTools, ...sanitize(frontendTools)]
+      : serverTools;
 
     // 4. Assemble Custom DeepAgent Runtime
     // Wrap checkpointer with a Proxy to preserve prototype methods (e.g. getTuple)
@@ -951,6 +993,11 @@ class AgentFactory {
           name: 'general-purpose',
           description: DEFAULT_GENERAL_PURPOSE_DESCRIPTION,
           middleware: [toolErrorFeedbackMiddleware],
+          // A subagent inherits the main agent's tools by default. Frontend
+          // tools must stay with the main agent (their pause/resume is wired
+          // to the top-level thread), so hand it the server tools explicitly.
+          // Without frontend tools this is left unset — identical to before.
+          ...(frontendTools.length ? { tools: serverTools } : {}),
           systemPrompt: `In order to complete the objective that the user asks of you, you have access to a number of standard tools.
 
 ### WORKSPACE OUTPUT ROUTING RULES
@@ -974,6 +1021,7 @@ class AgentFactory {
         })),
       mcpAppEntries: Object.keys(mcpAppMap || {}),
       mcpAppMap,
+      frontendTools: frontendTools.map((t) => t.name),
     });
 
     const result = {
@@ -1001,6 +1049,8 @@ class AgentFactory {
       // because they haven't connected (or their grant died). agui.service.js
       // emits these as an `mcp_auth_required` CUSTOM event on every run.
       mcpAuthRequired,
+      // Names of the client-run stub tools in this build (see frontendTool.tool.js).
+      frontendToolNames: frontendTools.map((t) => t.name),
     };
 
     // Cache the compiled result

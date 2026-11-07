@@ -101,6 +101,7 @@ class AguiController {
         messages: input.messages || [],
         resume: input.resume,
         turnContext,
+        frontendTools: input.tools,
         signal: controller.signal,
       })) {
         if (res.destroyed) break;

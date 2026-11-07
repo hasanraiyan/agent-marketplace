@@ -29,6 +29,20 @@ export const hitlRequestSchema = z.object({
   reviewConfigs: z.array(z.unknown()),
 });
 
+// aguiTranslator.js: buildFrontendToolCustomEvent — the run paused because
+// the model called one or more client-supplied tools (RunAgentInput.tools);
+// the client runs them and resumes with
+// `resume: { toolResults: [{ toolCallId, result?, error? }] }`.
+export const frontendToolRequestSchema = z.object({
+  calls: z.array(
+    z.object({
+      toolCallId: z.string().nullable(),
+      name: z.string(),
+      args: z.record(z.string(), z.unknown()),
+    })
+  ),
+});
+
 // aguiTranslator.js: mcp_app yield site (on_tool_start, ~line 821) — fired
 // when an MCP-registered tool declares a widget via _meta.ui.resourceUri.
 export const mcpAppSchema = z.object({
@@ -87,13 +101,19 @@ export const workflowNodeFailedSchema = z.object({
   timestamp: z.string().optional(),
 });
 
-export const AGUI_SCHEMA_VERSION = '1.1.0';
+export const AGUI_SCHEMA_VERSION = '1.2.0';
 
 const AGUI_CUSTOM_EVENTS = [
   {
     type: 'clarification_request',
     description: 'Pauses the run pending free-text/multiple-choice clarification from the user.',
     schema: clarificationRequestSchema,
+  },
+  {
+    type: 'frontend_tool_request',
+    description:
+      "Pauses the run until the client runs the frontend tools the model called (the Agent's frontendToolsEnabled + RunAgentInput.tools); resume with { toolResults: [{ toolCallId, result?, error? }] }.",
+    schema: frontendToolRequestSchema,
   },
   {
     type: 'hitl_request',
