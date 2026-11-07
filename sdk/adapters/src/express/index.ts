@@ -22,7 +22,7 @@ export {
 } from '../shared/multipart-node.js';
 
 /** Version of this unified package. */
-export const VERSION = '0.11.0';
+export const VERSION = '0.11.1';
 
 export interface CreateExpressAdapterOptions extends Omit<CreateRuntimeOptions, 'resolveUser'> {
   resolveUser?: ResolveUser;

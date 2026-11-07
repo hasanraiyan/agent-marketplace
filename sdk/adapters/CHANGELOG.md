@@ -5,6 +5,19 @@ All notable changes to @personaai/adapters will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-11-07
+
+### Added
+
+- **Render voice frontend tool calls**, via `@personaai/react` 0.22.1:
+  - `@personaai/adapters/nextjs` (client) re-exports `voiceToolCallToToolCall(call)`.
+  - Enables voice tool calls on `useVoice().toolCalls` to be rendered as `PersonaToolCall` views via
+    `useRenderToolCall()` or `<PersonaToolCallView>`.
+
+### Changed
+
+- Dependencies: Upgraded `@personaai/react` to `^0.22.1`.
+
 ## [0.11.0] - 2026-11-07
 
 ### Added
