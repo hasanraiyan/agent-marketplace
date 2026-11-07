@@ -12,25 +12,22 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { CopyButton } from "@/components/chat/copy-button";
 import { SpanDetail, spanIcon } from "@/components/traces/span-detail";
 import { IconTile } from "@/components/traces/message-cards";
 import { HitlBanner } from "@/components/traces/hitl-view";
+import { TraceInfoDialog } from "@/components/traces/trace-info-dialog";
 import {
   VoiceIcon,
   VoicePlayer,
-  VoiceTokenBreakdown,
   type Marker,
   type PlayRequest,
 } from "@/components/traces/voice-view";
 import {
   StatusBadge,
-  endReasonLabel,
   formatDuration,
   formatTokens,
   isVoiceTrace,
   kindMeta,
-  sourceLabel,
   spanAudio,
   type AudioOffset,
   type Span,
@@ -96,15 +93,6 @@ function SubagentRowMeta({ span }: { span: Span }) {
         </div>
       )}
     </>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col">
-      <span className="text-[10px] text-muted-foreground">{label}</span>
-      <span className="truncate font-mono text-xs">{value}</span>
-    </div>
   );
 }
 
@@ -179,77 +167,53 @@ export function TraceView({
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto lg:overflow-hidden">
-      {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-3 py-2">
-        {back}
-        <div className="flex min-w-0 items-center gap-2">
+      {/* Top bar — one row. Everything else lives in the ⓘ details modal. */}
+      <header className="flex min-w-0 items-center gap-2 border-b border-border px-2 py-2 sm:px-3">
+        <div className="shrink-0">{back}</div>
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <IconTile icon={root ? spanIcon(root) : kindMeta("chain").icon} className={kindMeta("chain").tile} />
-          <span className="truncate text-sm font-medium">{trace.agentName || trace.agentId}</span>
-          <span className="flex shrink-0 items-center gap-1 rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
-            ID
-            <CopyButton text={trace._id} label="Copy trace ID" />
+          <span className="min-w-0 truncate text-sm font-medium" title={trace.agentName || trace.agentId}>
+            {trace.agentName || trace.agentId}
           </span>
-          <StatusBadge status={trace.status} />
+          <StatusBadge status={trace.status} className="shrink-0" />
           {voice && (
-            <Badge variant="outline" className="gap-1">
+            <Badge variant="outline" className="hidden shrink-0 gap-1 sm:inline-flex">
               <VoiceIcon />
               {voice.telephony ? "Phone call" : "Voice call"}
             </Badge>
           )}
-          {trace.truncated && <Badge variant="outline">step limit reached</Badge>}
+          {trace.truncated && (
+            <Badge variant="outline" className="hidden shrink-0 md:inline-flex">
+              step limit reached
+            </Badge>
+          )}
         </div>
-        <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-1">
-          <Stat label={voice ? "Call length" : "Latency"} value={formatDuration(trace.durationMs)} />
-          {trace.usage?.details ? (
-            <details className="group relative">
-              <summary className="cursor-pointer list-none">
-                <Stat
-                  label="Tokens ▾"
-                  value={`${formatTokens(trace.usage?.totalTokens)} (${formatTokens(trace.usage?.inputTokens)} → ${formatTokens(trace.usage?.outputTokens)})`}
-                />
-              </summary>
-              <div className="absolute right-0 z-20 mt-2 w-72 rounded-md border border-border bg-popover p-3 shadow-md">
-                <VoiceTokenBreakdown details={trace.usage.details} compact />
-              </div>
-            </details>
-          ) : (
-            <Stat
-              label="Tokens"
-              value={`${formatTokens(trace.usage?.totalTokens)} (${formatTokens(trace.usage?.inputTokens)} → ${formatTokens(trace.usage?.outputTokens)})`}
-            />
-          )}
-          {voice && (
-            <>
-              <Stat label="Ended" value={endReasonLabel(voice.endReason)} />
-              <Stat
-                label="Turns"
-                value={`${voice.turns ?? 0}${voice.interruptions ? ` · ${voice.interruptions} barge-in` : ""}`}
-              />
-              {voice.latency?.firstAudioP50Ms != null && (
-                <Stat label="First audio p50" value={formatDuration(voice.latency.firstAudioP50Ms)} />
-              )}
-              {voice.voiceName && <Stat label="Voice" value={voice.voiceName} />}
-              {voice.telephony?.callerPhone && <Stat label="Caller" value={voice.telephony.callerPhone} />}
-              {voice.reconnects ? <Stat label="Reconnects" value={voice.reconnects} /> : null}
-            </>
-          )}
-          <Stat label="Model" value={trace.model || "—"} />
-          {trace.subagentCalls ? <Stat label="Subagents" value={trace.subagentCalls} /> : null}
-          <Stat
-            label="Source"
-            value={`${sourceLabel(trace.source)}${trace.channel && trace.channel !== "web" ? ` · ${trace.channel}` : ""}`}
-          />
-          <Stat label="Started" value={new Date(trace.startedAt).toLocaleString()} />
+        <div className="flex shrink-0 items-center gap-1.5">
+          {/* At-a-glance numbers on wider screens; the modal has them all. */}
+          <span className="hidden items-center gap-3 font-mono text-xs text-muted-foreground md:flex">
+            <span title={voice ? "Call length" : "Latency"}>{formatDuration(trace.durationMs)}</span>
+            <span className="inline-flex items-center gap-1" title="Total tokens">
+              <CoinsIcon className="size-3.5" />
+              {formatTokens(trace.usage?.totalTokens)}
+            </span>
+          </span>
           {trace.threadId && (
-            <Link
-              href={`${backHref}?threadId=${encodeURIComponent(trace.threadId)}`}
-              className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              className="hidden sm:inline-flex"
+              render={<Link href={`${backHref}?threadId=${encodeURIComponent(trace.threadId)}`} />}
             >
               View thread
-            </Link>
+            </Button>
           )}
+          <TraceInfoDialog
+            trace={trace}
+            threadHref={trace.threadId ? `${backHref}?threadId=${encodeURIComponent(trace.threadId)}` : null}
+          />
         </div>
-      </div>
+      </header>
 
       <HitlBanner trace={trace} tracesHref={backHref} />
 
