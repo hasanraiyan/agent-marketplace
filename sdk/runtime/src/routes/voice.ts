@@ -1,5 +1,11 @@
 import type { RouteHandler } from '../routing.js';
-import { json, requireBodyObject, requireStringField, validateTurnContext } from '../routeHelpers.js';
+import {
+  json,
+  parseFrontendTools,
+  requireBodyObject,
+  requireStringField,
+  validateTurnContext,
+} from '../routeHelpers.js';
 
 /**
  * Mints a single-use voice session ticket via `@personaai/sdk`'s
@@ -28,7 +34,9 @@ export const createVoiceSession: RouteHandler = async (request, ctx) => {
   // never back through this route (see @personaai/sdk's VoiceResource doc
   // comment).
   const context = validateTurnContext(body.context);
-  const tools = Array.isArray(body.tools) ? body.tools : undefined;
+  // Frontend tools the model may call during the call (useVoice runs them in
+  // the browser). Same check as chat: malformed → 400 before any API call.
+  const tools = parseFrontendTools(body.tools);
   const ticket = await ctx.client.voice.createSession(agentId, {
     ...(threadId ? { threadId } : {}),
     ...(contextOverride ? { contextOverride } : {}),

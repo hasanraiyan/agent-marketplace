@@ -4,6 +4,14 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.21.0
+
+- **`@personaai/sdk` upgraded to `^0.20.0`.**
+- **`POST /voice/sessions` forwards frontend `tools`** to the voice session, so the model can
+  call your browser tools during a Gemini Live call (`@personaai/react`'s `useVoice` runs them).
+  Checked like `POST /chat`'s `tools`: a non-array, or an entry without a string `name`, is a
+  400 before any API call. Ignored unless the Agent has `frontendToolsEnabled`.
+
 ## 0.20.0
 
 - **`@personaai/sdk` upgraded to `^0.19.0`.**

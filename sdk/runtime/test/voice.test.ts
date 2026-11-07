@@ -144,6 +144,43 @@ describe('voice routes', () => {
     expect(JSON.parse(init.body as string)).toEqual({ context: { courseId: '101' } });
   });
 
+  it('POST /voice/sessions forwards frontend tools in the sdk call body', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}, 200));
+    const runtime = makeRuntime({ fetchMock });
+    const tools = [{ name: 'open_page', description: 'Open a page.', parameters: { type: 'object' } }];
+
+    const response = await runtime.handle({
+      method: 'POST',
+      path: '/voice/sessions',
+      headers: {},
+      query: {},
+      body: { agentId: 'a1', tools },
+      userId: null,
+    });
+
+    expect(response.status).toBe(201);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string)).toEqual({ tools });
+  });
+
+  it('POST /voice/sessions rejects malformed tools with 400 without calling the API', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
+    const runtime = makeRuntime({ fetchMock });
+
+    for (const tools of ['open_page', [{ description: 'no name' }], [null]]) {
+      const response = await runtime.handle({
+        method: 'POST',
+        path: '/voice/sessions',
+        headers: {},
+        query: {},
+        body: { agentId: 'a1', tools },
+        userId: null,
+      });
+      expect(response.status).toBe(400);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('POST /voice/sessions rejects a non-object context without calling the API', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => jsonResponse({}));
     const runtime = makeRuntime({ fetchMock });

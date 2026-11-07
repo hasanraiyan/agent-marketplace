@@ -8,7 +8,7 @@ import type { RouteHandler } from '../routing.js';
 import { RuntimeHttpError } from '../errors.js';
 import { RunDriver } from '../runDriver.js';
 import { withHeartbeats } from '../heartbeat.js';
-import { validateTurnContext } from '../routeHelpers.js';
+import { parseFrontendTools, validateTurnContext } from '../routeHelpers.js';
 import type { RunContext } from '../types/hooks.js';
 
 interface ChatBody {
@@ -63,26 +63,6 @@ function parseAttachments(value: unknown): ChatAttachmentInput[] | undefined {
     : undefined;
 }
 
-/**
- * Frontend tools from the browser (`@personaai/react`'s useFrontendTool &
- * co.). Only the outer shape is checked here — each entry's name/schema is
- * validated (and invalid ones dropped) by the backend, which also ignores
- * them entirely unless the Agent has `frontendToolsEnabled`.
- */
-function parseTools(value: unknown): FrontendToolDefinition[] | undefined {
-  if (value === undefined || value === null) return undefined;
-  if (
-    !Array.isArray(value) ||
-    !value.every((t) => typeof t === 'object' && t !== null && typeof t.name === 'string')
-  ) {
-    throw new RuntimeHttpError(
-      400,
-      'INVALID_REQUEST',
-      '"tools" must be an array of { name, description?, parameters? } objects.'
-    );
-  }
-  return value.length > 0 ? (value as FrontendToolDefinition[]) : undefined;
-}
 
 function parseChatBody(body: unknown): ChatBody {
   if (typeof body !== 'object' || body === null) {
@@ -116,7 +96,7 @@ function parseChatBody(body: unknown): ChatBody {
     // a 400 on any shape violation (not a flat string/number/boolean
     // object, or over the byte cap) rather than coercing/dropping it.
     context: validateTurnContext(b.context),
-    tools: parseTools(b.tools),
+    tools: parseFrontendTools(b.tools),
     attachments: parseAttachments(b.attachments),
   };
 }

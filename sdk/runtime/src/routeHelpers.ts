@@ -1,5 +1,28 @@
+import type { FrontendToolDefinition } from '@personaai/sdk';
 import { RuntimeHttpError } from './errors.js';
 import type { RuntimeBufferedResponse } from './types/response.js';
+
+/**
+ * Frontend tools from the browser (`@personaai/react`'s useFrontendTool &
+ * co.) — on `POST /chat` and `POST /voice/session`. Only the outer shape is
+ * checked here (a 400 otherwise); each entry's name/schema is validated (and
+ * invalid ones dropped) by the backend, which also ignores them entirely
+ * unless the Agent has `frontendToolsEnabled`. Empty → undefined.
+ */
+export function parseFrontendTools(value: unknown): FrontendToolDefinition[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (
+    !Array.isArray(value) ||
+    !value.every((t) => typeof t === 'object' && t !== null && typeof t.name === 'string')
+  ) {
+    throw new RuntimeHttpError(
+      400,
+      'INVALID_REQUEST',
+      '"tools" must be an array of { name, description?, parameters? } objects.'
+    );
+  }
+  return value.length > 0 ? (value as FrontendToolDefinition[]) : undefined;
+}
 
 export function json(status: number, value: unknown): RuntimeBufferedResponse {
   return {
