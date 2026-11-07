@@ -4,11 +4,49 @@
 // runtimes (agui.service.js's runAgentAsAguiEvents drives both).
 
 import type {
+  PersonaFrontendToolCall,
+  PersonaFrontendToolResult,
   PersonaInterrupt,
   PersonaPresentedFile,
   PersonaSubagentActivityEntry,
   PersonaWorkspaceFile,
 } from "../types.js";
+
+// A `frontend_tool_request` value (live event) or a reloaded thread's
+// `pendingInterrupt` of kind "frontend_tool" → the calls to run. Anything
+// else → null. Kept separate from PersonaInterrupt on purpose: useChat runs
+// these itself, so existing interrupt UIs never see a kind they don't know.
+export function normalizeFrontendToolCalls(value: unknown): PersonaFrontendToolCall[] | null {
+  const calls = (value as { calls?: unknown } | null | undefined)?.calls;
+  if (!Array.isArray(calls)) return null;
+  const out: PersonaFrontendToolCall[] = [];
+  for (const c of calls) {
+    if (!c || typeof c !== "object" || typeof (c as { name?: unknown }).name !== "string") continue;
+    const { toolCallId, name, args } = c as { toolCallId?: unknown; name: string; args?: unknown };
+    out.push({
+      toolCallId: typeof toolCallId === "string" ? toolCallId : null,
+      name,
+      args: args && typeof args === "object" && !Array.isArray(args) ? (args as Record<string, unknown>) : {},
+    });
+  }
+  return out.length > 0 ? out : null;
+}
+
+export function normalizePendingFrontendTools(pending: unknown): PersonaFrontendToolCall[] | null {
+  if (!pending || typeof pending !== "object") return null;
+  const p = pending as { kind?: string; value?: unknown };
+  return p.kind === "frontend_tool" ? normalizeFrontendToolCalls(p.value) : null;
+}
+
+// Same string the server's stub tool returns for this answer
+// (frontendTool.tool.js's formatFrontendToolResult), so the card shows
+// exactly what the model received.
+export function formatFrontendToolResult(answer: PersonaFrontendToolResult): string {
+  if (answer.error != null) return JSON.stringify({ status: "error", message: String(answer.error) });
+  const { result } = answer;
+  if (result === undefined || result === null) return "Done.";
+  return typeof result === "string" ? result : JSON.stringify(result);
+}
 
 // A failed tool call's TOOL_CALL_RESULT content is a JSON envelope
 // (`{status:'error',message}`, see aguiTranslator.js's buildToolErrorContent)

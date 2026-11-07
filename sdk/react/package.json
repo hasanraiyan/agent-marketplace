@@ -1,6 +1,6 @@
 {
   "name": "@personaai/react",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "description": "React hooks and state management library for the Persona AI agent runtime. Client-side only.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -66,6 +66,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "eslint": "^9.19.0",
+    "happy-dom": "^15.11.7",
     "prettier": "^3.4.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

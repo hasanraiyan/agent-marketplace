@@ -70,6 +70,80 @@ function Chat() {
 | `useConnection`      | Health check — backend connectivity status                                                      |
 | `useRenderTool`      | Custom UI for a server tool's calls (generative UI) — see below                                 |
 | `useRenderToolCall`  | Returns a function that renders a tool call with its registered renderer                        |
+| `useFrontendTool`    | Give the agent a tool that runs in the browser (navigate, open a modal, …) — see below           |
+| `useHumanInTheLoop`  | A frontend tool that waits for the user's answer (`respond()`)                                   |
+| `useComponent`       | Generative UI — the agent shows one of your components in the chat                              |
+
+## Frontend tools (`useFrontendTool`, `useHumanInTheLoop`, `useComponent`)
+
+Tools your app defines and runs **in the browser**, which the agent can call like any other tool.
+Turn on **Frontend Tools** for the agent first (agent settings, or `frontendToolsEnabled: true`
+via `@personaai/sdk`) — with it off, registered tools are ignored.
+
+```tsx
+import { useFrontendTool, useHumanInTheLoop, useComponent } from "@personaai/react";
+
+function AppTools() {
+  // Runs code; the return value goes back to the agent.
+  useFrontendTool<{ programId: string }>({
+    name: "open_program",
+    description: "Open a program's detail page for the student.",
+    parameters: {
+      type: "object",
+      properties: { programId: { type: "string" } },
+      required: ["programId"],
+    },
+    handler: ({ programId }) => {
+      router.push(`/programs/${programId}`);
+      return { opened: programId };
+    },
+  });
+
+  // Asks the user; the agent waits until respond() is called.
+  useHumanInTheLoop<{ university: string }>({
+    name: "confirm_application",
+    description: "Ask the student to confirm before submitting an application.",
+    parameters: { type: "object", properties: { university: { type: "string" } } },
+    render: ({ args, status, respond }) => (
+      <ConfirmCard
+        title={`Apply to ${args.university}?`}
+        disabled={status !== "executing" || !respond}
+        onYes={() => respond?.({ confirmed: true })}
+        onNo={() => respond?.({ confirmed: false })}
+      />
+    ),
+  });
+
+  // Generative UI: the tool's arguments become the component's props.
+  useComponent<{ items: Program[] }>({
+    name: "show_shortlist",
+    description: "Show the student's program shortlist as cards.",
+    parameters: shortlistJsonSchema, // or z.toJSONSchema(shortlistSchema)
+    render: (args) => <ShortlistCards items={args.items ?? []} />,
+  });
+
+  return null;
+}
+```
+
+Mount `<AppTools />` anywhere under `PersonaProvider`, and render tool calls with
+`PersonaToolCallView` (see below) so `render` UIs appear in the transcript.
+
+How it works:
+
+- `useChat` sends every registered tool with each request. When the agent calls one, the run
+  **pauses**; `useChat` runs the tool (`handler`, your `respond()`, or "displayed" for a
+  component), puts the answer on the tool's card, and **resumes the agent silently** — no extra
+  user message.
+- Errors: a throwing `handler` (or a tool that isn't registered right now) is reported to the
+  agent as a failed tool, so it can recover.
+- If the user sends a new message instead of answering, the pending call is cancelled and the
+  agent is told the action wasn't completed. A thread reloaded while paused runs its pending tools
+  again (handlers included).
+- These pauses never appear as `interrupt` — existing approval/clarification UIs are untouched.
+  `useChat().pendingFrontendTools` lists calls currently waiting, for display.
+- Names must match `^[a-zA-Z0-9_-]{1,64}$` and must not clash with the agent's own tools (a
+  clashing tool is dropped server-side). Up to 20 tools; each schema up to 8 KB.
 
 ## Custom tool UI (`useRenderTool`)
 

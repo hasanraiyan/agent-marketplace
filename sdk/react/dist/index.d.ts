@@ -106,7 +106,26 @@ type PersonaResumeValue = {
 } | {
     answers: unknown[];
     text?: string;
+} | {
+    toolResults: PersonaFrontendToolResult[];
 };
+/**
+ * A frontend tool call the agent is waiting on (see `useFrontendTool`).
+ * `useChat` runs these automatically and resumes the run with the results —
+ * they're exposed as `pendingFrontendTools` for display only.
+ */
+interface PersonaFrontendToolCall {
+    /** The call's id as the server knows it (null only if the provider gave none). */
+    toolCallId: string | null;
+    name: string;
+    args: Record<string, unknown>;
+}
+/** The answer to one frontend tool call — `error` reports a failure or the user declining. */
+interface PersonaFrontendToolResult {
+    toolCallId: string;
+    result?: unknown;
+    error?: string;
+}
 /**
  * A file in the agent's own virtual workspace (deepagents' state-backed
  * filesystem — `write_file`/`read_file` tool calls, distinct from
@@ -301,6 +320,12 @@ type PersonaStreamingEvent = {
     value: {
         toolCallId: string;
     } & PersonaSubagentActivityEntry;
+} | {
+    type: "CUSTOM";
+    name: "frontend_tool_request";
+    value: {
+        calls: PersonaFrontendToolCall[];
+    };
 } | {
     type: "CUSTOM";
     name: "mcp_app";
@@ -1297,12 +1322,126 @@ interface UseMessagesResult {
     sendFromAgent: (input: SendPersonaAgentMessageInput) => Promise<PersonaAgentMessageDelivery>;
 }
 
+/**
+ * Lifecycle of a tool call as seen by the client:
+ * - `inProgress` — arguments are still streaming in (`args` is partial).
+ * - `executing`  — arguments are complete; the tool is running (or, for a
+ *   call loaded from history, never produced a result).
+ * - `complete`   — the tool's result has arrived (`result` is set).
+ */
+type PersonaToolCallStatus = "inProgress" | "executing" | "complete";
+interface PersonaToolRenderBase {
+    /** The tool's name, e.g. `search_programs`. */
+    name: string;
+    toolCallId: string;
+    /** True when the tool reported a failure (its result is an error envelope). */
+    isError: boolean;
+    /** The raw call, for anything not surfaced above. */
+    toolCall: PersonaToolCall;
+    /**
+     * Only for a `useHumanInTheLoop` tool that is waiting on the user
+     * (`status: "executing"`): call once with the answer to send to the agent.
+     */
+    respond?: (value: unknown) => void;
+}
+/** Props passed to a `useRenderTool` render function — discriminated by `status`. */
+type PersonaToolRenderProps<TArgs = Record<string, unknown>> = (PersonaToolRenderBase & {
+    status: "inProgress";
+    args: Partial<TArgs>;
+    result: undefined;
+}) | (PersonaToolRenderBase & {
+    status: "executing";
+    args: TArgs;
+    result: undefined;
+}) | (PersonaToolRenderBase & {
+    status: "complete";
+    args: TArgs;
+    result: string;
+});
+type PersonaToolRenderFn<TArgs = Record<string, unknown>> = (props: PersonaToolRenderProps<TArgs>) => ReactNode;
+/** Wildcard name: renders any tool call that has no renderer of its own. */
+declare const ANY_TOOL = "*";
+/**
+ * Derive a tool call's status from the call itself, so it works the same for
+ * a live stream and for a thread reloaded from history.
+ */
+declare function getToolCallStatus(toolCall: PersonaToolCall): PersonaToolCallStatus;
+/** Build the render props for a tool call (exported for custom renderers/tests). */
+declare function buildToolRenderProps(toolCall: PersonaToolCall): PersonaToolRenderProps;
+/**
+ * Tool arguments schema: a JSON Schema object (`type: "object"`), or anything
+ * with a `toJSONSchema()` method. For zod, pass `z.toJSONSchema(schema)`.
+ */
+type PersonaToolParameters = Record<string, unknown> | {
+    toJSONSchema(): Record<string, unknown>;
+};
+/** What's sent to the agent for a frontend tool (AG-UI `RunAgentInput.tools`). */
+interface PersonaFrontendToolDefinition {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+}
+/**
+ * - `handler` — `useFrontendTool`: runs code in the browser, returns a result.
+ * - `humanInTheLoop` — `useHumanInTheLoop`: waits for the user's `respond()`.
+ * - `component` — `useComponent`: renders UI, answers immediately.
+ */
+type PersonaFrontendToolKind = "handler" | "humanInTheLoop" | "component";
+interface PersonaFrontendToolContext {
+    /** The call being answered. */
+    toolCallId: string;
+}
+interface PersonaFrontendToolEntry {
+    kind: PersonaFrontendToolKind;
+    definition: PersonaFrontendToolDefinition;
+    handler?: (args: Record<string, unknown>, ctx: PersonaFrontendToolContext) => unknown;
+}
+/** Normalize `parameters` to a plain JSON Schema object (no `$schema` key). */
+declare function resolveToolParameters(parameters: PersonaToolParameters | undefined): Record<string, unknown>;
+/**
+ * Holds the tool renderers (`useRenderTool`) and frontend tools
+ * (`useFrontendTool` / `useHumanInTheLoop` / `useComponent`) registered under
+ * one `PersonaProvider`; a store compatible with `useSyncExternalStore`.
+ */
+declare class PersonaToolRegistry {
+    private renderers;
+    private frontendTools;
+    private responders;
+    private listeners;
+    private version;
+    /**
+     * Register a frontend tool. The latest registration for a name wins.
+     * Returns an unregister function that only removes *this* registration.
+     */
+    registerFrontendTool(entry: PersonaFrontendToolEntry): () => void;
+    getFrontendTool(name: string): PersonaFrontendToolEntry | undefined;
+    /** Definitions to send with each run (empty → no `tools` sent at all). */
+    getFrontendToolDefinitions(): PersonaFrontendToolDefinition[];
+    /** Make `respond` available to the waiting human-in-the-loop call `toolCallId`. */
+    setResponder(toolCallId: string, respond: (value: unknown) => void): void;
+    clearResponder(toolCallId: string): void;
+    getResponder(toolCallId: string): ((value: unknown) => void) | undefined;
+    /**
+     * Register a renderer for `name` (or `"*"`). The latest registration wins.
+     * Returns an unregister function that only removes *this* registration.
+     */
+    registerRenderer(name: string, render: PersonaToolRenderFn): () => void;
+    /** The renderer for `name`, falling back to the `"*"` wildcard. */
+    getRenderer(name: string): PersonaToolRenderFn | undefined;
+    hasRenderer(name: string): boolean;
+    subscribe: (listener: () => void) => (() => void);
+    getVersion: () => number;
+    private emit;
+}
+
 interface PersonaContextValue {
     baseUrl: string;
     getAuthToken?: () => Promise<string | null | undefined> | string | null | undefined;
     defaultAgentId?: string;
     fetchWithAuth: (path: string, init?: RequestInit) => Promise<Response>;
     logger: Logger;
+    /** Tool renderers registered via `useRenderTool` (one per provider). */
+    toolRegistry: PersonaToolRegistry;
 }
 /** Structured, trackable details of a non-ok API response. */
 interface PersonaHttpFailureInfo {
@@ -1330,6 +1469,8 @@ declare function useChat(options?: UseChatOptions): {
     error: Error | null;
     interrupt: PersonaInterrupt | null;
     resumeInterrupt: (resume: PersonaResumeValue, displayContent: string) => Promise<boolean>;
+    /** Frontend tool calls the agent is waiting on — run and resumed automatically; for display. */
+    pendingFrontendTools: PersonaFrontendToolCall[] | null;
     files: Record<string, PersonaWorkspaceFile>;
     todos: PersonaTodo[];
     presentedFile: PersonaPresentedFile | null;
@@ -1853,6 +1994,147 @@ declare function useWorkflowRuns(workflowId?: string, options?: UseWorkflowRunsO
     cancelRun: (runId: string) => Promise<void>;
 };
 
+interface UseRenderToolConfig<TArgs = Record<string, unknown>> {
+    /** The tool to render — a server tool's name, or `"*"` for any tool without its own renderer. */
+    name: string;
+    /** Called on every update of a matching call; `status` tells you which fields are filled. */
+    render: PersonaToolRenderFn<TArgs>;
+}
+/**
+ * Render a component for a tool call that runs on the server (MCP, REST API
+ * tool, built-in…) instead of the generic tool card. Display only: the tool
+ * itself is unchanged.
+ *
+ * Registered while the calling component is mounted; the latest registration
+ * for a name wins. Show calls with `<PersonaToolCallView toolCall={tc} />`
+ * or `useRenderToolCall()`.
+ *
+ * ```tsx
+ * useRenderTool<{ query: string }>({
+ *   name: "search_programs",
+ *   render: ({ status, args, result }) =>
+ *     status === "complete" ? <ProgramResults json={result} /> : <Searching query={args.query} />,
+ * });
+ * ```
+ */
+declare function useRenderTool<TArgs = Record<string, unknown>>(config: UseRenderToolConfig<TArgs>): void;
+/**
+ * Returns a function that renders a tool call with its registered renderer
+ * (falling back to the `"*"` wildcard). It returns `undefined` when no
+ * renderer matches, so you can show your own default card.
+ */
+declare function useRenderToolCall(): (toolCall: PersonaToolCall) => react__default.ReactElement | undefined;
+interface PersonaToolCallViewProps {
+    toolCall: PersonaToolCall;
+    /** Shown when no renderer (and no `"*"` wildcard) is registered for this tool. */
+    fallback?: ReactNode;
+}
+/**
+ * Renders one tool call with its `useRenderTool` renderer, or `fallback`.
+ *
+ * ```tsx
+ * {message.toolCalls?.map((tc) => (
+ *   <PersonaToolCallView key={tc.toolCallId} toolCall={tc} fallback={<ToolCard call={tc} />} />
+ * ))}
+ * ```
+ */
+declare function PersonaToolCallView({ toolCall, fallback, }: PersonaToolCallViewProps): react__default.JSX.Element;
+
+interface FrontendToolConfigBase {
+    /** Tool name the agent calls — `^[a-zA-Z0-9_-]{1,64}$`, unique, not a server tool's name. */
+    name: string;
+    /** What the tool does and when to use it. The model reads this. */
+    description: string;
+    /** JSON Schema of the arguments (or anything with `toJSONSchema()`). Omit for no arguments. */
+    parameters?: PersonaToolParameters;
+}
+interface UseFrontendToolConfig<TArgs = Record<string, unknown>> extends FrontendToolConfigBase {
+    /**
+     * Runs in the browser when the agent calls the tool. The return value (any
+     * JSON value) goes back to the agent; a thrown error is reported as the
+     * tool failing.
+     */
+    handler: (args: TArgs, ctx: PersonaFrontendToolContext) => unknown;
+    /** Optional UI for the call in the transcript (same props as `useRenderTool`). */
+    render?: PersonaToolRenderFn<TArgs>;
+}
+interface UseHumanInTheLoopConfig<TArgs = Record<string, unknown>> extends FrontendToolConfigBase {
+    /**
+     * UI that asks the user. While waiting (`status: "executing"`) it gets
+     * `respond(value)` — call it once; `value` is what the agent receives.
+     */
+    render: PersonaToolRenderFn<TArgs>;
+}
+interface UseComponentConfig<TArgs = Record<string, unknown>> extends FrontendToolConfigBase {
+    /**
+     * The component to show, called with the tool's arguments (partial while
+     * they stream in). The agent is told it was displayed.
+     */
+    render: (args: Partial<TArgs>, props: PersonaToolRenderProps<TArgs>) => ReactNode;
+}
+/**
+ * Give the agent a tool that runs in the user's browser — navigate, open a
+ * modal, read local state, call your own client API… The agent must have
+ * **Frontend Tools** enabled; otherwise it never sees the tool.
+ *
+ * `useChat` sends registered tools with every message, runs `handler` when
+ * the agent calls the tool, and resumes the agent with the result.
+ *
+ * ```tsx
+ * useFrontendTool<{ programId: string }>({
+ *   name: "open_program",
+ *   description: "Open a program's detail page for the student.",
+ *   parameters: { type: "object", properties: { programId: { type: "string" } }, required: ["programId"] },
+ *   handler: ({ programId }) => { router.push(`/programs/${programId}`); return "opened"; },
+ * });
+ * ```
+ */
+declare function useFrontendTool<TArgs = Record<string, unknown>>(config: UseFrontendToolConfig<TArgs>): void;
+/**
+ * A frontend tool that asks the user and waits: `render` shows your UI and
+ * gets `respond(value)` while the agent is waiting. The agent continues once
+ * you call it.
+ *
+ * ```tsx
+ * useHumanInTheLoop<{ university: string }>({
+ *   name: "confirm_application",
+ *   description: "Ask the student to confirm before submitting an application.",
+ *   parameters: { type: "object", properties: { university: { type: "string" } } },
+ *   render: ({ args, status, respond }) => (
+ *     <ConfirmCard
+ *       title={`Apply to ${args.university}?`}
+ *       disabled={status !== "executing" || !respond}
+ *       onYes={() => respond?.({ confirmed: true })}
+ *       onNo={() => respond?.({ confirmed: false })}
+ *     />
+ *   ),
+ * });
+ * ```
+ */
+declare function useHumanInTheLoop<TArgs = Record<string, unknown>>(config: UseHumanInTheLoopConfig<TArgs>): void;
+/**
+ * Generative UI: let the agent show one of your components in the chat. The
+ * tool's arguments become the component's props; the agent is told it was
+ * displayed and carries on.
+ *
+ * ```tsx
+ * useComponent<{ items: Program[] }>({
+ *   name: "show_shortlist",
+ *   description: "Show the student's program shortlist as cards.",
+ *   parameters: shortlistSchema,
+ *   render: (args) => <ShortlistCards items={args.items ?? []} />,
+ * });
+ * ```
+ */
+declare function useComponent<TArgs = Record<string, unknown>>(config: UseComponentConfig<TArgs>): void;
+
+/**
+ * Parse a JSON value that may be truncated. Returns the most complete value
+ * recoverable from the prefix, or `undefined` if nothing usable is there yet.
+ * Complete JSON is returned exactly as `JSON.parse` would.
+ */
+declare function parsePartialJson(text: string | undefined | null): unknown;
+
 /**
  * SSE transport for chat streams, with a React Native fallback.
  *
@@ -1910,6 +2192,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.20.0";
+declare const VERSION = "0.21.0";
 
-export { ARCHITECT_AGENT_ID, type CreatePersonaAgentInput, type CreatePersonaKnowledgeBaseInput, type CreatePersonaMcpInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreatePersonaWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentMessageDelivery, type PersonaAgentSnapshot, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaBulkDeleteResult, type PersonaChannel, type PersonaClarificationQuestion, type PersonaDeleteDocumentResult, type PersonaFailureResponse, type PersonaFileItem, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaHttpFailureInfo, type PersonaInterrupt, type PersonaKnowledgeBase, type PersonaKnowledgeBaseUsage, type PersonaKnowledgeDocument, type PersonaKnowledgeSearchResult, type PersonaMcp, type PersonaMcpAuthMode, type PersonaMcpAuthRequiredServer, type PersonaMcpAuthType, type PersonaMcpConnection, type PersonaMcpConnectionStatus, type PersonaMcpOAuthConfig, type PersonaMcpOAuthInput, type PersonaMcpResourceSummary, type PersonaMcpResourceTemplate, type PersonaMcpTestConnectionResult, type PersonaMcpTool, type PersonaMcpTransport, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaMessageChannel, type PersonaMessageDelivery, type PersonaNodeOnErrorAction, type PersonaNodeRetryPolicy, type PersonaNodeRun, type PersonaNodeRunState, type PersonaNodeRunStatus, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaUploadDocumentsResult, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeData, type PersonaWorkflowNodeType, type PersonaWorkflowOwnerType, type PersonaWorkflowRun, type PersonaWorkflowRunStatus, type PersonaWorkflowTrigger, type PersonaWorkflowTriggerType, type PersonaWorkflowUsage, type PersonaWorkflowVersion, type PersonaWorkflowVisibility, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type SendPersonaAgentMessageInput, type SendPersonaMessageInput, type UpdatePersonaAgentInput, type UpdatePersonaKnowledgeBaseInput, type UpdatePersonaMcpInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdatePersonaWorkflowInput, type UploadKnowledgeDocumentInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseChatOptions, type UseKnowledgeBasesOptions, type UseMcpAdminOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseMessagesResult, type UseRcpSourcesOptions, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, getChannelBadgeLabel, openSSEStream, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useConnection, useFiles, useKnowledgeBases, useMcp, useMcpAdmin, useMcpConnections, useMemory, useMessages, usePersonaContext, useRcpSources, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows, useWorkspaceFiles };
+export { ANY_TOOL, ARCHITECT_AGENT_ID, type CreatePersonaAgentInput, type CreatePersonaKnowledgeBaseInput, type CreatePersonaMcpInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreatePersonaWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentMessageDelivery, type PersonaAgentSnapshot, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaBulkDeleteResult, type PersonaChannel, type PersonaClarificationQuestion, type PersonaDeleteDocumentResult, type PersonaFailureResponse, type PersonaFileItem, type PersonaFrontendToolCall, type PersonaFrontendToolContext, type PersonaFrontendToolDefinition, type PersonaFrontendToolEntry, type PersonaFrontendToolKind, type PersonaFrontendToolResult, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaHttpFailureInfo, type PersonaInterrupt, type PersonaKnowledgeBase, type PersonaKnowledgeBaseUsage, type PersonaKnowledgeDocument, type PersonaKnowledgeSearchResult, type PersonaMcp, type PersonaMcpAuthMode, type PersonaMcpAuthRequiredServer, type PersonaMcpAuthType, type PersonaMcpConnection, type PersonaMcpConnectionStatus, type PersonaMcpOAuthConfig, type PersonaMcpOAuthInput, type PersonaMcpResourceSummary, type PersonaMcpResourceTemplate, type PersonaMcpTestConnectionResult, type PersonaMcpTool, type PersonaMcpTransport, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaMessageChannel, type PersonaMessageDelivery, type PersonaNodeOnErrorAction, type PersonaNodeRetryPolicy, type PersonaNodeRun, type PersonaNodeRunState, type PersonaNodeRunStatus, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaToolCallStatus, PersonaToolCallView, type PersonaToolCallViewProps, type PersonaToolParameters, PersonaToolRegistry, type PersonaToolRenderFn, type PersonaToolRenderProps, type PersonaUploadDocumentsResult, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeData, type PersonaWorkflowNodeType, type PersonaWorkflowOwnerType, type PersonaWorkflowRun, type PersonaWorkflowRunStatus, type PersonaWorkflowTrigger, type PersonaWorkflowTriggerType, type PersonaWorkflowUsage, type PersonaWorkflowVersion, type PersonaWorkflowVisibility, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type SendPersonaAgentMessageInput, type SendPersonaMessageInput, type UpdatePersonaAgentInput, type UpdatePersonaKnowledgeBaseInput, type UpdatePersonaMcpInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdatePersonaWorkflowInput, type UploadKnowledgeDocumentInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseChatOptions, type UseComponentConfig, type UseFrontendToolConfig, type UseHumanInTheLoopConfig, type UseKnowledgeBasesOptions, type UseMcpAdminOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseMessagesResult, type UseRcpSourcesOptions, type UseRenderToolConfig, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, buildToolRenderProps, getChannelBadgeLabel, getToolCallStatus, openSSEStream, parsePartialJson, resolveToolParameters, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useComponent, useConnection, useFiles, useFrontendTool, useHumanInTheLoop, useKnowledgeBases, useMcp, useMcpAdmin, useMcpConnections, useMemory, useMessages, usePersonaContext, useRcpSources, useRenderTool, useRenderToolCall, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows, useWorkspaceFiles };

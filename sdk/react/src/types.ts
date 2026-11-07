@@ -116,7 +116,27 @@ export type PersonaInterrupt =
 /** What to send back in `sendMessage(content, { resume })` to unpause a paused run. */
 export type PersonaResumeValue =
   | { decisions: Array<{ type: "approve" | "reject"; message?: string }> }
-  | { answers: unknown[]; text?: string };
+  | { answers: unknown[]; text?: string }
+  | { toolResults: PersonaFrontendToolResult[] };
+
+/**
+ * A frontend tool call the agent is waiting on (see `useFrontendTool`).
+ * `useChat` runs these automatically and resumes the run with the results —
+ * they're exposed as `pendingFrontendTools` for display only.
+ */
+export interface PersonaFrontendToolCall {
+  /** The call's id as the server knows it (null only if the provider gave none). */
+  toolCallId: string | null;
+  name: string;
+  args: Record<string, unknown>;
+}
+
+/** The answer to one frontend tool call — `error` reports a failure or the user declining. */
+export interface PersonaFrontendToolResult {
+  toolCallId: string;
+  result?: unknown;
+  error?: string;
+}
 
 /**
  * A file in the agent's own virtual workspace (deepagents' state-backed
@@ -322,6 +342,11 @@ export type PersonaStreamingEvent =
       type: "CUSTOM";
       name: "subagent_activity";
       value: { toolCallId: string } & PersonaSubagentActivityEntry;
+    }
+  | {
+      type: "CUSTOM";
+      name: "frontend_tool_request";
+      value: { calls: PersonaFrontendToolCall[] };
     }
   | {
       type: "CUSTOM";

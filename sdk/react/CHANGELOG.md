@@ -3,8 +3,33 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
-## Unreleased
+## 0.21.0
 
+- **Frontend tools & generative UI — `useFrontendTool`, `useHumanInTheLoop`, `useComponent`.**
+  Give the agent tools that run in the user's browser (CopilotKit-style):
+  - `useFrontendTool({ name, description, parameters, handler, render? })` — `handler(args)` runs
+    in the browser; its return value goes back to the agent (a throw is reported as a failure).
+  - `useHumanInTheLoop({ name, description, parameters, render })` — `render` gets
+    `respond(value)` while the agent waits; the agent continues with `value`.
+  - `useComponent({ name, description, parameters, render })` — the agent shows your component
+    in the chat (args → props); it's told the UI was displayed.
+  - `useChat` sends registered tools with every request, runs the ones the agent calls when the
+    run pauses (`frontend_tool_request`), puts each answer on its tool card, and resumes the run
+    **silently** (no user bubble). A thread reloaded while paused runs them again. Sending a new
+    message instead cancels the wait (the agent is told the action wasn't completed).
+  - Frontend-tool pauses are **not** surfaced as `interrupt` (existing HITL/clarification UIs are
+    unaffected); `useChat()` exposes them as `pendingFrontendTools` for display.
+  - `parameters` is a JSON Schema object or anything with `toJSONSchema()` (for zod, pass
+    `z.toJSONSchema(schema)`).
+  - Requires the agent's **Frontend Tools** setting (`frontendToolsEnabled`) and a backend /
+    runtime with frontend tools (`@personaai/runtime` ≥ 0.19.0, AG-UI schema 1.2.0). With the
+    setting off, the tools are simply ignored.
+- New types: `PersonaFrontendToolCall`, `PersonaFrontendToolResult`, `PersonaToolParameters`,
+  `PersonaFrontendToolDefinition`, `PersonaFrontendToolKind`, `PersonaFrontendToolContext`,
+  `PersonaFrontendToolEntry`, `UseFrontendToolConfig`, `UseHumanInTheLoopConfig`,
+  `UseComponentConfig`; `PersonaResumeValue` gains `{ toolResults }`; render props gain optional
+  `respond`; `PersonaToolRegistry` gains frontend-tool and responder methods;
+  `resolveToolParameters` helper.
 - **Custom tool UI — `useRenderTool`, `useRenderToolCall`, `PersonaToolCallView`.** Register a
   render function for a server tool's name (or `"*"` for any tool) and show calls with
   `<PersonaToolCallView toolCall={tc} fallback={…} />`. Render props are discriminated by
@@ -16,7 +41,7 @@ introduction — versions before 0.2.0 aren't backfilled.
   `parsePartialJson` (tolerant parsing of streaming tool arguments), and the types
   `PersonaToolCallStatus`, `PersonaToolRenderProps`, `PersonaToolRenderFn`, `UseRenderToolConfig`,
   `PersonaToolCallViewProps`.
-- First step of frontend tools; `useFrontendTool` / `useHumanInTheLoop` / `useComponent` follow.
+- `VERSION` is now `"0.21.0"`.
 
 ## 0.20.0
 

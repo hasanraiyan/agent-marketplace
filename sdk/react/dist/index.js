@@ -14,8 +14,196 @@ function getChannelBadgeLabel(channel) {
 }
 
 // src/context/PersonaContext.tsx
-import { createContext, useContext, useMemo } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { createLogger } from "@personaai/logger";
+
+// src/tools/partialJson.ts
+function scan(text) {
+  const stack = [];
+  const cuts = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{" || ch === "[") {
+      stack.push(ch === "{" ? "}" : "]");
+      cuts.push(i);
+    } else if (ch === "}" || ch === "]") stack.pop();
+    else if (ch === ",") cuts.push(i);
+  }
+  return { stack, inString, escaped, cuts };
+}
+function closeUp(text) {
+  const { stack, inString, escaped } = scan(text);
+  let out = text;
+  if (inString) {
+    if (escaped) out = out.slice(0, -1);
+    out += '"';
+  }
+  out = out.replace(/\s+$/, "");
+  if (out.endsWith(",")) out = out.slice(0, -1);
+  else if (out.endsWith(":")) out += "null";
+  out = out.replace(
+    /(-|\d+\.|\d+[eE][+-]?)$/,
+    (m) => m === "-" ? "null" : m.replace(/[.eE+-]+$/, "")
+  );
+  for (let i = stack.length - 1; i >= 0; i--) out += stack[i];
+  return out;
+}
+function parsePartialJson(text) {
+  if (typeof text !== "string") return void 0;
+  const trimmed = text.trim();
+  if (!trimmed) return void 0;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+  }
+  let candidate = trimmed;
+  for (let attempt = 0; attempt < 64 && candidate; attempt++) {
+    try {
+      return JSON.parse(closeUp(candidate));
+    } catch {
+      const { cuts } = scan(candidate);
+      const last = cuts[cuts.length - 1];
+      if (last === void 0) return void 0;
+      const keep = candidate[last] === "," ? last : last + 1;
+      if (keep >= candidate.length) {
+        candidate = candidate.slice(0, last);
+      } else {
+        candidate = candidate.slice(0, keep);
+      }
+    }
+  }
+  return void 0;
+}
+
+// src/tools/registry.ts
+var ANY_TOOL = "*";
+function getToolCallStatus(toolCall) {
+  if (toolCall.result !== void 0) return "complete";
+  const args = (toolCall.args ?? "").trim();
+  if (!args) return "inProgress";
+  try {
+    JSON.parse(args);
+    return "executing";
+  } catch {
+    return "inProgress";
+  }
+}
+function toArgsObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function buildToolRenderProps(toolCall) {
+  const status = getToolCallStatus(toolCall);
+  const base = {
+    name: toolCall.toolName,
+    toolCallId: toolCall.toolCallId,
+    isError: !!toolCall.isError,
+    toolCall
+  };
+  const args = toArgsObject(parsePartialJson(toolCall.args));
+  if (status === "complete")
+    return { ...base, status, args, result: toolCall.result };
+  return { ...base, status, args, result: void 0 };
+}
+var EMPTY_OBJECT_SCHEMA = {
+  type: "object",
+  properties: {}
+};
+function resolveToolParameters(parameters) {
+  let schema = parameters;
+  if (parameters && typeof parameters.toJSONSchema === "function") {
+    schema = parameters.toJSONSchema();
+  }
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return EMPTY_OBJECT_SCHEMA;
+  }
+  const { $schema, ...rest } = schema;
+  return { ...rest, type: "object" };
+}
+var PersonaToolRegistry = class {
+  renderers = /* @__PURE__ */ new Map();
+  frontendTools = /* @__PURE__ */ new Map();
+  responders = /* @__PURE__ */ new Map();
+  listeners = /* @__PURE__ */ new Set();
+  version = 0;
+  /**
+   * Register a frontend tool. The latest registration for a name wins.
+   * Returns an unregister function that only removes *this* registration.
+   */
+  registerFrontendTool(entry) {
+    const name = entry.definition.name;
+    const slot = { ...entry, id: Symbol(name) };
+    this.frontendTools.set(name, slot);
+    this.emit();
+    return () => {
+      if (this.frontendTools.get(name)?.id === slot.id) {
+        this.frontendTools.delete(name);
+        this.emit();
+      }
+    };
+  }
+  getFrontendTool(name) {
+    return this.frontendTools.get(name);
+  }
+  /** Definitions to send with each run (empty → no `tools` sent at all). */
+  getFrontendToolDefinitions() {
+    return Array.from(this.frontendTools.values(), (t) => t.definition);
+  }
+  /** Make `respond` available to the waiting human-in-the-loop call `toolCallId`. */
+  setResponder(toolCallId, respond) {
+    this.responders.set(toolCallId, respond);
+    this.emit();
+  }
+  clearResponder(toolCallId) {
+    if (this.responders.delete(toolCallId)) this.emit();
+  }
+  getResponder(toolCallId) {
+    return this.responders.get(toolCallId);
+  }
+  /**
+   * Register a renderer for `name` (or `"*"`). The latest registration wins.
+   * Returns an unregister function that only removes *this* registration.
+   */
+  registerRenderer(name, render) {
+    const entry = { id: Symbol(name), render };
+    this.renderers.set(name, entry);
+    this.emit();
+    return () => {
+      if (this.renderers.get(name)?.id === entry.id) {
+        this.renderers.delete(name);
+        this.emit();
+      }
+    };
+  }
+  /** The renderer for `name`, falling back to the `"*"` wildcard. */
+  getRenderer(name) {
+    return (this.renderers.get(name) ?? this.renderers.get(ANY_TOOL))?.render;
+  }
+  hasRenderer(name) {
+    return this.renderers.has(name);
+  }
+  subscribe = (listener) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+  getVersion = () => this.version;
+  emit() {
+    this.version++;
+    for (const listener of this.listeners) listener();
+  }
+};
+
+// src/context/PersonaContext.tsx
 import { jsx } from "react/jsx-runtime";
 var PersonaContext = createContext(null);
 function PersonaProvider({
@@ -30,6 +218,7 @@ function PersonaProvider({
     () => baseUrl.replace(/\/+$/, ""),
     [baseUrl]
   );
+  const [toolRegistry] = useState(() => new PersonaToolRegistry());
   const logger = useMemo(() => {
     const l = loggerProp ?? createLogger(
       "react",
@@ -127,9 +316,10 @@ function PersonaProvider({
       getAuthToken,
       defaultAgentId,
       fetchWithAuth,
-      logger
+      logger,
+      toolRegistry
     };
-  }, [normalizedBaseUrl, getAuthToken, defaultAgentId, logger]);
+  }, [normalizedBaseUrl, getAuthToken, defaultAgentId, logger, toolRegistry]);
   return /* @__PURE__ */ jsx(PersonaContext.Provider, { value, children });
 }
 function usePersonaContext() {
@@ -143,7 +333,7 @@ function usePersonaContext() {
 }
 
 // src/hooks/useChat.ts
-import { useCallback, useEffect, useMemo as useMemo2, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo as useMemo2, useRef, useState as useState2 } from "react";
 
 // src/streaming.ts
 function supportsStreamingFetch() {
@@ -325,6 +515,32 @@ async function openSSEStream(opts) {
 }
 
 // src/hooks/streamEventHelpers.ts
+function normalizeFrontendToolCalls(value) {
+  const calls = value?.calls;
+  if (!Array.isArray(calls)) return null;
+  const out = [];
+  for (const c of calls) {
+    if (!c || typeof c !== "object" || typeof c.name !== "string") continue;
+    const { toolCallId, name, args } = c;
+    out.push({
+      toolCallId: typeof toolCallId === "string" ? toolCallId : null,
+      name,
+      args: args && typeof args === "object" && !Array.isArray(args) ? args : {}
+    });
+  }
+  return out.length > 0 ? out : null;
+}
+function normalizePendingFrontendTools(pending) {
+  if (!pending || typeof pending !== "object") return null;
+  const p = pending;
+  return p.kind === "frontend_tool" ? normalizeFrontendToolCalls(p.value) : null;
+}
+function formatFrontendToolResult(answer) {
+  if (answer.error != null) return JSON.stringify({ status: "error", message: String(answer.error) });
+  const { result } = answer;
+  if (result === void 0 || result === null) return "Done.";
+  return typeof result === "string" ? result : JSON.stringify(result);
+}
 function isErrorToolContent(content) {
   if (typeof content !== "string" || !content.trim().startsWith("{"))
     return false;
@@ -441,12 +657,49 @@ function parseSandboxCommand(tc) {
     seq: tc.seq
   };
 }
+function findLocalToolCallId(messages, call, claimed) {
+  if (call.toolCallId) {
+    for (const m of messages) {
+      if (m.toolCalls?.some((tc) => tc.toolCallId === call.toolCallId)) return call.toolCallId;
+    }
+  }
+  for (let i = messages.length - 1; i >= 0; i--) {
+    for (const tc of messages[i].toolCalls ?? []) {
+      if (tc.toolName === call.name && tc.result === void 0 && !claimed.has(tc.toolCallId)) {
+        return tc.toolCallId;
+      }
+    }
+  }
+  return null;
+}
+function applyFrontendResults(messages, byLocalId) {
+  if (byLocalId.size === 0) return messages;
+  return messages.map((m) => {
+    if (!m.toolCalls?.some((tc) => byLocalId.has(tc.toolCallId))) return m;
+    return {
+      ...m,
+      toolCalls: m.toolCalls.map((tc) => {
+        const answer = byLocalId.get(tc.toolCallId);
+        return answer ? { ...tc, result: formatFrontendToolResult(answer), isError: answer.error != null } : tc;
+      })
+    };
+  });
+}
+function toSerializable(value) {
+  if (value === void 0) return null;
+  try {
+    JSON.stringify(value);
+    return value;
+  } catch {
+    return String(value);
+  }
+}
 function useChat(options = {}) {
-  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken, logger } = usePersonaContext();
+  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken, logger, toolRegistry } = usePersonaContext();
   const chatLogger = useMemo2(() => logger.child("chat"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
-  const [internalThreadId, setInternalThreadId] = useState(void 0);
+  const [internalThreadId, setInternalThreadId] = useState2(void 0);
   const effectiveThreadId = threadId ?? internalThreadId;
   useEffect(() => {
     if (threadId !== void 0) setInternalThreadId(threadId);
@@ -465,17 +718,18 @@ function useChat(options = {}) {
       initialMessageCount: options.initialMessages?.length ?? 0
     });
   }
-  const [messages, setMessages] = useState(
+  const [messages, setMessages] = useState2(
     options.initialMessages || []
   );
-  const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [error, setError] = useState(null);
-  const [interrupt, setInterrupt] = useState(null);
-  const [files, setFiles] = useState({});
-  const [todos, setTodos] = useState([]);
-  const [presentedFile, setPresentedFile] = useState(null);
+  const [input, setInput] = useState2("");
+  const [isStreaming, setIsStreaming] = useState2(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState2(false);
+  const [error, setError] = useState2(null);
+  const [interrupt, setInterrupt] = useState2(null);
+  const [pendingFrontendTools, setPendingFrontendTools] = useState2(null);
+  const [files, setFiles] = useState2({});
+  const [todos, setTodos] = useState2([]);
+  const [presentedFile, setPresentedFile] = useState2(null);
   const sandboxCommands = useMemo2(() => {
     const commands = [];
     for (const message of messages) {
@@ -487,6 +741,9 @@ function useChat(options = {}) {
   }, [messages]);
   const abortControllerRef = useRef(null);
   const loadedThreadIdRef = useRef(void 0);
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  const frontendEpochRef = useRef(0);
   const voiceThreadRef = useRef(effectiveThreadId);
   const voicePrevLenRef = useRef(0);
   const voiceStreamingIdRef = useRef(null);
@@ -512,6 +769,8 @@ function useChat(options = {}) {
     setMessages([]);
     setError(null);
     setInterrupt(null);
+    frontendEpochRef.current++;
+    setPendingFrontendTools(null);
     setFiles({});
     setTodos([]);
     setPresentedFile(null);
@@ -523,6 +782,8 @@ function useChat(options = {}) {
     setMessages([]);
     setError(null);
     setInterrupt(null);
+    frontendEpochRef.current++;
+    setPendingFrontendTools(null);
     setFiles({});
     setTodos([]);
     setPresentedFile(null);
@@ -564,6 +825,8 @@ function useChat(options = {}) {
         }));
         setMessages(loaded);
         setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
+        frontendEpochRef.current++;
+        setPendingFrontendTools(normalizePendingFrontendTools(data?.pendingInterrupt));
         setFiles(normalizeWorkspaceFiles(data?.state?.files ?? {}));
         setTodos(data?.state?.todos ?? []);
         loadedThreadIdRef.current = id;
@@ -739,7 +1002,8 @@ function useChat(options = {}) {
     }
   }, [voice?.transcript, voice?.partial, voice?.state, effectiveThreadId]);
   const doSend = useCallback(
-    async (prompt, baseMessages, overrideOptions) => {
+    async (prompt, baseMessages, overrideOptions, internal) => {
+      const silent = !!internal?.silent;
       const targetAgentId = overrideOptions?.agentId || agentId;
       if (!targetAgentId) {
         const err = new Error("No Agent ID specified for useChat.");
@@ -780,12 +1044,18 @@ function useChat(options = {}) {
         toolCalls: [],
         channel: "web"
       };
-      const nextMessages = [...baseMessages, userMessage];
-      setMessages([...nextMessages, placeholderAssistant]);
-      setInput("");
+      const nextMessages = silent ? baseMessages : [...baseMessages, userMessage];
+      if (silent) {
+        setMessages((prev) => [...prev, placeholderAssistant]);
+      } else {
+        setMessages([...nextMessages, placeholderAssistant]);
+        setInput("");
+        frontendEpochRef.current++;
+      }
       setIsStreaming(true);
       setError(null);
       setInterrupt(null);
+      setPendingFrontendTools(null);
       const controller = new AbortController();
       abortControllerRef.current = controller;
       const finalizeReasoning = () => {
@@ -794,7 +1064,7 @@ function useChat(options = {}) {
         );
       };
       try {
-        const payloadMessages = nextMessages.filter((m) => m.role !== "reasoning").map((m) => ({
+        const payloadMessages = (silent ? [] : nextMessages).filter((m) => m.role !== "reasoning").map((m) => ({
           role: m.role === "assistant" ? "assistant" : "user",
           content: m.content
         }));
@@ -821,6 +1091,7 @@ function useChat(options = {}) {
         const resolvedHookContext = typeof options.context === "function" ? options.context() : options.context;
         const mergedContext = { ...resolvedHookContext, ...overrideOptions?.context };
         const hasContext = Object.keys(mergedContext).length > 0;
+        const frontendTools = toolRegistry.getFrontendToolDefinitions();
         chatLogger.debug("opening SSE stream", {
           agentId: targetAgentId,
           hasToken: !!token,
@@ -839,7 +1110,11 @@ function useChat(options = {}) {
             threadId: resolvedThreadId,
             resume: overrideOptions?.resume,
             contextOverride: overrideOptions?.contextOverride,
-            ...hasContext ? { context: mergedContext } : {}
+            ...hasContext ? { context: mergedContext } : {},
+            // Frontend tools (useFrontendTool & co.) — sent on every request,
+            // resumes included, so the server's paused stub tools exist when
+            // the run continues. Ignored unless the agent opted in.
+            ...frontendTools.length > 0 ? { tools: frontendTools } : {}
           }),
           signal: controller.signal
         });
@@ -965,6 +1240,10 @@ function useChat(options = {}) {
                   const value2 = event.value;
                   chatLogger.info("clarification interrupt", { questionCount: value2.questions?.length ?? 0 });
                   setInterrupt({ kind: "clarification", questions: value2.questions });
+                } else if (event.name === "frontend_tool_request") {
+                  const calls = normalizeFrontendToolCalls(event.value);
+                  chatLogger.info("frontend tool request", { names: calls?.map((c) => c.name) ?? [] });
+                  if (calls) setPendingFrontendTools(calls);
                 } else if (event.name === "subagent_activity") {
                   const { toolCallId, ...entry } = event.value;
                   chatLogger.trace("subagent activity", { toolCallId, kind: entry.kind });
@@ -1049,7 +1328,7 @@ function useChat(options = {}) {
         chatLogger.trace("sendMessage end", { agentId: targetAgentId });
       }
     },
-    [agentId, baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId]
+    [agentId, baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId, toolRegistry]
   );
   const sendMessage = useCallback(
     async (contentToSend, overrideOptions) => {
@@ -1120,6 +1399,73 @@ function useChat(options = {}) {
     },
     [sendMessage, chatLogger]
   );
+  const doSendRef = useRef(doSend);
+  doSendRef.current = doSend;
+  useEffect(() => {
+    if (!pendingFrontendTools?.length || isStreaming) return;
+    const calls = pendingFrontendTools;
+    const epoch = frontendEpochRef.current;
+    let cancelled = false;
+    const waiters = /* @__PURE__ */ new Map();
+    const runOne = async (call, localId) => {
+      const toolCallId = call.toolCallId ?? localId ?? "";
+      const entry = toolRegistry.getFrontendTool(call.name);
+      if (!entry) {
+        chatLogger.warn("frontend tool not registered", { name: call.name });
+        return { toolCallId, error: `Tool "${call.name}" isn't available in this app right now.` };
+      }
+      if (entry.kind === "component") {
+        return { toolCallId, result: "Displayed to the user." };
+      }
+      if (entry.kind === "humanInTheLoop") {
+        const key = localId ?? toolCallId;
+        return new Promise((resolve) => {
+          waiters.set(key, resolve);
+          toolRegistry.setResponder(key, (value) => {
+            if (!waiters.has(key)) return;
+            waiters.delete(key);
+            toolRegistry.clearResponder(key);
+            resolve({ toolCallId, result: toSerializable(value) });
+          });
+        });
+      }
+      try {
+        const result = await entry.handler?.(call.args, { toolCallId });
+        return { toolCallId, result: toSerializable(result) };
+      } catch (err) {
+        chatLogger.warn("frontend tool handler threw", { name: call.name });
+        return { toolCallId, error: err instanceof Error ? err.message : String(err) };
+      }
+    };
+    const run = async () => {
+      const claimed = /* @__PURE__ */ new Set();
+      const localIds = calls.map((call) => {
+        const id = findLocalToolCallId(messagesRef.current, call, claimed);
+        if (id) claimed.add(id);
+        return id;
+      });
+      chatLogger.info("running frontend tools", { names: calls.map((c) => c.name) });
+      const answers = await Promise.all(calls.map((call, i) => runOne(call, localIds[i])));
+      if (cancelled || frontendEpochRef.current !== epoch) return;
+      const byLocalId = /* @__PURE__ */ new Map();
+      localIds.forEach((id, i) => {
+        if (id) byLocalId.set(id, answers[i]);
+      });
+      setMessages((prev) => applyFrontendResults(prev, byLocalId));
+      setPendingFrontendTools(null);
+      await doSendRef.current("", messagesRef.current, { resume: { toolResults: answers } }, { silent: true });
+    };
+    const timer = setTimeout(() => void run(), 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      for (const [key, resolve] of waiters) {
+        toolRegistry.clearResponder(key);
+        resolve({ toolCallId: key, error: "cancelled" });
+      }
+      waiters.clear();
+    };
+  }, [pendingFrontendTools, isStreaming, toolRegistry, chatLogger]);
   const dismissPresentedFile = useCallback(() => {
     chatLogger.debug("dismissPresentedFile", {});
     setPresentedFile(null);
@@ -1148,6 +1494,8 @@ function useChat(options = {}) {
     error,
     interrupt,
     resumeInterrupt,
+    /** Frontend tool calls the agent is waiting on — run and resumed automatically; for display. */
+    pendingFrontendTools,
     files,
     todos,
     presentedFile,
@@ -1166,13 +1514,13 @@ function useChat(options = {}) {
 }
 
 // src/hooks/useArchitectChat.ts
-import { useCallback as useCallback2, useEffect as useEffect2, useMemo as useMemo3, useRef as useRef2, useState as useState2 } from "react";
+import { useCallback as useCallback2, useEffect as useEffect2, useMemo as useMemo3, useRef as useRef2, useState as useState3 } from "react";
 var ARCHITECT_AGENT_ID = "000000000000000000000002";
 function useArchitectChat(options = {}) {
   const { fetchWithAuth, baseUrl, getAuthToken, logger } = usePersonaContext();
   const chatLogger = useMemo3(() => logger.child("architect"), [logger]);
   const threadId = options.threadId;
-  const [internalThreadId, setInternalThreadId] = useState2(void 0);
+  const [internalThreadId, setInternalThreadId] = useState3(void 0);
   const effectiveThreadId = threadId ?? internalThreadId;
   useEffect2(() => {
     if (threadId !== void 0) setInternalThreadId(threadId);
@@ -1189,17 +1537,17 @@ function useArchitectChat(options = {}) {
       initialMessageCount: options.initialMessages?.length ?? 0
     });
   }
-  const [messages, setMessages] = useState2(
+  const [messages, setMessages] = useState3(
     options.initialMessages || []
   );
-  const [input, setInput] = useState2("");
-  const [isStreaming, setIsStreaming] = useState2(false);
-  const [isLoadingHistory, setIsLoadingHistory] = useState2(false);
-  const [error, setError] = useState2(null);
-  const [interrupt, setInterrupt] = useState2(null);
-  const [files, setFiles] = useState2({});
-  const [todos, setTodos] = useState2([]);
-  const [presentedFile, setPresentedFile] = useState2(null);
+  const [input, setInput] = useState3("");
+  const [isStreaming, setIsStreaming] = useState3(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState3(false);
+  const [error, setError] = useState3(null);
+  const [interrupt, setInterrupt] = useState3(null);
+  const [files, setFiles] = useState3({});
+  const [todos, setTodos] = useState3([]);
+  const [presentedFile, setPresentedFile] = useState3(null);
   const abortControllerRef = useRef2(null);
   const loadedThreadIdRef = useRef2(void 0);
   const stop = useCallback2(() => {
@@ -1721,16 +2069,16 @@ function useArchitectChat(options = {}) {
 }
 
 // src/hooks/useMemory.ts
-import { useCallback as useCallback3, useEffect as useEffect3, useState as useState3 } from "react";
+import { useCallback as useCallback3, useEffect as useEffect3, useState as useState4 } from "react";
 function useMemory(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [memory, setMemory] = useState3({
+  const [memory, setMemory] = useState4({
     userFiles: [],
     agentMemories: [],
     agentWorkspaces: []
   });
-  const [isLoading, setIsLoading] = useState3(false);
-  const [error, setError] = useState3(null);
+  const [isLoading, setIsLoading] = useState4(false);
+  const [error, setError] = useState4(null);
   const fetchMemory = useCallback3(async () => {
     setIsLoading(true);
     setError(null);
@@ -1808,12 +2156,12 @@ function useMemory(autoFetch = true) {
 }
 
 // src/hooks/useThreads.ts
-import { useCallback as useCallback4, useEffect as useEffect4, useState as useState4 } from "react";
+import { useCallback as useCallback4, useEffect as useEffect4, useState as useState5 } from "react";
 function useThreads(autoFetch = true) {
   const { fetchWithAuth, defaultAgentId } = usePersonaContext();
-  const [threads, setThreads] = useState4([]);
-  const [isLoading, setIsLoading] = useState4(false);
-  const [error, setError] = useState4(null);
+  const [threads, setThreads] = useState5([]);
+  const [isLoading, setIsLoading] = useState5(false);
+  const [error, setError] = useState5(null);
   const fetchThreads = useCallback4(async () => {
     setIsLoading(true);
     setError(null);
@@ -1951,7 +2299,7 @@ function useThreads(autoFetch = true) {
 }
 
 // src/hooks/useWorkspaceFiles.ts
-import { useCallback as useCallback5, useEffect as useEffect5, useState as useState5 } from "react";
+import { useCallback as useCallback5, useEffect as useEffect5, useState as useState6 } from "react";
 function toWorkspaceFile(file) {
   return {
     content: file.content,
@@ -1962,10 +2310,10 @@ function toWorkspaceFile(file) {
 }
 function useWorkspaceFiles(agentId, autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [files, setFiles] = useState5({});
-  const [isLoading, setIsLoading] = useState5(false);
-  const [isSaving, setIsSaving] = useState5(false);
-  const [error, setError] = useState5(null);
+  const [files, setFiles] = useState6({});
+  const [isLoading, setIsLoading] = useState6(false);
+  const [isSaving, setIsSaving] = useState6(false);
+  const [error, setError] = useState6(null);
   const fetchFiles = useCallback5(async () => {
     if (!agentId) return {};
     setIsLoading(true);
@@ -2065,7 +2413,7 @@ function useWorkspaceFiles(agentId, autoFetch = true) {
 }
 
 // src/hooks/useVoice.ts
-import { useCallback as useCallback6, useEffect as useEffect6, useMemo as useMemo4, useRef as useRef3, useState as useState6 } from "react";
+import { useCallback as useCallback6, useEffect as useEffect6, useMemo as useMemo4, useRef as useRef3, useState as useState7 } from "react";
 
 // src/hooks/voiceWorklets.ts
 var RECORDER_WORKLET_SOURCE = `
@@ -2173,17 +2521,17 @@ function useVoice(options = {}) {
   const threadId = options.threadId;
   const contextOverride = options.contextOverride;
   const context = options.context;
-  const [state, setState] = useState6("idle");
-  const [isMuted, setIsMuted] = useState6(false);
-  const [transcript, setTranscript] = useState6(
+  const [state, setState] = useState7("idle");
+  const [isMuted, setIsMuted] = useState7(false);
+  const [transcript, setTranscript] = useState7(
     []
   );
-  const [partial, setPartial] = useState6(
+  const [partial, setPartial] = useState7(
     null
   );
-  const [toolCalls, setToolCalls] = useState6([]);
-  const [error, setError] = useState6(null);
-  const [endReason, setEndReason] = useState6(
+  const [toolCalls, setToolCalls] = useState7([]);
+  const [error, setError] = useState7(null);
+  const [endReason, setEndReason] = useState7(
     null
   );
   const wsRef = useRef3(null);
@@ -2524,7 +2872,7 @@ function useVoice(options = {}) {
 }
 
 // src/hooks/useMessages.ts
-import { useCallback as useCallback7, useMemo as useMemo5, useRef as useRef4, useState as useState7 } from "react";
+import { useCallback as useCallback7, useMemo as useMemo5, useRef as useRef4, useState as useState8 } from "react";
 async function readErrorMessage(res, fallback) {
   try {
     const body = await res.json();
@@ -2537,9 +2885,9 @@ async function readErrorMessage(res, fallback) {
 function useMessages() {
   const { fetchWithAuth, logger } = usePersonaContext();
   const messagesLogger = useMemo5(() => logger.child("messages"), [logger]);
-  const [isSending, setIsSending] = useState7(false);
-  const [error, setError] = useState7(null);
-  const [lastDelivery, setLastDelivery] = useState7(null);
+  const [isSending, setIsSending] = useState8(false);
+  const [error, setError] = useState8(null);
+  const [lastDelivery, setLastDelivery] = useState8(null);
   const inFlightRef = useRef4(0);
   const post = useCallback7(
     async (path, input) => {
@@ -2587,13 +2935,13 @@ function useMessages() {
 }
 
 // src/hooks/useFiles.ts
-import { useCallback as useCallback8, useEffect as useEffect7, useState as useState8 } from "react";
+import { useCallback as useCallback8, useEffect as useEffect7, useState as useState9 } from "react";
 function useFiles(autoFetch = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [files, setFiles] = useState8([]);
-  const [isLoading, setIsLoading] = useState8(false);
-  const [isUploading, setIsUploading] = useState8(false);
-  const [error, setError] = useState8(null);
+  const [files, setFiles] = useState9([]);
+  const [isLoading, setIsLoading] = useState9(false);
+  const [isUploading, setIsUploading] = useState9(false);
+  const [error, setError] = useState9(null);
   const fetchFiles = useCallback8(async () => {
     setIsLoading(true);
     setError(null);
@@ -2690,20 +3038,20 @@ function useFiles(autoFetch = true) {
 }
 
 // src/hooks/useAgents.ts
-import { useCallback as useCallback9, useEffect as useEffect8, useState as useState9 } from "react";
+import { useCallback as useCallback9, useEffect as useEffect8, useState as useState10 } from "react";
 function useAgents(options = true) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options;
   const { autoFetch = true, page, limit, search, category, scope } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [agents, setAgents] = useState9([]);
-  const [pagination, setPagination] = useState9({
+  const [agents, setAgents] = useState10([]);
+  const [pagination, setPagination] = useState10({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState9(false);
-  const [error, setError] = useState9(null);
+  const [isLoading, setIsLoading] = useState10(false);
+  const [error, setError] = useState10(null);
   const fetchAgents = useCallback9(async () => {
     setIsLoading(true);
     setError(null);
@@ -2849,12 +3197,12 @@ function useAgents(options = true) {
 }
 
 // src/hooks/useConnection.ts
-import { useCallback as useCallback10, useEffect as useEffect9, useState as useState10 } from "react";
+import { useCallback as useCallback10, useEffect as useEffect9, useState as useState11 } from "react";
 function useConnection(autoCheck = true) {
   const { fetchWithAuth } = usePersonaContext();
-  const [health, setHealth] = useState10(null);
-  const [isConnected, setIsConnected] = useState10(false);
-  const [isLoading, setIsLoading] = useState10(false);
+  const [health, setHealth] = useState11(null);
+  const [isConnected, setIsConnected] = useState11(false);
+  const [isLoading, setIsLoading] = useState11(false);
   const checkHealth = useCallback10(async () => {
     setIsLoading(true);
     try {
@@ -2888,14 +3236,14 @@ function useConnection(autoCheck = true) {
 }
 
 // src/hooks/useMcpConnections.ts
-import { useCallback as useCallback11, useEffect as useEffect10, useState as useState11 } from "react";
+import { useCallback as useCallback11, useEffect as useEffect10, useState as useState12 } from "react";
 function useMcpConnections(options = {}) {
   const { defaultAgentId, fetchWithAuth } = usePersonaContext();
   const agentId = options.agentId ?? defaultAgentId;
   const autoFetch = options.autoFetch ?? true;
-  const [connections, setConnections] = useState11([]);
-  const [isLoading, setIsLoading] = useState11(false);
-  const [error, setError] = useState11(null);
+  const [connections, setConnections] = useState12([]);
+  const [isLoading, setIsLoading] = useState12(false);
+  const [error, setError] = useState12(null);
   const fetchConnections = useCallback11(async () => {
     if (!agentId) return [];
     setIsLoading(true);
@@ -2920,7 +3268,7 @@ function useMcpConnections(options = {}) {
       setIsLoading(false);
     }
   }, [agentId, fetchWithAuth, options.returnTo]);
-  const [isDisconnecting, setIsDisconnecting] = useState11(false);
+  const [isDisconnecting, setIsDisconnecting] = useState12(false);
   const disconnect = useCallback11(
     async (mcpId) => {
       setIsDisconnecting(true);
@@ -3004,19 +3352,19 @@ function useMcp(options = {}) {
 }
 
 // src/hooks/useSkills.ts
-import { useCallback as useCallback13, useEffect as useEffect11, useState as useState12 } from "react";
+import { useCallback as useCallback13, useEffect as useEffect11, useState as useState13 } from "react";
 function useSkills(options = {}) {
   const { autoFetch = true, page, limit, search, scope } = options;
   const { fetchWithAuth } = usePersonaContext();
-  const [skills, setSkills] = useState12([]);
-  const [pagination, setPagination] = useState12({
+  const [skills, setSkills] = useState13([]);
+  const [pagination, setPagination] = useState13({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState12(false);
-  const [error, setError] = useState12(null);
+  const [isLoading, setIsLoading] = useState13(false);
+  const [error, setError] = useState13(null);
   const fetchSkills = useCallback13(async () => {
     setIsLoading(true);
     setError(null);
@@ -3170,19 +3518,19 @@ function useSkills(options = {}) {
 }
 
 // src/hooks/useRcpSources.ts
-import { useCallback as useCallback14, useEffect as useEffect12, useState as useState13 } from "react";
+import { useCallback as useCallback14, useEffect as useEffect12, useState as useState14 } from "react";
 function useRcpSources(options = {}) {
   const { autoFetch = true, page, limit, search } = options;
   const { fetchWithAuth } = usePersonaContext();
-  const [rcpSources, setRcpSources] = useState13([]);
-  const [pagination, setPagination] = useState13({
+  const [rcpSources, setRcpSources] = useState14([]);
+  const [pagination, setPagination] = useState14({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState13(false);
-  const [error, setError] = useState13(null);
+  const [isLoading, setIsLoading] = useState14(false);
+  const [error, setError] = useState14(null);
   const fetchRcpSources = useCallback14(async () => {
     setIsLoading(true);
     setError(null);
@@ -3360,20 +3708,20 @@ function useRcpSources(options = {}) {
 }
 
 // src/hooks/useKnowledgeBases.ts
-import { useCallback as useCallback15, useEffect as useEffect13, useState as useState14 } from "react";
+import { useCallback as useCallback15, useEffect as useEffect13, useState as useState15 } from "react";
 function useKnowledgeBases(options = {}) {
   const { autoFetch = true, page, limit, search, scope } = options;
   const { fetchWithAuth } = usePersonaContext();
-  const [knowledgeBases, setKnowledgeBases] = useState14([]);
-  const [pagination, setPagination] = useState14({
+  const [knowledgeBases, setKnowledgeBases] = useState15([]);
+  const [pagination, setPagination] = useState15({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState14(false);
-  const [isUploading, setIsUploading] = useState14(false);
-  const [error, setError] = useState14(null);
+  const [isLoading, setIsLoading] = useState15(false);
+  const [isUploading, setIsUploading] = useState15(false);
+  const [error, setError] = useState15(null);
   const fetchKnowledgeBases = useCallback15(async () => {
     setIsLoading(true);
     setError(null);
@@ -3624,19 +3972,19 @@ function useKnowledgeBases(options = {}) {
 }
 
 // src/hooks/useMcpAdmin.ts
-import { useCallback as useCallback16, useEffect as useEffect14, useState as useState15 } from "react";
+import { useCallback as useCallback16, useEffect as useEffect14, useState as useState16 } from "react";
 function useMcpAdmin(options = {}) {
   const { autoFetch = true, page, limit, search } = options;
   const { fetchWithAuth } = usePersonaContext();
-  const [mcps, setMcps] = useState15([]);
-  const [pagination, setPagination] = useState15({
+  const [mcps, setMcps] = useState16([]);
+  const [pagination, setPagination] = useState16({
     total: 0,
     page: page ?? 1,
     limit: limit ?? 20,
     pages: 0
   });
-  const [isLoading, setIsLoading] = useState15(false);
-  const [error, setError] = useState15(null);
+  const [isLoading, setIsLoading] = useState16(false);
+  const [error, setError] = useState16(null);
   const fetchMcps = useCallback16(async () => {
     setIsLoading(true);
     setError(null);
@@ -3805,20 +4153,20 @@ function useMcpAdmin(options = {}) {
 }
 
 // src/hooks/useWorkflows.ts
-import { useCallback as useCallback17, useEffect as useEffect15, useState as useState16 } from "react";
+import { useCallback as useCallback17, useEffect as useEffect15, useState as useState17 } from "react";
 function useWorkflows(options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true, search, scope, visibility, isEnabled, page, limit } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [workflows, setWorkflows] = useState16([]);
-  const [pagination, setPagination] = useState16({
+  const [workflows, setWorkflows] = useState17([]);
+  const [pagination, setPagination] = useState17({
     page: page ?? 1,
     limit: limit ?? 20,
     total: 0,
     totalPages: 0
   });
-  const [isLoading, setIsLoading] = useState16(false);
-  const [error, setError] = useState16(null);
+  const [isLoading, setIsLoading] = useState17(false);
+  const [error, setError] = useState17(null);
   const fetchWorkflows = useCallback17(async () => {
     setIsLoading(true);
     setError(null);
@@ -3905,16 +4253,16 @@ function useWorkflows(options) {
 }
 
 // src/hooks/useWorkflow.ts
-import { useCallback as useCallback18, useEffect as useEffect16, useState as useState17 } from "react";
+import { useCallback as useCallback18, useEffect as useEffect16, useState as useState18 } from "react";
 function useWorkflow(workflowId, options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [workflow, setWorkflow] = useState17(null);
-  const [versions, setVersions] = useState17([]);
-  const [mermaid, setMermaid] = useState17(null);
-  const [isLoading, setIsLoading] = useState17(false);
-  const [error, setError] = useState17(null);
+  const [workflow, setWorkflow] = useState18(null);
+  const [versions, setVersions] = useState18([]);
+  const [mermaid, setMermaid] = useState18(null);
+  const [isLoading, setIsLoading] = useState18(false);
+  const [error, setError] = useState18(null);
   const fetchWorkflow = useCallback18(async () => {
     if (!workflowId) return null;
     setIsLoading(true);
@@ -4059,19 +4407,19 @@ function useWorkflow(workflowId, options) {
 }
 
 // src/hooks/useWorkflowStream.ts
-import { useCallback as useCallback19, useEffect as useEffect17, useRef as useRef5, useState as useState18 } from "react";
+import { useCallback as useCallback19, useEffect as useEffect17, useRef as useRef5, useState as useState19 } from "react";
 function useWorkflowStream(workflowId, options) {
   const { baseUrl, getAuthToken, fetchWithAuth, logger } = usePersonaContext();
-  const [status, setStatus] = useState18("idle");
-  const [runId, setRunId] = useState18(null);
-  const [activeNodeId, setActiveNodeId] = useState18(null);
-  const [nodeRuns, setNodeRuns] = useState18(
+  const [status, setStatus] = useState19("idle");
+  const [runId, setRunId] = useState19(null);
+  const [activeNodeId, setActiveNodeId] = useState19(null);
+  const [nodeRuns, setNodeRuns] = useState19(
     {}
   );
-  const [text, setText] = useState18("");
-  const [output, setOutput] = useState18(null);
-  const [error, setError] = useState18(null);
-  const [events, setEvents] = useState18([]);
+  const [text, setText] = useState19("");
+  const [output, setOutput] = useState19(null);
+  const [error, setError] = useState19(null);
+  const [events, setEvents] = useState19([]);
   const abortControllerRef = useRef5(null);
   const currentRunIdRef = useRef5(null);
   currentRunIdRef.current = runId;
@@ -4336,20 +4684,20 @@ function useWorkflowStream(workflowId, options) {
 }
 
 // src/hooks/useWorkflowRuns.ts
-import { useCallback as useCallback20, useEffect as useEffect18, useState as useState19 } from "react";
+import { useCallback as useCallback20, useEffect as useEffect18, useState as useState20 } from "react";
 function useWorkflowRuns(workflowId, options) {
   const opts = typeof options === "boolean" ? { autoFetch: options } : options ?? {};
   const { autoFetch = true, page = 1, limit = 20 } = opts;
   const { fetchWithAuth } = usePersonaContext();
-  const [runs, setRuns] = useState19([]);
-  const [pagination, setPagination] = useState19({
+  const [runs, setRuns] = useState20([]);
+  const [pagination, setPagination] = useState20({
     page,
     limit,
     total: 0,
     totalPages: 0
   });
-  const [isLoading, setIsLoading] = useState19(false);
-  const [error, setError] = useState19(null);
+  const [isLoading, setIsLoading] = useState20(false);
+  const [error, setError] = useState20(null);
   const fetchRuns = useCallback20(async () => {
     if (!workflowId) return [];
     setIsLoading(true);
@@ -4424,6 +4772,137 @@ function useWorkflowRuns(workflowId, options) {
   };
 }
 
+// src/hooks/useRenderTool.tsx
+import {
+  useCallback as useCallback21,
+  useEffect as useEffect19,
+  useRef as useRef6,
+  useSyncExternalStore
+} from "react";
+import { Fragment, jsx as jsx2 } from "react/jsx-runtime";
+function useRenderTool(config) {
+  const { toolRegistry, logger } = usePersonaContext();
+  const renderRef = useRef6(config.render);
+  renderRef.current = config.render;
+  const { name } = config;
+  useEffect19(() => {
+    if (!name) return;
+    if (toolRegistry.hasRenderer(name)) {
+      logger.warn("useRenderTool: replacing an existing renderer", { name });
+    }
+    logger.debug("useRenderTool registered", { name });
+    return toolRegistry.registerRenderer(
+      name,
+      (props) => renderRef.current(props)
+    );
+  }, [name, toolRegistry, logger]);
+}
+function ToolRenderHost({
+  render,
+  props
+}) {
+  return /* @__PURE__ */ jsx2(Fragment, { children: render(props) });
+}
+function useRenderToolCall() {
+  const { toolRegistry } = usePersonaContext();
+  const version = useSyncExternalStore(
+    toolRegistry.subscribe,
+    toolRegistry.getVersion,
+    toolRegistry.getVersion
+  );
+  return useCallback21(
+    (toolCall) => {
+      const render = toolRegistry.getRenderer(toolCall.toolName);
+      if (!render) return void 0;
+      const props = buildToolRenderProps(toolCall);
+      const respond = toolRegistry.getResponder(toolCall.toolCallId);
+      if (respond && props.status !== "complete") props.respond = respond;
+      return /* @__PURE__ */ jsx2(
+        ToolRenderHost,
+        {
+          render,
+          props
+        },
+        toolCall.toolCallId
+      );
+    },
+    // `version` re-creates the function when renderers change.
+    [toolRegistry, version]
+  );
+}
+function PersonaToolCallView({
+  toolCall,
+  fallback = null
+}) {
+  const renderToolCall = useRenderToolCall();
+  const node = renderToolCall(toolCall);
+  return /* @__PURE__ */ jsx2(Fragment, { children: node ?? fallback });
+}
+
+// src/hooks/useFrontendTool.tsx
+import { useEffect as useEffect20, useRef as useRef7 } from "react";
+function useRegisterFrontendTool(kind, config, handler, render) {
+  const { toolRegistry, logger } = usePersonaContext();
+  const handlerRef = useRef7(handler);
+  handlerRef.current = handler;
+  const renderRef = useRef7(render);
+  renderRef.current = render;
+  const hasRender = !!render;
+  const { name, description } = config;
+  const schemaJson = JSON.stringify(resolveToolParameters(config.parameters));
+  useEffect20(() => {
+    if (!name) return;
+    if (toolRegistry.getFrontendTool(name)) {
+      logger.warn("frontend tool: replacing an existing registration", {
+        name
+      });
+    }
+    logger.debug("frontend tool registered", { name, kind });
+    const offTool = toolRegistry.registerFrontendTool({
+      kind,
+      definition: { name, description, parameters: JSON.parse(schemaJson) },
+      handler: kind === "handler" ? (args, ctx) => handlerRef.current?.(args, ctx) : void 0
+    });
+    const offRender = hasRender ? toolRegistry.registerRenderer(
+      name,
+      (props) => renderRef.current?.(props)
+    ) : void 0;
+    return () => {
+      offTool();
+      offRender?.();
+    };
+  }, [toolRegistry, logger, kind, name, description, schemaJson, hasRender]);
+}
+function useFrontendTool(config) {
+  useRegisterFrontendTool(
+    "handler",
+    config,
+    config.handler,
+    config.render
+  );
+}
+function useHumanInTheLoop(config) {
+  useRegisterFrontendTool(
+    "humanInTheLoop",
+    config,
+    void 0,
+    config.render
+  );
+}
+function useComponent(config) {
+  const renderRef = useRef7(config.render);
+  renderRef.current = config.render;
+  const wrapperRef = useRef7(
+    (props) => renderRef.current(props.args, props)
+  );
+  useRegisterFrontendTool(
+    "component",
+    config,
+    void 0,
+    wrapperRef.current
+  );
+}
+
 // src/index.ts
 import {
   createLogger as createLogger2,
@@ -4432,24 +4911,34 @@ import {
   getLogLevel,
   isLevelEnabled
 } from "@personaai/logger";
-var VERSION = "0.20.0";
+var VERSION = "0.21.0";
 export {
+  ANY_TOOL,
   ARCHITECT_AGENT_ID,
   PersonaProvider,
+  PersonaToolCallView,
+  PersonaToolRegistry,
   VERSION,
+  buildToolRenderProps,
   createLogger2 as createLogger,
   createNoopLogger,
   getChannelBadgeLabel,
   getLogLevel,
+  getToolCallStatus,
   isLevelEnabled,
   openSSEStream,
+  parsePartialJson,
+  resolveToolParameters,
   setLogLevel,
   supportsStreamingFetch,
   useAgents,
   useArchitectChat,
   useChat,
+  useComponent,
   useConnection,
   useFiles,
+  useFrontendTool,
+  useHumanInTheLoop,
   useKnowledgeBases,
   useMcp,
   useMcpAdmin,
@@ -4458,6 +4947,8 @@ export {
   useMessages,
   usePersonaContext,
   useRcpSources,
+  useRenderTool,
+  useRenderToolCall,
   useSkills,
   useThreads,
   useVoice,

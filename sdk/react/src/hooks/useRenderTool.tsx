@@ -94,11 +94,14 @@ export function useRenderToolCall(): (
     (toolCall: PersonaToolCall) => {
       const render = toolRegistry.getRenderer(toolCall.toolName);
       if (!render) return undefined;
+      const props = buildToolRenderProps(toolCall);
+      const respond = toolRegistry.getResponder(toolCall.toolCallId);
+      if (respond && props.status !== "complete") props.respond = respond;
       return (
         <ToolRenderHost
           key={toolCall.toolCallId}
           render={render}
-          props={buildToolRenderProps(toolCall)}
+          props={props}
         />
       );
     },

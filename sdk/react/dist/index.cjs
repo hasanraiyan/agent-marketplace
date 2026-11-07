@@ -20,22 +20,32 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // src/index.ts
 var index_exports = {};
 __export(index_exports, {
+  ANY_TOOL: () => ANY_TOOL,
   ARCHITECT_AGENT_ID: () => ARCHITECT_AGENT_ID,
   PersonaProvider: () => PersonaProvider,
+  PersonaToolCallView: () => PersonaToolCallView,
+  PersonaToolRegistry: () => PersonaToolRegistry,
   VERSION: () => VERSION,
+  buildToolRenderProps: () => buildToolRenderProps,
   createLogger: () => import_logger2.createLogger,
   createNoopLogger: () => import_logger2.createNoopLogger,
   getChannelBadgeLabel: () => getChannelBadgeLabel,
   getLogLevel: () => import_logger2.getLogLevel,
+  getToolCallStatus: () => getToolCallStatus,
   isLevelEnabled: () => import_logger2.isLevelEnabled,
   openSSEStream: () => openSSEStream,
+  parsePartialJson: () => parsePartialJson,
+  resolveToolParameters: () => resolveToolParameters,
   setLogLevel: () => import_logger2.setLogLevel,
   supportsStreamingFetch: () => supportsStreamingFetch,
   useAgents: () => useAgents,
   useArchitectChat: () => useArchitectChat,
   useChat: () => useChat,
+  useComponent: () => useComponent,
   useConnection: () => useConnection,
   useFiles: () => useFiles,
+  useFrontendTool: () => useFrontendTool,
+  useHumanInTheLoop: () => useHumanInTheLoop,
   useKnowledgeBases: () => useKnowledgeBases,
   useMcp: () => useMcp,
   useMcpAdmin: () => useMcpAdmin,
@@ -44,6 +54,8 @@ __export(index_exports, {
   useMessages: () => useMessages,
   usePersonaContext: () => usePersonaContext,
   useRcpSources: () => useRcpSources,
+  useRenderTool: () => useRenderTool,
+  useRenderToolCall: () => useRenderToolCall,
   useSkills: () => useSkills,
   useThreads: () => useThreads,
   useVoice: () => useVoice,
@@ -73,6 +85,194 @@ function getChannelBadgeLabel(channel) {
 // src/context/PersonaContext.tsx
 var import_react = require("react");
 var import_logger = require("@personaai/logger");
+
+// src/tools/partialJson.ts
+function scan(text) {
+  const stack = [];
+  const cuts = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === "{" || ch === "[") {
+      stack.push(ch === "{" ? "}" : "]");
+      cuts.push(i);
+    } else if (ch === "}" || ch === "]") stack.pop();
+    else if (ch === ",") cuts.push(i);
+  }
+  return { stack, inString, escaped, cuts };
+}
+function closeUp(text) {
+  const { stack, inString, escaped } = scan(text);
+  let out = text;
+  if (inString) {
+    if (escaped) out = out.slice(0, -1);
+    out += '"';
+  }
+  out = out.replace(/\s+$/, "");
+  if (out.endsWith(",")) out = out.slice(0, -1);
+  else if (out.endsWith(":")) out += "null";
+  out = out.replace(
+    /(-|\d+\.|\d+[eE][+-]?)$/,
+    (m) => m === "-" ? "null" : m.replace(/[.eE+-]+$/, "")
+  );
+  for (let i = stack.length - 1; i >= 0; i--) out += stack[i];
+  return out;
+}
+function parsePartialJson(text) {
+  if (typeof text !== "string") return void 0;
+  const trimmed = text.trim();
+  if (!trimmed) return void 0;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+  }
+  let candidate = trimmed;
+  for (let attempt = 0; attempt < 64 && candidate; attempt++) {
+    try {
+      return JSON.parse(closeUp(candidate));
+    } catch {
+      const { cuts } = scan(candidate);
+      const last = cuts[cuts.length - 1];
+      if (last === void 0) return void 0;
+      const keep = candidate[last] === "," ? last : last + 1;
+      if (keep >= candidate.length) {
+        candidate = candidate.slice(0, last);
+      } else {
+        candidate = candidate.slice(0, keep);
+      }
+    }
+  }
+  return void 0;
+}
+
+// src/tools/registry.ts
+var ANY_TOOL = "*";
+function getToolCallStatus(toolCall) {
+  if (toolCall.result !== void 0) return "complete";
+  const args = (toolCall.args ?? "").trim();
+  if (!args) return "inProgress";
+  try {
+    JSON.parse(args);
+    return "executing";
+  } catch {
+    return "inProgress";
+  }
+}
+function toArgsObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
+function buildToolRenderProps(toolCall) {
+  const status = getToolCallStatus(toolCall);
+  const base = {
+    name: toolCall.toolName,
+    toolCallId: toolCall.toolCallId,
+    isError: !!toolCall.isError,
+    toolCall
+  };
+  const args = toArgsObject(parsePartialJson(toolCall.args));
+  if (status === "complete")
+    return { ...base, status, args, result: toolCall.result };
+  return { ...base, status, args, result: void 0 };
+}
+var EMPTY_OBJECT_SCHEMA = {
+  type: "object",
+  properties: {}
+};
+function resolveToolParameters(parameters) {
+  let schema = parameters;
+  if (parameters && typeof parameters.toJSONSchema === "function") {
+    schema = parameters.toJSONSchema();
+  }
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return EMPTY_OBJECT_SCHEMA;
+  }
+  const { $schema, ...rest } = schema;
+  return { ...rest, type: "object" };
+}
+var PersonaToolRegistry = class {
+  renderers = /* @__PURE__ */ new Map();
+  frontendTools = /* @__PURE__ */ new Map();
+  responders = /* @__PURE__ */ new Map();
+  listeners = /* @__PURE__ */ new Set();
+  version = 0;
+  /**
+   * Register a frontend tool. The latest registration for a name wins.
+   * Returns an unregister function that only removes *this* registration.
+   */
+  registerFrontendTool(entry) {
+    const name = entry.definition.name;
+    const slot = { ...entry, id: Symbol(name) };
+    this.frontendTools.set(name, slot);
+    this.emit();
+    return () => {
+      if (this.frontendTools.get(name)?.id === slot.id) {
+        this.frontendTools.delete(name);
+        this.emit();
+      }
+    };
+  }
+  getFrontendTool(name) {
+    return this.frontendTools.get(name);
+  }
+  /** Definitions to send with each run (empty → no `tools` sent at all). */
+  getFrontendToolDefinitions() {
+    return Array.from(this.frontendTools.values(), (t) => t.definition);
+  }
+  /** Make `respond` available to the waiting human-in-the-loop call `toolCallId`. */
+  setResponder(toolCallId, respond) {
+    this.responders.set(toolCallId, respond);
+    this.emit();
+  }
+  clearResponder(toolCallId) {
+    if (this.responders.delete(toolCallId)) this.emit();
+  }
+  getResponder(toolCallId) {
+    return this.responders.get(toolCallId);
+  }
+  /**
+   * Register a renderer for `name` (or `"*"`). The latest registration wins.
+   * Returns an unregister function that only removes *this* registration.
+   */
+  registerRenderer(name, render) {
+    const entry = { id: Symbol(name), render };
+    this.renderers.set(name, entry);
+    this.emit();
+    return () => {
+      if (this.renderers.get(name)?.id === entry.id) {
+        this.renderers.delete(name);
+        this.emit();
+      }
+    };
+  }
+  /** The renderer for `name`, falling back to the `"*"` wildcard. */
+  getRenderer(name) {
+    return (this.renderers.get(name) ?? this.renderers.get(ANY_TOOL))?.render;
+  }
+  hasRenderer(name) {
+    return this.renderers.has(name);
+  }
+  subscribe = (listener) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+  getVersion = () => this.version;
+  emit() {
+    this.version++;
+    for (const listener of this.listeners) listener();
+  }
+};
+
+// src/context/PersonaContext.tsx
 var import_jsx_runtime = require("react/jsx-runtime");
 var PersonaContext = (0, import_react.createContext)(null);
 function PersonaProvider({
@@ -87,6 +287,7 @@ function PersonaProvider({
     () => baseUrl.replace(/\/+$/, ""),
     [baseUrl]
   );
+  const [toolRegistry] = (0, import_react.useState)(() => new PersonaToolRegistry());
   const logger = (0, import_react.useMemo)(() => {
     const l = loggerProp ?? (0, import_logger.createLogger)(
       "react",
@@ -184,9 +385,10 @@ function PersonaProvider({
       getAuthToken,
       defaultAgentId,
       fetchWithAuth,
-      logger
+      logger,
+      toolRegistry
     };
-  }, [normalizedBaseUrl, getAuthToken, defaultAgentId, logger]);
+  }, [normalizedBaseUrl, getAuthToken, defaultAgentId, logger, toolRegistry]);
   return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PersonaContext.Provider, { value, children });
 }
 function usePersonaContext() {
@@ -382,6 +584,32 @@ async function openSSEStream(opts) {
 }
 
 // src/hooks/streamEventHelpers.ts
+function normalizeFrontendToolCalls(value) {
+  const calls = value?.calls;
+  if (!Array.isArray(calls)) return null;
+  const out = [];
+  for (const c of calls) {
+    if (!c || typeof c !== "object" || typeof c.name !== "string") continue;
+    const { toolCallId, name, args } = c;
+    out.push({
+      toolCallId: typeof toolCallId === "string" ? toolCallId : null,
+      name,
+      args: args && typeof args === "object" && !Array.isArray(args) ? args : {}
+    });
+  }
+  return out.length > 0 ? out : null;
+}
+function normalizePendingFrontendTools(pending) {
+  if (!pending || typeof pending !== "object") return null;
+  const p = pending;
+  return p.kind === "frontend_tool" ? normalizeFrontendToolCalls(p.value) : null;
+}
+function formatFrontendToolResult(answer) {
+  if (answer.error != null) return JSON.stringify({ status: "error", message: String(answer.error) });
+  const { result } = answer;
+  if (result === void 0 || result === null) return "Done.";
+  return typeof result === "string" ? result : JSON.stringify(result);
+}
 function isErrorToolContent(content) {
   if (typeof content !== "string" || !content.trim().startsWith("{"))
     return false;
@@ -498,8 +726,45 @@ function parseSandboxCommand(tc) {
     seq: tc.seq
   };
 }
+function findLocalToolCallId(messages, call, claimed) {
+  if (call.toolCallId) {
+    for (const m of messages) {
+      if (m.toolCalls?.some((tc) => tc.toolCallId === call.toolCallId)) return call.toolCallId;
+    }
+  }
+  for (let i = messages.length - 1; i >= 0; i--) {
+    for (const tc of messages[i].toolCalls ?? []) {
+      if (tc.toolName === call.name && tc.result === void 0 && !claimed.has(tc.toolCallId)) {
+        return tc.toolCallId;
+      }
+    }
+  }
+  return null;
+}
+function applyFrontendResults(messages, byLocalId) {
+  if (byLocalId.size === 0) return messages;
+  return messages.map((m) => {
+    if (!m.toolCalls?.some((tc) => byLocalId.has(tc.toolCallId))) return m;
+    return {
+      ...m,
+      toolCalls: m.toolCalls.map((tc) => {
+        const answer = byLocalId.get(tc.toolCallId);
+        return answer ? { ...tc, result: formatFrontendToolResult(answer), isError: answer.error != null } : tc;
+      })
+    };
+  });
+}
+function toSerializable(value) {
+  if (value === void 0) return null;
+  try {
+    JSON.stringify(value);
+    return value;
+  } catch {
+    return String(value);
+  }
+}
 function useChat(options = {}) {
-  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken, logger } = usePersonaContext();
+  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken, logger, toolRegistry } = usePersonaContext();
   const chatLogger = (0, import_react2.useMemo)(() => logger.child("chat"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
@@ -530,6 +795,7 @@ function useChat(options = {}) {
   const [isLoadingHistory, setIsLoadingHistory] = (0, import_react2.useState)(false);
   const [error, setError] = (0, import_react2.useState)(null);
   const [interrupt, setInterrupt] = (0, import_react2.useState)(null);
+  const [pendingFrontendTools, setPendingFrontendTools] = (0, import_react2.useState)(null);
   const [files, setFiles] = (0, import_react2.useState)({});
   const [todos, setTodos] = (0, import_react2.useState)([]);
   const [presentedFile, setPresentedFile] = (0, import_react2.useState)(null);
@@ -544,6 +810,9 @@ function useChat(options = {}) {
   }, [messages]);
   const abortControllerRef = (0, import_react2.useRef)(null);
   const loadedThreadIdRef = (0, import_react2.useRef)(void 0);
+  const messagesRef = (0, import_react2.useRef)(messages);
+  messagesRef.current = messages;
+  const frontendEpochRef = (0, import_react2.useRef)(0);
   const voiceThreadRef = (0, import_react2.useRef)(effectiveThreadId);
   const voicePrevLenRef = (0, import_react2.useRef)(0);
   const voiceStreamingIdRef = (0, import_react2.useRef)(null);
@@ -569,6 +838,8 @@ function useChat(options = {}) {
     setMessages([]);
     setError(null);
     setInterrupt(null);
+    frontendEpochRef.current++;
+    setPendingFrontendTools(null);
     setFiles({});
     setTodos([]);
     setPresentedFile(null);
@@ -580,6 +851,8 @@ function useChat(options = {}) {
     setMessages([]);
     setError(null);
     setInterrupt(null);
+    frontendEpochRef.current++;
+    setPendingFrontendTools(null);
     setFiles({});
     setTodos([]);
     setPresentedFile(null);
@@ -621,6 +894,8 @@ function useChat(options = {}) {
         }));
         setMessages(loaded);
         setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
+        frontendEpochRef.current++;
+        setPendingFrontendTools(normalizePendingFrontendTools(data?.pendingInterrupt));
         setFiles(normalizeWorkspaceFiles(data?.state?.files ?? {}));
         setTodos(data?.state?.todos ?? []);
         loadedThreadIdRef.current = id;
@@ -796,7 +1071,8 @@ function useChat(options = {}) {
     }
   }, [voice?.transcript, voice?.partial, voice?.state, effectiveThreadId]);
   const doSend = (0, import_react2.useCallback)(
-    async (prompt, baseMessages, overrideOptions) => {
+    async (prompt, baseMessages, overrideOptions, internal) => {
+      const silent = !!internal?.silent;
       const targetAgentId = overrideOptions?.agentId || agentId;
       if (!targetAgentId) {
         const err = new Error("No Agent ID specified for useChat.");
@@ -837,12 +1113,18 @@ function useChat(options = {}) {
         toolCalls: [],
         channel: "web"
       };
-      const nextMessages = [...baseMessages, userMessage];
-      setMessages([...nextMessages, placeholderAssistant]);
-      setInput("");
+      const nextMessages = silent ? baseMessages : [...baseMessages, userMessage];
+      if (silent) {
+        setMessages((prev) => [...prev, placeholderAssistant]);
+      } else {
+        setMessages([...nextMessages, placeholderAssistant]);
+        setInput("");
+        frontendEpochRef.current++;
+      }
       setIsStreaming(true);
       setError(null);
       setInterrupt(null);
+      setPendingFrontendTools(null);
       const controller = new AbortController();
       abortControllerRef.current = controller;
       const finalizeReasoning = () => {
@@ -851,7 +1133,7 @@ function useChat(options = {}) {
         );
       };
       try {
-        const payloadMessages = nextMessages.filter((m) => m.role !== "reasoning").map((m) => ({
+        const payloadMessages = (silent ? [] : nextMessages).filter((m) => m.role !== "reasoning").map((m) => ({
           role: m.role === "assistant" ? "assistant" : "user",
           content: m.content
         }));
@@ -878,6 +1160,7 @@ function useChat(options = {}) {
         const resolvedHookContext = typeof options.context === "function" ? options.context() : options.context;
         const mergedContext = { ...resolvedHookContext, ...overrideOptions?.context };
         const hasContext = Object.keys(mergedContext).length > 0;
+        const frontendTools = toolRegistry.getFrontendToolDefinitions();
         chatLogger.debug("opening SSE stream", {
           agentId: targetAgentId,
           hasToken: !!token,
@@ -896,7 +1179,11 @@ function useChat(options = {}) {
             threadId: resolvedThreadId,
             resume: overrideOptions?.resume,
             contextOverride: overrideOptions?.contextOverride,
-            ...hasContext ? { context: mergedContext } : {}
+            ...hasContext ? { context: mergedContext } : {},
+            // Frontend tools (useFrontendTool & co.) — sent on every request,
+            // resumes included, so the server's paused stub tools exist when
+            // the run continues. Ignored unless the agent opted in.
+            ...frontendTools.length > 0 ? { tools: frontendTools } : {}
           }),
           signal: controller.signal
         });
@@ -1022,6 +1309,10 @@ function useChat(options = {}) {
                   const value2 = event.value;
                   chatLogger.info("clarification interrupt", { questionCount: value2.questions?.length ?? 0 });
                   setInterrupt({ kind: "clarification", questions: value2.questions });
+                } else if (event.name === "frontend_tool_request") {
+                  const calls = normalizeFrontendToolCalls(event.value);
+                  chatLogger.info("frontend tool request", { names: calls?.map((c) => c.name) ?? [] });
+                  if (calls) setPendingFrontendTools(calls);
                 } else if (event.name === "subagent_activity") {
                   const { toolCallId, ...entry } = event.value;
                   chatLogger.trace("subagent activity", { toolCallId, kind: entry.kind });
@@ -1106,7 +1397,7 @@ function useChat(options = {}) {
         chatLogger.trace("sendMessage end", { agentId: targetAgentId });
       }
     },
-    [agentId, baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId]
+    [agentId, baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId, toolRegistry]
   );
   const sendMessage = (0, import_react2.useCallback)(
     async (contentToSend, overrideOptions) => {
@@ -1177,6 +1468,73 @@ function useChat(options = {}) {
     },
     [sendMessage, chatLogger]
   );
+  const doSendRef = (0, import_react2.useRef)(doSend);
+  doSendRef.current = doSend;
+  (0, import_react2.useEffect)(() => {
+    if (!pendingFrontendTools?.length || isStreaming) return;
+    const calls = pendingFrontendTools;
+    const epoch = frontendEpochRef.current;
+    let cancelled = false;
+    const waiters = /* @__PURE__ */ new Map();
+    const runOne = async (call, localId) => {
+      const toolCallId = call.toolCallId ?? localId ?? "";
+      const entry = toolRegistry.getFrontendTool(call.name);
+      if (!entry) {
+        chatLogger.warn("frontend tool not registered", { name: call.name });
+        return { toolCallId, error: `Tool "${call.name}" isn't available in this app right now.` };
+      }
+      if (entry.kind === "component") {
+        return { toolCallId, result: "Displayed to the user." };
+      }
+      if (entry.kind === "humanInTheLoop") {
+        const key = localId ?? toolCallId;
+        return new Promise((resolve) => {
+          waiters.set(key, resolve);
+          toolRegistry.setResponder(key, (value) => {
+            if (!waiters.has(key)) return;
+            waiters.delete(key);
+            toolRegistry.clearResponder(key);
+            resolve({ toolCallId, result: toSerializable(value) });
+          });
+        });
+      }
+      try {
+        const result = await entry.handler?.(call.args, { toolCallId });
+        return { toolCallId, result: toSerializable(result) };
+      } catch (err) {
+        chatLogger.warn("frontend tool handler threw", { name: call.name });
+        return { toolCallId, error: err instanceof Error ? err.message : String(err) };
+      }
+    };
+    const run = async () => {
+      const claimed = /* @__PURE__ */ new Set();
+      const localIds = calls.map((call) => {
+        const id = findLocalToolCallId(messagesRef.current, call, claimed);
+        if (id) claimed.add(id);
+        return id;
+      });
+      chatLogger.info("running frontend tools", { names: calls.map((c) => c.name) });
+      const answers = await Promise.all(calls.map((call, i) => runOne(call, localIds[i])));
+      if (cancelled || frontendEpochRef.current !== epoch) return;
+      const byLocalId = /* @__PURE__ */ new Map();
+      localIds.forEach((id, i) => {
+        if (id) byLocalId.set(id, answers[i]);
+      });
+      setMessages((prev) => applyFrontendResults(prev, byLocalId));
+      setPendingFrontendTools(null);
+      await doSendRef.current("", messagesRef.current, { resume: { toolResults: answers } }, { silent: true });
+    };
+    const timer = setTimeout(() => void run(), 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      for (const [key, resolve] of waiters) {
+        toolRegistry.clearResponder(key);
+        resolve({ toolCallId: key, error: "cancelled" });
+      }
+      waiters.clear();
+    };
+  }, [pendingFrontendTools, isStreaming, toolRegistry, chatLogger]);
   const dismissPresentedFile = (0, import_react2.useCallback)(() => {
     chatLogger.debug("dismissPresentedFile", {});
     setPresentedFile(null);
@@ -1205,6 +1563,8 @@ function useChat(options = {}) {
     error,
     interrupt,
     resumeInterrupt,
+    /** Frontend tool calls the agent is waiting on — run and resumed automatically; for display. */
+    pendingFrontendTools,
     files,
     todos,
     presentedFile,
@@ -4481,27 +4841,163 @@ function useWorkflowRuns(workflowId, options) {
   };
 }
 
+// src/hooks/useRenderTool.tsx
+var import_react22 = require("react");
+var import_jsx_runtime2 = require("react/jsx-runtime");
+function useRenderTool(config) {
+  const { toolRegistry, logger } = usePersonaContext();
+  const renderRef = (0, import_react22.useRef)(config.render);
+  renderRef.current = config.render;
+  const { name } = config;
+  (0, import_react22.useEffect)(() => {
+    if (!name) return;
+    if (toolRegistry.hasRenderer(name)) {
+      logger.warn("useRenderTool: replacing an existing renderer", { name });
+    }
+    logger.debug("useRenderTool registered", { name });
+    return toolRegistry.registerRenderer(
+      name,
+      (props) => renderRef.current(props)
+    );
+  }, [name, toolRegistry, logger]);
+}
+function ToolRenderHost({
+  render,
+  props
+}) {
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_jsx_runtime2.Fragment, { children: render(props) });
+}
+function useRenderToolCall() {
+  const { toolRegistry } = usePersonaContext();
+  const version = (0, import_react22.useSyncExternalStore)(
+    toolRegistry.subscribe,
+    toolRegistry.getVersion,
+    toolRegistry.getVersion
+  );
+  return (0, import_react22.useCallback)(
+    (toolCall) => {
+      const render = toolRegistry.getRenderer(toolCall.toolName);
+      if (!render) return void 0;
+      const props = buildToolRenderProps(toolCall);
+      const respond = toolRegistry.getResponder(toolCall.toolCallId);
+      if (respond && props.status !== "complete") props.respond = respond;
+      return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(
+        ToolRenderHost,
+        {
+          render,
+          props
+        },
+        toolCall.toolCallId
+      );
+    },
+    // `version` re-creates the function when renderers change.
+    [toolRegistry, version]
+  );
+}
+function PersonaToolCallView({
+  toolCall,
+  fallback = null
+}) {
+  const renderToolCall = useRenderToolCall();
+  const node = renderToolCall(toolCall);
+  return /* @__PURE__ */ (0, import_jsx_runtime2.jsx)(import_jsx_runtime2.Fragment, { children: node ?? fallback });
+}
+
+// src/hooks/useFrontendTool.tsx
+var import_react23 = require("react");
+function useRegisterFrontendTool(kind, config, handler, render) {
+  const { toolRegistry, logger } = usePersonaContext();
+  const handlerRef = (0, import_react23.useRef)(handler);
+  handlerRef.current = handler;
+  const renderRef = (0, import_react23.useRef)(render);
+  renderRef.current = render;
+  const hasRender = !!render;
+  const { name, description } = config;
+  const schemaJson = JSON.stringify(resolveToolParameters(config.parameters));
+  (0, import_react23.useEffect)(() => {
+    if (!name) return;
+    if (toolRegistry.getFrontendTool(name)) {
+      logger.warn("frontend tool: replacing an existing registration", {
+        name
+      });
+    }
+    logger.debug("frontend tool registered", { name, kind });
+    const offTool = toolRegistry.registerFrontendTool({
+      kind,
+      definition: { name, description, parameters: JSON.parse(schemaJson) },
+      handler: kind === "handler" ? (args, ctx) => handlerRef.current?.(args, ctx) : void 0
+    });
+    const offRender = hasRender ? toolRegistry.registerRenderer(
+      name,
+      (props) => renderRef.current?.(props)
+    ) : void 0;
+    return () => {
+      offTool();
+      offRender?.();
+    };
+  }, [toolRegistry, logger, kind, name, description, schemaJson, hasRender]);
+}
+function useFrontendTool(config) {
+  useRegisterFrontendTool(
+    "handler",
+    config,
+    config.handler,
+    config.render
+  );
+}
+function useHumanInTheLoop(config) {
+  useRegisterFrontendTool(
+    "humanInTheLoop",
+    config,
+    void 0,
+    config.render
+  );
+}
+function useComponent(config) {
+  const renderRef = (0, import_react23.useRef)(config.render);
+  renderRef.current = config.render;
+  const wrapperRef = (0, import_react23.useRef)(
+    (props) => renderRef.current(props.args, props)
+  );
+  useRegisterFrontendTool(
+    "component",
+    config,
+    void 0,
+    wrapperRef.current
+  );
+}
+
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.20.0";
+var VERSION = "0.21.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  ANY_TOOL,
   ARCHITECT_AGENT_ID,
   PersonaProvider,
+  PersonaToolCallView,
+  PersonaToolRegistry,
   VERSION,
+  buildToolRenderProps,
   createLogger,
   createNoopLogger,
   getChannelBadgeLabel,
   getLogLevel,
+  getToolCallStatus,
   isLevelEnabled,
   openSSEStream,
+  parsePartialJson,
+  resolveToolParameters,
   setLogLevel,
   supportsStreamingFetch,
   useAgents,
   useArchitectChat,
   useChat,
+  useComponent,
   useConnection,
   useFiles,
+  useFrontendTool,
+  useHumanInTheLoop,
   useKnowledgeBases,
   useMcp,
   useMcpAdmin,
@@ -4510,6 +5006,8 @@ var VERSION = "0.20.0";
   useMessages,
   usePersonaContext,
   useRcpSources,
+  useRenderTool,
+  useRenderToolCall,
   useSkills,
   useThreads,
   useVoice,

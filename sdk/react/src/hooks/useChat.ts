@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePersonaContext } from "../context/PersonaContext.js";
 import { openSSEStream } from "../streaming.js";
 import type {
+  PersonaFrontendToolCall,
+  PersonaFrontendToolResult,
   PersonaInterrupt,
   PersonaMcpAuthRequiredServer,
   PersonaMessage,
@@ -20,7 +22,10 @@ import type {
   UseChatOptions,
 } from "../types.js";
 import {
+  formatFrontendToolResult,
   isErrorToolContent,
+  normalizeFrontendToolCalls,
+  normalizePendingFrontendTools,
   normalizePendingInterrupt,
   normalizeWorkspaceFiles,
   parsePresentedFile,
@@ -87,8 +92,63 @@ function parseSandboxCommand(tc: PersonaToolCall): PersonaSandboxCommand {
   };
 }
 
+// The transcript card a frontend-tool request refers to: by id first; then
+// (some providers stream a different id than the server-side call gets) the
+// most recent unanswered call of the same name not already claimed.
+function findLocalToolCallId(
+  messages: PersonaMessage[],
+  call: PersonaFrontendToolCall,
+  claimed: Set<string>,
+): string | null {
+  if (call.toolCallId) {
+    for (const m of messages) {
+      if (m.toolCalls?.some((tc) => tc.toolCallId === call.toolCallId)) return call.toolCallId;
+    }
+  }
+  for (let i = messages.length - 1; i >= 0; i--) {
+    for (const tc of messages[i].toolCalls ?? []) {
+      if (tc.toolName === call.name && tc.result === undefined && !claimed.has(tc.toolCallId)) {
+        return tc.toolCallId;
+      }
+    }
+  }
+  return null;
+}
+
+// Puts each frontend tool's answer on its card, so it renders as complete
+// before (and regardless of) the resumed run — the server doesn't re-send it.
+function applyFrontendResults(
+  messages: PersonaMessage[],
+  byLocalId: Map<string, PersonaFrontendToolResult>,
+): PersonaMessage[] {
+  if (byLocalId.size === 0) return messages;
+  return messages.map((m) => {
+    if (!m.toolCalls?.some((tc) => byLocalId.has(tc.toolCallId))) return m;
+    return {
+      ...m,
+      toolCalls: m.toolCalls.map((tc) => {
+        const answer = byLocalId.get(tc.toolCallId);
+        return answer
+          ? { ...tc, result: formatFrontendToolResult(answer), isError: answer.error != null }
+          : tc;
+      }),
+    };
+  });
+}
+
+// A handler's return value must survive JSON.stringify on its way to the server.
+function toSerializable(value: unknown): unknown {
+  if (value === undefined) return null;
+  try {
+    JSON.stringify(value);
+    return value;
+  } catch {
+    return String(value);
+  }
+}
+
 export function useChat(options: UseChatOptions = {}) {
-  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken, logger } =
+  const { defaultAgentId, fetchWithAuth, baseUrl, getAuthToken, logger, toolRegistry } =
     usePersonaContext();
   const chatLogger = useMemo(() => logger.child("chat"), [logger]);
   const agentId = options.agentId || defaultAgentId;
@@ -129,6 +189,12 @@ export function useChat(options: UseChatOptions = {}) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [interrupt, setInterrupt] = useState<PersonaInterrupt | null>(null);
+  // Frontend tool calls the agent is paused on (useFrontendTool & co.). Run
+  // and resumed by the effect further down — never surfaced as `interrupt`,
+  // so existing HITL/clarification UIs never see a kind they don't know.
+  const [pendingFrontendTools, setPendingFrontendTools] = useState<
+    PersonaFrontendToolCall[] | null
+  >(null);
   const [files, setFiles] = useState<Record<string, PersonaWorkspaceFile>>({});
   const [todos, setTodos] = useState<PersonaTodo[]>([]);
   const [presentedFile, setPresentedFile] =
@@ -151,6 +217,13 @@ export function useChat(options: UseChatOptions = {}) {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const loadedThreadIdRef = useRef<string | undefined>(undefined);
+  // Latest messages for async frontend-tool execution (outlives a render).
+  const messagesRef = useRef(messages);
+  messagesRef.current = messages;
+  // Bumped whenever the conversation moves on without the pending frontend
+  // tools (user sends a new message, clear, new chat, thread switch): an
+  // in-flight execution started under an older epoch must not resume.
+  const frontendEpochRef = useRef(0);
 
   // Voice sync bookkeeping — see the effect below. Kept as refs (not state)
   // because they're pure injection-cursor plumbing, never rendered.
@@ -181,6 +254,8 @@ export function useChat(options: UseChatOptions = {}) {
     setMessages([]);
     setError(null);
     setInterrupt(null);
+    frontendEpochRef.current++;
+    setPendingFrontendTools(null);
     setFiles({});
     setTodos([]);
     setPresentedFile(null);
@@ -193,6 +268,8 @@ export function useChat(options: UseChatOptions = {}) {
     setMessages([]);
     setError(null);
     setInterrupt(null);
+    frontendEpochRef.current++;
+    setPendingFrontendTools(null);
     setFiles({});
     setTodos([]);
     setPresentedFile(null);
@@ -250,6 +327,10 @@ export function useChat(options: UseChatOptions = {}) {
         // is currently paused — otherwise it wouldn't reappear until the
         // next live stream re-surfaces it.
         setInterrupt(normalizePendingInterrupt(data?.pendingInterrupt));
+        // A thread paused on frontend tools (tab closed mid-call): run them
+        // again now — the effect below picks these up once tools register.
+        frontendEpochRef.current++;
+        setPendingFrontendTools(normalizePendingFrontendTools(data?.pendingInterrupt));
         // Restore the workspace files/todos this thread already had (same
         // cleaned shape checkpoint.service.js now derives via
         // buildFilesTodosSnapshot, matching the live STATE_SNAPSHOT event).
@@ -479,7 +560,16 @@ export function useChat(options: UseChatOptions = {}) {
   // supply a truncated base (B1: reload must not build nextMessages from the
   // stale full closure). Caller has already validated prompt/isStreaming.
   const doSend = useCallback(
-    async (prompt: string, baseMessages: PersonaMessage[], overrideOptions?: SendMessageOverride): Promise<boolean> => {
+    async (
+      prompt: string,
+      baseMessages: PersonaMessage[],
+      overrideOptions?: SendMessageOverride,
+      // `silent`: an automatic frontend-tool resume — no user bubble, keep
+      // the current transcript, and send no messages (the server would
+      // otherwise read the previous user turn as a new reply).
+      internal?: { silent?: boolean },
+    ): Promise<boolean> => {
+      const silent = !!internal?.silent;
       const targetAgentId = overrideOptions?.agentId || agentId;
       if (!targetAgentId) {
         const err = new Error("No Agent ID specified for useChat.");
@@ -524,12 +614,20 @@ export function useChat(options: UseChatOptions = {}) {
         channel: "web",
       };
 
-      const nextMessages = [...baseMessages, userMessage];
-      setMessages([...nextMessages, placeholderAssistant]);
-      setInput("");
+      const nextMessages = silent ? baseMessages : [...baseMessages, userMessage];
+      if (silent) {
+        setMessages((prev) => [...prev, placeholderAssistant]);
+      } else {
+        setMessages([...nextMessages, placeholderAssistant]);
+        setInput("");
+        // The conversation moved on: any frontend tools still pending are
+        // answered server-side as "not completed" — don't also resume them.
+        frontendEpochRef.current++;
+      }
       setIsStreaming(true);
       setError(null);
       setInterrupt(null);
+      setPendingFrontendTools(null);
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -541,7 +639,7 @@ export function useChat(options: UseChatOptions = {}) {
       };
 
       try {
-        const payloadMessages = nextMessages
+        const payloadMessages = (silent ? [] : nextMessages)
           .filter((m) => m.role !== "reasoning")
           .map((m) => ({
             role: m.role === "assistant" ? ("assistant" as const) : ("user" as const),
@@ -572,6 +670,7 @@ export function useChat(options: UseChatOptions = {}) {
         const resolvedHookContext = typeof options.context === "function" ? options.context() : options.context;
         const mergedContext = { ...resolvedHookContext, ...overrideOptions?.context };
         const hasContext = Object.keys(mergedContext).length > 0;
+        const frontendTools = toolRegistry.getFrontendToolDefinitions();
         chatLogger.debug("opening SSE stream", {
           agentId: targetAgentId,
           hasToken: !!token,
@@ -591,6 +690,10 @@ export function useChat(options: UseChatOptions = {}) {
             resume: overrideOptions?.resume,
             contextOverride: overrideOptions?.contextOverride,
             ...(hasContext ? { context: mergedContext } : {}),
+            // Frontend tools (useFrontendTool & co.) — sent on every request,
+            // resumes included, so the server's paused stub tools exist when
+            // the run continues. Ignored unless the agent opted in.
+            ...(frontendTools.length > 0 ? { tools: frontendTools } : {}),
           }),
           signal: controller.signal,
         });
@@ -721,6 +824,11 @@ export function useChat(options: UseChatOptions = {}) {
                   const value = event.value as Extract<PersonaInterrupt, { kind: "clarification" }>;
                   chatLogger.info("clarification interrupt", { questionCount: value.questions?.length ?? 0 });
                   setInterrupt({ kind: "clarification", questions: value.questions });
+                } else if (event.name === "frontend_tool_request") {
+                  const calls = normalizeFrontendToolCalls(event.value);
+                  chatLogger.info("frontend tool request", { names: calls?.map((c) => c.name) ?? [] });
+                  // Executed by the effect below once this stream has closed.
+                  if (calls) setPendingFrontendTools(calls);
                 } else if (event.name === "subagent_activity") {
                   const { toolCallId, ...entry } = event.value as { toolCallId: string } & PersonaSubagentActivityEntry;
                   chatLogger.trace("subagent activity", { toolCallId, kind: entry.kind });
@@ -808,7 +916,7 @@ export function useChat(options: UseChatOptions = {}) {
         chatLogger.trace("sendMessage end", { agentId: targetAgentId });
       }
     },
-    [agentId, baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId],
+    [agentId, baseUrl, getAuthToken, fetchWithAuth, options, chatLogger, effectiveThreadId, toolRegistry],
   );
 
   const sendMessage = useCallback(
@@ -892,6 +1000,91 @@ export function useChat(options: UseChatOptions = {}) {
     [sendMessage, chatLogger],
   );
 
+  // Read through a ref by the frontend-tool effect: doSend's identity changes
+  // on most renders, and re-running that effect would run handlers twice.
+  const doSendRef = useRef(doSend);
+  doSendRef.current = doSend;
+
+  // Runs the frontend tools the agent paused on (live, or restored from a
+  // reloaded thread) once the stream has closed, puts each answer on its
+  // card, then resumes the agent silently with all the results.
+  useEffect(() => {
+    if (!pendingFrontendTools?.length || isStreaming) return;
+    const calls = pendingFrontendTools;
+    const epoch = frontendEpochRef.current;
+    let cancelled = false;
+    // Human-in-the-loop calls waiting on respond(): resolved as cancelled
+    // on cleanup so nothing hangs once the conversation moves on.
+    const waiters = new Map<string, (r: PersonaFrontendToolResult) => void>();
+
+    const runOne = async (
+      call: PersonaFrontendToolCall,
+      localId: string | null,
+    ): Promise<PersonaFrontendToolResult> => {
+      const toolCallId = call.toolCallId ?? localId ?? "";
+      const entry = toolRegistry.getFrontendTool(call.name);
+      if (!entry) {
+        chatLogger.warn("frontend tool not registered", { name: call.name });
+        return { toolCallId, error: `Tool "${call.name}" isn't available in this app right now.` };
+      }
+      if (entry.kind === "component") {
+        return { toolCallId, result: "Displayed to the user." };
+      }
+      if (entry.kind === "humanInTheLoop") {
+        const key = localId ?? toolCallId;
+        return new Promise((resolve) => {
+          waiters.set(key, resolve);
+          toolRegistry.setResponder(key, (value) => {
+            if (!waiters.has(key)) return; // respond() called twice / after cancel
+            waiters.delete(key);
+            toolRegistry.clearResponder(key);
+            resolve({ toolCallId, result: toSerializable(value) });
+          });
+        });
+      }
+      try {
+        const result = await entry.handler?.(call.args, { toolCallId });
+        return { toolCallId, result: toSerializable(result) };
+      } catch (err) {
+        chatLogger.warn("frontend tool handler threw", { name: call.name });
+        return { toolCallId, error: err instanceof Error ? err.message : String(err) };
+      }
+    };
+
+    const run = async () => {
+      const claimed = new Set<string>();
+      const localIds = calls.map((call) => {
+        const id = findLocalToolCallId(messagesRef.current, call, claimed);
+        if (id) claimed.add(id);
+        return id;
+      });
+      chatLogger.info("running frontend tools", { names: calls.map((c) => c.name) });
+      const answers = await Promise.all(calls.map((call, i) => runOne(call, localIds[i])));
+      if (cancelled || frontendEpochRef.current !== epoch) return;
+
+      const byLocalId = new Map<string, PersonaFrontendToolResult>();
+      localIds.forEach((id, i) => {
+        if (id) byLocalId.set(id, answers[i]);
+      });
+      setMessages((prev) => applyFrontendResults(prev, byLocalId));
+      setPendingFrontendTools(null);
+      await doSendRef.current("", messagesRef.current, { resume: { toolResults: answers } }, { silent: true });
+    };
+
+    // Next tick: lets tools registered in this same commit (e.g. by
+    // components mounting right after a thread reload) register first.
+    const timer = setTimeout(() => void run(), 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      for (const [key, resolve] of waiters) {
+        toolRegistry.clearResponder(key);
+        resolve({ toolCallId: key, error: "cancelled" });
+      }
+      waiters.clear();
+    };
+  }, [pendingFrontendTools, isStreaming, toolRegistry, chatLogger]);
+
   const dismissPresentedFile = useCallback(() => {
     chatLogger.debug("dismissPresentedFile", {});
     setPresentedFile(null);
@@ -925,6 +1118,8 @@ export function useChat(options: UseChatOptions = {}) {
     error,
     interrupt,
     resumeInterrupt,
+    /** Frontend tool calls the agent is waiting on — run and resumed automatically; for display. */
+    pendingFrontendTools,
     files,
     todos,
     presentedFile,

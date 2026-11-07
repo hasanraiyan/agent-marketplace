@@ -19,6 +19,11 @@ interface PersonaToolRenderBase {
   isError: boolean;
   /** The raw call, for anything not surfaced above. */
   toolCall: PersonaToolCall;
+  /**
+   * Only for a `useHumanInTheLoop` tool that is waiting on the user
+   * (`status: "executing"`): call once with the answer to send to the agent.
+   */
+  respond?: (value: unknown) => void;
 }
 
 /** Props passed to a `useRenderTool` render function — discriminated by `status`. */
@@ -93,13 +98,121 @@ interface RendererEntry {
 }
 
 /**
- * Holds the tool renderers registered by `useRenderTool`. One per
- * `PersonaProvider`; a store compatible with `useSyncExternalStore`.
+ * Tool arguments schema: a JSON Schema object (`type: "object"`), or anything
+ * with a `toJSONSchema()` method. For zod, pass `z.toJSONSchema(schema)`.
+ */
+export type PersonaToolParameters =
+  Record<string, unknown> | { toJSONSchema(): Record<string, unknown> };
+
+/** What's sent to the agent for a frontend tool (AG-UI `RunAgentInput.tools`). */
+export interface PersonaFrontendToolDefinition {
+  name: string;
+  description: string;
+  parameters: Record<string, unknown>;
+}
+
+/**
+ * - `handler` — `useFrontendTool`: runs code in the browser, returns a result.
+ * - `humanInTheLoop` — `useHumanInTheLoop`: waits for the user's `respond()`.
+ * - `component` — `useComponent`: renders UI, answers immediately.
+ */
+export type PersonaFrontendToolKind =
+  "handler" | "humanInTheLoop" | "component";
+
+export interface PersonaFrontendToolContext {
+  /** The call being answered. */
+  toolCallId: string;
+}
+
+export interface PersonaFrontendToolEntry {
+  kind: PersonaFrontendToolKind;
+  definition: PersonaFrontendToolDefinition;
+  handler?: (
+    args: Record<string, unknown>,
+    ctx: PersonaFrontendToolContext,
+  ) => unknown;
+}
+
+interface FrontendToolSlot extends PersonaFrontendToolEntry {
+  id: symbol;
+}
+
+const EMPTY_OBJECT_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {},
+};
+
+/** Normalize `parameters` to a plain JSON Schema object (no `$schema` key). */
+export function resolveToolParameters(
+  parameters: PersonaToolParameters | undefined,
+): Record<string, unknown> {
+  let schema: unknown = parameters;
+  if (
+    parameters &&
+    typeof (parameters as { toJSONSchema?: unknown }).toJSONSchema ===
+      "function"
+  ) {
+    schema = (parameters as { toJSONSchema(): unknown }).toJSONSchema();
+  }
+  if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+    return EMPTY_OBJECT_SCHEMA;
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { $schema, ...rest } = schema as Record<string, unknown>;
+  return { ...rest, type: "object" };
+}
+
+/**
+ * Holds the tool renderers (`useRenderTool`) and frontend tools
+ * (`useFrontendTool` / `useHumanInTheLoop` / `useComponent`) registered under
+ * one `PersonaProvider`; a store compatible with `useSyncExternalStore`.
  */
 export class PersonaToolRegistry {
   private renderers = new Map<string, RendererEntry>();
+  private frontendTools = new Map<string, FrontendToolSlot>();
+  private responders = new Map<string, (value: unknown) => void>();
   private listeners = new Set<() => void>();
   private version = 0;
+
+  /**
+   * Register a frontend tool. The latest registration for a name wins.
+   * Returns an unregister function that only removes *this* registration.
+   */
+  registerFrontendTool(entry: PersonaFrontendToolEntry): () => void {
+    const name = entry.definition.name;
+    const slot: FrontendToolSlot = { ...entry, id: Symbol(name) };
+    this.frontendTools.set(name, slot);
+    this.emit();
+    return () => {
+      if (this.frontendTools.get(name)?.id === slot.id) {
+        this.frontendTools.delete(name);
+        this.emit();
+      }
+    };
+  }
+
+  getFrontendTool(name: string): PersonaFrontendToolEntry | undefined {
+    return this.frontendTools.get(name);
+  }
+
+  /** Definitions to send with each run (empty → no `tools` sent at all). */
+  getFrontendToolDefinitions(): PersonaFrontendToolDefinition[] {
+    return Array.from(this.frontendTools.values(), (t) => t.definition);
+  }
+
+  /** Make `respond` available to the waiting human-in-the-loop call `toolCallId`. */
+  setResponder(toolCallId: string, respond: (value: unknown) => void): void {
+    this.responders.set(toolCallId, respond);
+    this.emit();
+  }
+
+  clearResponder(toolCallId: string): void {
+    if (this.responders.delete(toolCallId)) this.emit();
+  }
+
+  getResponder(toolCallId: string): ((value: unknown) => void) | undefined {
+    return this.responders.get(toolCallId);
+  }
 
   /**
    * Register a renderer for `name` (or `"*"`). The latest registration wins.

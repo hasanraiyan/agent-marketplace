@@ -21,6 +21,7 @@ export * from "./hooks/useWorkflow.js";
 export * from "./hooks/useWorkflowStream.js";
 export * from "./hooks/useWorkflowRuns.js";
 export * from "./hooks/useRenderTool.js";
+export * from "./hooks/useFrontendTool.js";
 export * from "./tools/registry.js";
 export { parsePartialJson } from "./tools/partialJson.js";
 export * from "./streaming.js";
@@ -38,4 +39,4 @@ export type {
   CreateLoggerOptions,
 } from "@personaai/logger";
 
-export const VERSION = "0.20.0";
+export const VERSION = "0.21.0";
