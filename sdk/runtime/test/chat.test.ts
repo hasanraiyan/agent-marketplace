@@ -62,6 +62,72 @@ describe('POST /chat', () => {
     expect(sentBody.contextOverride).toBe('stage=seed');
   });
 
+  it('forwards frontend tools and a toolResults resume to the sdk call body', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const runtime = makeRuntime({ fetchMock });
+    const tools = [
+      {
+        name: 'open_page',
+        description: 'Open a page.',
+        parameters: { type: 'object', properties: { path: { type: 'string' } } },
+      },
+    ];
+
+    await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: {
+        agentId: 'agent-1',
+        messages: [],
+        tools,
+        resume: { toolResults: [{ toolCallId: 'call_1', result: 'opened' }] },
+      },
+      userId: null,
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sentBody = JSON.parse(init.body as string);
+    expect(sentBody.tools).toEqual(tools);
+    expect(sentBody.resume).toEqual({ toolResults: [{ toolCallId: 'call_1', result: 'opened' }] });
+  });
+
+  it('omits tools when none (or an empty list) are sent', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const runtime = makeRuntime({ fetchMock });
+
+    await runtime.handle({
+      method: 'POST',
+      path: '/chat',
+      headers: {},
+      query: {},
+      body: { agentId: 'agent-1', messages: [{ role: 'user', content: 'hi' }], tools: [] },
+      userId: null,
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect('tools' in JSON.parse(init.body as string)).toBe(false);
+  });
+
+  it('rejects malformed tools with 400 without calling the API', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
+    const runtime = makeRuntime({ fetchMock });
+
+    for (const tools of ['open_page', [{ description: 'no name' }], [null]]) {
+      const response = await runtime.handle({
+        method: 'POST',
+        path: '/chat',
+        headers: {},
+        query: {},
+        body: { agentId: 'agent-1', messages: [], tools },
+        userId: null,
+      });
+      expect(response.status).toBe(400);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('rejects a non-object context with 400 without calling the API', async () => {
     const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => sseResponse([]));
     const runtime = makeRuntime({ fetchMock });

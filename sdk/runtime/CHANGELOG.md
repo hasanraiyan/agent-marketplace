@@ -4,6 +4,17 @@ All notable changes to `@personaai/runtime` are documented here. The package was
 its 0.1 → 0.5 milestones before being published, so the pre-publish versions are backfilled from
 the repo's history (squashed into the package's founding PR).
 
+## 0.19.0
+
+- **`@personaai/sdk` upgraded to `^0.18.0`.**
+- **`POST /chat` forwards frontend `tools`** (AG-UI `RunAgentInput.tools`:
+  `{ name, description?, parameters? }[]`) to the Agent run, for `@personaai/react`'s frontend
+  tool hooks. A non-array or an entry without a string `name` is rejected with a 400; deeper
+  validation (name pattern, limits, clashes) happens in Persona, which ignores `tools` entirely
+  unless the Agent has `frontendToolsEnabled`. `resume: { toolResults: [...] }` already passed
+  through unchanged.
+- Additive only — no breaking changes.
+
 ## 0.18.0
 
 - **`@personaai/sdk` upgraded to `^0.17.0`.**
