@@ -7,10 +7,18 @@ import { PROJECT_ARCHITECT_AGENT_ID } from '../agents/architectConstants.js';
 import traceRepository from './trace.repository.js';
 import { TRACE_STATUS } from './trace.model.js';
 import { TraceRecorder } from './TraceRecorder.js';
+import { SPAN_KIND } from './traceSpan.model.js';
+import { summarizeInterrupt, summarizeResume } from './traceInterrupts.js';
 
 const logger = loggerService.getLogger();
 
 const MAX_STATS_DAYS = 90;
+
+const HUMAN_STEP_NAME = {
+  hitl: 'Human decision',
+  clarification: 'User answered',
+  frontend_tool: 'Client tool results',
+};
 
 function sourceFor(agentId, executionContext) {
   if (String(agentId) === PROJECT_ARCHITECT_AGENT_ID) return 'architect';
@@ -73,44 +81,106 @@ class TraceService {
   /**
    * @returns {null | { traceId: string, recorder: TraceRecorder, finish: Function }}
    */
-  begin({ executionContext, agentId, agentConfig, providerConfig, threadId, channel, input }) {
+  /**
+   * @param {object} [params.resume]  `{ pending, value }` when this run resumes a
+   *   paused one: `pending` is describeInterrupt() of the pause, `value` the
+   *   Command({ resume }) value.
+   */
+  begin({
+    executionContext,
+    agentId,
+    agentConfig,
+    providerConfig,
+    threadId,
+    channel,
+    input,
+    resume,
+  }) {
     if (!this.isEnabledFor(executionContext)) return null;
 
     const traceId = traceRepository.newId();
     const recorder = new TraceRecorder();
     const startedAt = new Date();
     const domain = String(executionContext.domain);
+    const threadKey = threadId ? String(threadId) : null;
 
-    const created = traceRepository
-      .create({
-        _id: traceId,
-        domain,
-        agentId: String(agentId),
-        agentName:
-          agentConfig?.name ||
-          (String(agentId) === PROJECT_ARCHITECT_AGENT_ID ? 'Architect' : null),
-        threadId: threadId ? String(threadId) : null,
-        source: sourceFor(agentId, executionContext),
-        channel: channel || 'web',
-        endUserId: endUserFor(executionContext),
-        status: TRACE_STATUS.RUNNING,
-        model: providerConfig?.modelName || agentConfig?.modelName || null,
-        provider: providerConfig?.label || null,
-        input: typeof input === 'string' ? input.slice(0, 16000) : null,
-        startedAt,
+    let resumeSummary = null;
+    if (resume?.pending) {
+      resumeSummary = summarizeResume(resume.pending, resume.value);
+      recorder.addEvent({
+        kind: SPAN_KIND.HUMAN,
+        name: HUMAN_STEP_NAME[resumeSummary.kind] || 'Human input',
+        input: summarizeInterrupt(resume.pending),
+        output: resumeSummary,
+        metadata: { interruptKind: resumeSummary.kind },
+        position: 'start',
+      });
+    }
+
+    // A resumed run links back to the paused trace on the same thread.
+    const previous =
+      resumeSummary && threadKey
+        ? traceRepository
+            .findLatest({ domain, threadId: threadKey, status: TRACE_STATUS.INTERRUPTED })
+            .catch(() => null)
+        : Promise.resolve(null);
+
+    const created = previous
+      .then((prev) =>
+        traceRepository
+          .create({
+            _id: traceId,
+            domain,
+            agentId: String(agentId),
+            agentName:
+              agentConfig?.name ||
+              (String(agentId) === PROJECT_ARCHITECT_AGENT_ID ? 'Architect' : null),
+            threadId: threadKey,
+            source: sourceFor(agentId, executionContext),
+            channel: channel || 'web',
+            endUserId: endUserFor(executionContext),
+            status: TRACE_STATUS.RUNNING,
+            model: providerConfig?.modelName || agentConfig?.modelName || null,
+            provider: providerConfig?.label || null,
+            input: resumeSummary
+              ? resumeSummary.summary
+              : typeof input === 'string'
+                ? input.slice(0, 16000)
+                : null,
+            resume: resumeSummary,
+            resumedFromTraceId: prev?._id ? String(prev._id) : null,
+            startedAt,
+          })
+          .then(() => prev)
+      )
+      .then(async (prev) => {
+        if (prev?._id) {
+          await traceRepository
+            .update(prev._id, { resumedByTraceId: String(traceId) })
+            .catch(() => {});
+        }
+        return true;
       })
-      .then(() => true)
       .catch((err) => {
         logger.warn('[Traces] failed to create trace', { domain, agentId, err: err.message });
         return false;
       });
 
     let finished = false;
-    const finish = async ({ status, error } = {}) => {
+    const finish = async ({ status, error, interrupt } = {}) => {
       if (finished) return;
       finished = true;
       try {
         if (!(await created)) return;
+        const interruptSummary = interrupt ? summarizeInterrupt(interrupt) : null;
+        if (interruptSummary) {
+          recorder.addEvent({
+            kind: SPAN_KIND.INTERRUPT,
+            name: interruptSummary.title,
+            input: interruptSummary.actions || interruptSummary.questions || null,
+            metadata: { interruptKind: interruptSummary.kind, summary: interruptSummary.summary },
+          });
+        }
         const result = recorder.finalize({ cancelled: status === TRACE_STATUS.CANCELLED });
         const endedAt = new Date();
         await traceRepository.insertSpans(
@@ -125,6 +195,7 @@ class TraceService {
         );
         await traceRepository.update(traceId, {
           status: status || TRACE_STATUS.SUCCESS,
+          interrupt: interruptSummary,
           error: error ? String(error).slice(0, 4000) : null,
           output: result.output,
           endedAt,

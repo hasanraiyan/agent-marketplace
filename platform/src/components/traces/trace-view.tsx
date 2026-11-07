@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { CopyButton } from "@/components/chat/copy-button";
 import { SpanDetail, spanIcon } from "@/components/traces/span-detail";
 import { IconTile } from "@/components/traces/message-cards";
+import { HitlBanner } from "@/components/traces/hitl-view";
 import {
   StatusBadge,
   formatDuration,
@@ -154,8 +155,18 @@ export function TraceView({
             value={`${sourceLabel(trace.source)}${trace.channel && trace.channel !== "web" ? ` · ${trace.channel}` : ""}`}
           />
           <Stat label="Started" value={new Date(trace.startedAt).toLocaleString()} />
+          {trace.threadId && (
+            <Link
+              href={`${backHref}?threadId=${encodeURIComponent(trace.threadId)}`}
+              className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+            >
+              View thread
+            </Link>
+          )}
         </div>
       </div>
+
+      <HitlBanner trace={trace} tracesHref={backHref} />
 
       {trace.error && (
         <div className="flex gap-2 border-b border-destructive/30 bg-destructive/5 px-4 py-2 text-xs text-destructive">
@@ -190,6 +201,7 @@ export function TraceView({
                 const isCollapsed = collapsed.has(span.spanId);
                 const meta = kindMeta(span.kind);
                 const isLlm = span.kind === "llm";
+                const isEvent = span.kind === "interrupt" || span.kind === "human";
                 return (
                   <div
                     key={span.spanId}
@@ -216,7 +228,7 @@ export function TraceView({
                         <span className={cn("truncate text-sm", span.status === "error" && "text-destructive")}>
                           {span.name}
                         </span>
-                        {!isLlm && (
+                        {!isLlm && !isEvent && (
                           <span className="shrink-0 font-mono text-xs text-muted-foreground">
                             {formatDuration(span.durationMs)}
                           </span>

@@ -5,7 +5,9 @@ import {
   BrainIcon,
   BookOpenIcon,
   CircleNotchIcon,
+  HandPalmIcon,
   LinkSimpleIcon,
+  UserCheckIcon,
   RobotIcon,
   WrenchIcon,
 } from "@phosphor-icons/react";
@@ -13,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export type TraceStatus = "running" | "success" | "error" | "interrupted" | "cancelled";
-export type SpanKind = "llm" | "tool" | "subagent" | "retriever" | "chain";
+export type SpanKind = "llm" | "tool" | "subagent" | "retriever" | "chain" | "interrupt" | "human";
 
 export interface Usage {
   inputTokens: number;
@@ -44,6 +46,12 @@ export interface TraceRow {
   toolErrors?: number;
   spanCount?: number;
   truncated?: boolean;
+  /** Why this run paused (status "interrupted"). */
+  interrupt?: InterruptSummary | null;
+  /** The human answer that started this (resumed) run. */
+  resume?: ResumeSummary | null;
+  resumedFromTraceId?: string | null;
+  resumedByTraceId?: string | null;
 }
 
 export interface Span {
@@ -64,6 +72,25 @@ export interface Span {
   output?: unknown;
   error?: string | null;
   metadata?: Record<string, unknown>;
+}
+
+export type InterruptKind = "hitl" | "clarification" | "frontend_tool";
+
+export interface InterruptSummary {
+  kind: InterruptKind;
+  title?: string;
+  summary?: string;
+  actions?: { name: string; args?: unknown; description?: string; allowedDecisions?: string[] | null; toolCallId?: string | null }[];
+  questions?: { id?: string; text: string; options?: string[] }[];
+}
+
+export interface ResumeSummary {
+  kind: InterruptKind;
+  summary?: string;
+  decisions?: { action: string; type: string; message?: string | null; editedArgs?: unknown }[];
+  answers?: unknown;
+  text?: string | null;
+  results?: { name: string; toolCallId?: string | null; result?: unknown; error?: string | null }[];
 }
 
 export function formatDuration(ms?: number | null): string {
@@ -103,7 +130,7 @@ export function StatusBadge({ status, className }: { status: string; className?:
   return (
     <Badge variant="outline" className={cn("gap-1 capitalize", STATUS_STYLE[status], className)}>
       {status === "running" && <CircleNotchIcon className="size-3 animate-spin" />}
-      {status}
+      {status === "interrupted" ? "paused" : status}
     </Badge>
   );
 }
@@ -117,6 +144,8 @@ const KIND_META: Record<
   subagent: { icon: RobotIcon, label: "Subagent", bar: "bg-violet-500/70", text: "text-violet-600 dark:text-violet-400", tile: "bg-violet-500" },
   retriever: { icon: BookOpenIcon, label: "Retriever", bar: "bg-teal-500/70", text: "text-teal-600 dark:text-teal-400", tile: "bg-teal-600" },
   chain: { icon: LinkSimpleIcon, label: "Chain", bar: "bg-blue-500/60", text: "text-blue-600 dark:text-blue-400", tile: "bg-blue-500" },
+  interrupt: { icon: HandPalmIcon, label: "Paused", bar: "bg-amber-500/70", text: "text-amber-600 dark:text-amber-400", tile: "bg-amber-500" },
+  human: { icon: UserCheckIcon, label: "Human", bar: "bg-sky-500/70", text: "text-sky-600 dark:text-sky-400", tile: "bg-sky-500" },
 };
 
 export function kindMeta(kind: string) {

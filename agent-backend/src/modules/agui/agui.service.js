@@ -302,8 +302,9 @@ export async function* runAgentAsAguiEvents({
   const messageChannel =
     turnContext?.channel || messages?.findLast?.((m) => m?.role === 'user')?.channel;
 
+  const resumeValue = isResuming ? buildResumeValue(pendingInterrupt, resume, content) : undefined;
   const inputArg = isResuming
-    ? new Command({ resume: buildResumeValue(pendingInterrupt, resume, content) })
+    ? new Command({ resume: resumeValue })
     : {
         messages: [
           new HumanMessage({
@@ -328,7 +329,10 @@ export async function* runAgentAsAguiEvents({
     providerConfig,
     threadId: threadDbId || thread?._id || langGraphThreadId,
     channel: turnChannel || 'web',
-    input: isResuming ? '(resumed after interrupt)' : content,
+    input: content,
+    // A resumed run is its own trace, linked to the paused one, and records
+    // the human's decision (approve/reject/edit, answers, client tool results).
+    resume: isResuming ? { pending: pendingInterrupt, value: resumeValue } : undefined,
   });
   if (trace && executionContext?.principalType === 'ProjectAdmin') {
     // Lets the platform playground link straight to this run's trace.
@@ -353,6 +357,7 @@ export async function* runAgentAsAguiEvents({
   let pausedForInterrupt = false;
   let runError = null;
   let completed = false;
+  let lastInterrupt = null;
   const translated = translateLangGraphStream(stream, {
     providerConfig,
     logger,
@@ -376,6 +381,7 @@ export async function* runAgentAsAguiEvents({
     onInterrupt: (interruptInfo) => {
       if (signal?.aborted) return;
       pausedForInterrupt = true;
+      lastInterrupt = interruptInfo;
     },
     onError: (leaves, err) => {
       runError = err?.message || 'Agent run failed';
@@ -405,7 +411,11 @@ export async function* runAgentAsAguiEvents({
       else if (signal?.aborted || !completed) status = TRACE_STATUS.CANCELLED;
       else if (pausedForInterrupt) status = TRACE_STATUS.INTERRUPTED;
       // Not awaited: persisting the trace must not hold up the response.
-      void trace.finish({ status, error: runError });
+      void trace.finish({
+        status,
+        error: runError,
+        interrupt: status === TRACE_STATUS.INTERRUPTED ? lastInterrupt : null,
+      });
     }
   }
 

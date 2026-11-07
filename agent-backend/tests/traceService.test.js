@@ -9,6 +9,7 @@ const repo = {
   search: jest.fn(),
   count: jest.fn(),
   findOne: jest.fn(),
+  findLatest: jest.fn(),
   findSpans: jest.fn(),
   aggregateTraces: jest.fn(),
   aggregateSpans: jest.fn(),
@@ -22,6 +23,8 @@ jest.unstable_mockModule('../src/utils/index.js', () => ({
 }));
 
 const traceService = (await import('../src/modules/traces/trace.service.js')).default;
+
+const flush = () => new Promise((r) => setImmediate(r));
 
 const projectAdmin = { domain: 'proj1', principalType: 'ProjectAdmin', personaUserId: 'u1' };
 const projectRuntime = {
@@ -47,7 +50,7 @@ describe('traceService', () => {
     expect(repo.create).not.toHaveBeenCalled();
   });
 
-  test('begin() creates a running trace with source/endUser derived from context', () => {
+  test('begin() creates a running trace with source/endUser derived from context', async () => {
     const t = traceService.begin({
       executionContext: projectRuntime,
       agentId: 'agent1',
@@ -58,6 +61,7 @@ describe('traceService', () => {
       input: 'hello',
     });
     expect(t.traceId).toBe('aaaaaaaaaaaaaaaaaaaaaaaa');
+    await flush();
     expect(repo.create).toHaveBeenCalledWith(
       expect.objectContaining({
         domain: 'proj1',
@@ -74,10 +78,12 @@ describe('traceService', () => {
     );
   });
 
-  test('playground and architect sources', () => {
+  test('playground and architect sources', async () => {
     traceService.begin({ executionContext: projectAdmin, agentId: 'agent1' });
+    await flush();
     expect(repo.create.mock.calls[0][0]).toMatchObject({ source: 'playground', endUserId: 'u1' });
     traceService.begin({ executionContext: projectAdmin, agentId: '000000000000000000000001' });
+    await flush();
     expect(repo.create.mock.calls[1][0]).toMatchObject({
       source: 'architect',
       agentName: 'Architect',
@@ -193,5 +199,83 @@ describe('traceService', () => {
     await expect(traceService.stats('proj1', { days: 365 })).rejects.toMatchObject({
       statusCode: 400,
     });
+  });
+
+  test('an interrupted run records the pause as a trace field and a step', async () => {
+    const t = traceService.begin({
+      executionContext: projectAdmin,
+      agentId: 'agent1',
+      threadId: 'th1',
+    });
+    t.recorder.handleChainStart({}, {}, 'root', undefined, [], {}, undefined, 'agent');
+    t.recorder.handleChainEnd({}, 'root');
+    await t.finish({
+      status: 'interrupted',
+      interrupt: {
+        kind: 'hitl',
+        actionRequests: [{ name: 'write_file', args: { p: 1 } }],
+        reviewConfigs: [],
+      },
+    });
+    const update = repo.update.mock.calls.at(-1)[1];
+    expect(update.status).toBe('interrupted');
+    expect(update.interrupt).toMatchObject({ kind: 'hitl', summary: 'Approve write_file?' });
+    const spans = repo.insertSpans.mock.calls[0][0];
+    const pause = spans.find((s) => s.kind === 'interrupt');
+    expect(pause).toMatchObject({ name: 'Approval required', parentSpanId: 'root' });
+    expect(pause.input).toEqual([
+      { name: 'write_file', args: { p: 1 }, description: '', allowedDecisions: null },
+    ]);
+  });
+
+  test('a resumed run links to the paused trace and starts with the human decision', async () => {
+    repo.findLatest.mockResolvedValueOnce({ _id: 'prevtrace' });
+    repo.update.mockResolvedValue({});
+    const pending = {
+      kind: 'hitl',
+      actionCount: 1,
+      actionRequests: [{ name: 'write_file', args: {} }],
+    };
+    const t = traceService.begin({
+      executionContext: projectAdmin,
+      agentId: 'agent1',
+      threadId: 'th1',
+      input: '',
+      resume: { pending, value: { decisions: [{ type: 'approve' }] } },
+    });
+    t.recorder.handleChainStart({}, {}, 'root', undefined, [], {}, undefined, 'agent');
+    t.recorder.handleToolStart({ name: 'write_file' }, '{}', 't1', 'root', [], {}, 'write_file');
+    t.recorder.handleToolEnd('ok', 't1');
+    t.recorder.handleChainEnd({}, 'root');
+    await t.finish({ status: 'success' });
+
+    expect(repo.findLatest).toHaveBeenCalledWith({
+      domain: 'proj1',
+      threadId: 'th1',
+      status: 'interrupted',
+    });
+    expect(repo.create.mock.calls[0][0]).toMatchObject({
+      input: 'Approved write_file',
+      resumedFromTraceId: 'prevtrace',
+      resume: { kind: 'hitl', summary: 'Approved write_file' },
+    });
+    expect(repo.update).toHaveBeenCalledWith('prevtrace', {
+      resumedByTraceId: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+    });
+    const spans = repo.insertSpans.mock.calls[0][0];
+    const human = spans.find((s) => s.kind === 'human');
+    expect(human).toMatchObject({ name: 'Human decision', parentSpanId: 'root' });
+    // Pinned before every real step.
+    expect(spans[0].kind).toBe('human');
+  });
+
+  test('a resume with no thread skips the lookup', async () => {
+    traceService.begin({
+      executionContext: projectAdmin,
+      agentId: 'agent1',
+      resume: { pending: { kind: 'clarification' }, value: 'Paris' },
+    });
+    await Promise.resolve();
+    expect(repo.findLatest).not.toHaveBeenCalled();
   });
 });

@@ -18,6 +18,9 @@ export const SPAN_KIND = Object.freeze({
   SUBAGENT: 'subagent',
   RETRIEVER: 'retriever',
   CHAIN: 'chain',
+  // Synthetic human-in-the-loop steps (no LangChain run behind them):
+  INTERRUPT: 'interrupt', // the run paused here, waiting on a person / the client
+  HUMAN: 'human', // the person's decision that resumed the run
 });
 
 const traceSpanSchema = new mongoose.Schema(

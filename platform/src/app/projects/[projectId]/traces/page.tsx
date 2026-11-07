@@ -101,6 +101,8 @@ function TracesPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = searchParams.get("tab") === "usage" ? "usage" : "runs";
+  // Set by a trace's "View thread" link: every run (incl. paused → resumed) of one conversation.
+  const threadId = searchParams.get("threadId") ?? "";
 
   const [agents, setAgents] = React.useState<AgentOption[]>([]);
   const [agentId, setAgentId] = React.useState(searchParams.get("agentId") ?? "");
@@ -114,7 +116,7 @@ function TracesPageInner() {
   const [pages, setPages] = React.useState(1);
   const [total, setTotal] = React.useState(0);
   const [result, setResult] = React.useState<{ key: string; error: string | null } | null>(null);
-  const requestKey = [projectId, page, agentId, status, source, range, reloadKey].join("|");
+  const requestKey = [projectId, page, agentId, status, source, range, threadId, reloadKey].join("|");
   const loading = result?.key !== requestKey;
   const error = loading ? null : (result?.error ?? null);
 
@@ -127,13 +129,15 @@ function TracesPageInner() {
   React.useEffect(() => {
     if (tab !== "runs") return;
     let cancelled = false;
-    const span = RANGES.find((r) => r.value === range)?.ms ?? 0;
+    // A thread view shows the whole conversation regardless of the time range.
+    const span = threadId ? 0 : (RANGES.find((r) => r.value === range)?.ms ?? 0);
     getProjectTraces(projectId, {
       page,
       limit: PAGE_SIZE,
       agentId: agentId || undefined,
       status: status || undefined,
       source: source || undefined,
+      threadId: threadId || undefined,
       from: span ? new Date(Date.now() - span).toISOString() : undefined,
     })
       .then((res) => {
@@ -152,7 +156,7 @@ function TracesPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [projectId, tab, page, agentId, status, source, range, reloadKey, requestKey]);
+  }, [projectId, tab, page, agentId, status, source, range, threadId, reloadKey, requestKey]);
 
   const setTab = (value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -162,6 +166,12 @@ function TracesPageInner() {
   };
 
   const traceHref = (id: string) => `/projects/${projectId}/traces/${id}`;
+  const clearThread = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("threadId");
+    setPage(1);
+    router.replace(`?${params.toString()}`);
+  };
   const onFilter = (set: (v: string) => void) => (e: React.ChangeEvent<HTMLSelectElement>) => {
     set(e.target.value);
     setPage(1);
@@ -186,7 +196,21 @@ function TracesPageInner() {
             <TabsTrigger value="usage">Usage</TabsTrigger>
           </TabsList>
 
-          {tab === "runs" && (
+          {tab === "runs" && threadId && (
+            <span className="flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs">
+              Thread <span className="max-w-[140px] truncate font-mono">{threadId}</span>
+              <button
+                type="button"
+                onClick={clearThread}
+                className="ml-0.5 text-muted-foreground hover:text-foreground"
+                aria-label="Clear thread filter"
+              >
+                ×
+              </button>
+            </span>
+          )}
+
+          {tab === "runs" && !threadId && (
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <HourglassIcon className="size-4" />
               <NativeSelect size="sm" value={range} onChange={onFilter(setRange)} aria-label="Time range">
@@ -282,13 +306,23 @@ function TracesPageInner() {
                         </TableCell>
                         <TableCell className="text-sm">
                           <Cell>
-                            <span className="text-muted-foreground">user: </span>
-                            {t.input || "—"}
+                            {t.resume ? (
+                              <span className="text-sky-700 dark:text-sky-400">↩ {t.resume.summary || "Resumed"}</span>
+                            ) : (
+                              <>
+                                <span className="text-muted-foreground">user: </span>
+                                {t.input || "—"}
+                              </>
+                            )}
                           </Cell>
                         </TableCell>
                         <TableCell className="text-sm">
                           <Cell>
-                            {t.output ? (
+                            {t.status === "interrupted" && t.interrupt ? (
+                              <span className="text-amber-700 dark:text-amber-400">
+                                ⏸ {t.interrupt.summary || t.interrupt.title || "Paused"}
+                              </span>
+                            ) : t.output ? (
                               <>
                                 <span className="text-muted-foreground">ai: </span>
                                 {t.output}

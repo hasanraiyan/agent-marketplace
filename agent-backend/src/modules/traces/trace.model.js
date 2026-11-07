@@ -61,6 +61,14 @@ const traceSchema = new mongoose.Schema(
     toolCalls: { type: Number, default: 0 },
     toolErrors: { type: Number, default: 0 },
     spanCount: { type: Number, default: 0 },
+    // Human-in-the-loop. `interrupt`: why this run paused (status
+    // `interrupted`) — summarizeInterrupt(). `resume`: the human's answer
+    // that started this run — summarizeResume(). The two traces link to
+    // each other.
+    interrupt: { type: mongoose.Schema.Types.Mixed, default: null },
+    resume: { type: mongoose.Schema.Types.Mixed, default: null },
+    resumedFromTraceId: { type: String, default: null },
+    resumedByTraceId: { type: String, default: null },
     // True when the run produced more spans than the per-trace cap.
     truncated: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },

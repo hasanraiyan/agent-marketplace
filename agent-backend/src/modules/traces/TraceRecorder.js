@@ -143,6 +143,17 @@ export class TraceRecorder extends BaseCallbackHandler {
     this.rootInput = null;
     this.rootOutput = null;
     this.truncated = false;
+    this.events = []; // synthetic spans (HITL), attached to the root at finalize()
+  }
+
+  /**
+   * Adds a step with no LangChain run behind it — a HITL pause or the human
+   * decision that resumed the run. `position: 'start'` pins it before every
+   * real step; otherwise it is stamped now.
+   */
+  addEvent({ kind, name, input = null, output = null, metadata = {}, position = 'now' }) {
+    const at = position === 'start' ? null : this.now();
+    this.events.push({ kind, name, input, output, metadata, at });
   }
 
   // ── bookkeeping ────────────────────────────────────────────────────────
@@ -434,7 +445,30 @@ export class TraceRecorder extends BaseCallbackHandler {
       }
     }
 
-    const spans = [...this.spans.values()].sort((a, b) => a.startedAt - b.startedAt);
+    const real = [...this.spans.values()];
+    const firstStart = real.reduce((m, sp) => Math.min(m, sp.startedAt), endedAt);
+    this.events.forEach((ev, i) => {
+      const at = ev.at ?? firstStart - 1;
+      real.push({
+        spanId: `event-${i}-${ev.kind}`,
+        parentSpanId: this.rootRunId,
+        kind: ev.kind,
+        name: ev.name,
+        status: 'success',
+        startedAt: at,
+        endedAt: at,
+        durationMs: 0,
+        timeToFirstTokenMs: null,
+        model: null,
+        provider: null,
+        usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+        input: ev.input,
+        output: ev.output,
+        error: null,
+        metadata: ev.metadata,
+      });
+    });
+    const spans = real.sort((a, b) => a.startedAt - b.startedAt);
     const usage = { inputTokens: 0, outputTokens: 0, totalTokens: 0 };
     let llmCalls = 0;
     let toolCalls = 0;

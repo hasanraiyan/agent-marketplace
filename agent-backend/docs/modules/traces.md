@@ -58,6 +58,23 @@ agui.service.js runAgentAsAguiEvents()
   (`{ traceId }`) so the chat can link to its trace. It is not emitted to API callers and is
   not part of the public AG-UI event catalog.
 
+## Human-in-the-loop
+
+A run that pauses (HITL tool approval via `interruptOn`, a clarification question, or frontend
+tools waiting on the browser) and the run that later resumes it are **two traces**, linked both ways:
+
+| Paused run | Resumed run |
+| --- | --- |
+| `status: interrupted` (shown as *paused*) | normal status of the continued run |
+| `interrupt`: `summarizeInterrupt()` — kind, summary, pending actions (args masked, allowed decisions) or questions | `resume`: `summarizeResume()` — approve/reject/edit decisions (+ feedback, edited args), answers, or client tool results |
+| synthetic `interrupt` step ("Approval required" …) at the pause | synthetic `human` step ("Human decision" …) pinned before every real step |
+| `resumedByTraceId` | `resumedFromTraceId` (latest `interrupted` trace on the same thread), `input` = the decision summary |
+
+The graph node that raised `GraphInterrupt` is kept with `metadata.interrupted: true`, not marked
+as an error. Helpers live in `traceInterrupts.js`; `agui.service.js` passes `{ pending, value }`
+of the resume and the translator's `onInterrupt` info. The platform shows a banner linking the
+two runs and a **View thread** link (`?threadId=` on the list) for the whole conversation.
+
 Not yet traced: workflow runs (they have their own run viewer) and Gemini Live voice sessions
 (`VoiceSession.js` calls tools outside LangChain callbacks).
 
@@ -78,6 +95,7 @@ All routes are Project-Admin (Clerk + `projectAdminAuthMiddleware`), read-only:
 | `trace.model.js` / `traceSpan.model.js` | Mongoose schemas, TTL indexes |
 | `TraceRecorder.js` | Callback handler → in-memory span tree |
 | `traceSerializer.js` | Safe, masked, capped payload serialization |
+| `traceInterrupts.js` | HITL pause / resume summaries |
 | `trace.repository.js` | DB access |
 | `trace.service.js` | `begin()` write path; `list` / `get` / `stats` |
 | `trace.controller.js` | HTTP handlers (routes live in `projects/project.routes.js`) |
@@ -92,4 +110,4 @@ All routes are Project-Admin (Clerk + `projectAdminAuthMiddleware`), read-only:
 ## Tests
 
 `tests/traceRecorder.test.js`, `tests/traceSerializer.test.js`, `tests/traceService.test.js`,
-`tests/traceController.test.js`.
+`tests/traceController.test.js`, `tests/traceInterrupts.test.js`.

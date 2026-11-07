@@ -25,6 +25,12 @@ const LIST_PROJECTION = {
   toolCalls: 1,
   toolErrors: 1,
   spanCount: 1,
+  'interrupt.kind': 1,
+  'interrupt.summary': 1,
+  'resume.kind': 1,
+  'resume.summary': 1,
+  resumedFromTraceId: 1,
+  resumedByTraceId: 1,
 };
 
 class TraceRepository {
@@ -65,6 +71,10 @@ class TraceRepository {
 
   async findOne(filter) {
     return await Trace.findOne(filter).lean();
+  }
+
+  async findLatest(filter) {
+    return await Trace.findOne(filter).sort({ startedAt: -1 }).select({ _id: 1 }).lean();
   }
 
   async findSpans(traceId) {

@@ -7,7 +7,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { JsonTreeView } from "@/components/chat/tool-cards/json-tree-view";
 import { CopyButton } from "@/components/chat/copy-button";
 import { IconTile, PayloadView } from "@/components/traces/message-cards";
-import { StatusBadge, formatDuration, formatTokens, kindMeta, type Span } from "@/components/traces/trace-utils";
+import { InterruptView, ResumeView } from "@/components/traces/hitl-view";
+import {
+  StatusBadge,
+  formatDuration,
+  formatTokens,
+  kindMeta,
+  type InterruptKind,
+  type InterruptSummary,
+  type ResumeSummary,
+  type Span,
+} from "@/components/traces/trace-utils";
 
 export function spanIcon(span: Span) {
   if (span.kind === "chain" && !span.parentSpanId) return TreeStructureIcon;
@@ -50,6 +60,15 @@ function newOutputMessages(input: unknown, output: unknown): unknown {
   return same ? output.slice(input.length) : output;
 }
 
+/** An `interrupt` step stores the pending actions/questions as its input. */
+function interruptFromSpan(span: Span): InterruptSummary {
+  const kind = ((span.metadata?.interruptKind as InterruptKind) ?? "hitl") as InterruptKind;
+  const list = Array.isArray(span.input) ? span.input : [];
+  return kind === "clarification"
+    ? { kind, questions: list as InterruptSummary["questions"] }
+    : { kind, actions: list as InterruptSummary["actions"] };
+}
+
 export function SpanDetail({ span }: { span: Span }) {
   const meta = kindMeta(span.kind);
   const md = span.metadata ?? {};
@@ -67,7 +86,10 @@ export function SpanDetail({ span }: { span: Span }) {
           ID
           <CopyButton text={span.spanId} label="Copy span ID" />
         </span>
-        <StatusBadge status={span.status} className="ml-auto shrink-0" />
+        <StatusBadge
+          status={span.kind === "interrupt" ? "interrupted" : span.status}
+          className="ml-auto shrink-0"
+        />
       </div>
 
       {span.error && (
@@ -86,12 +108,29 @@ export function SpanDetail({ span }: { span: Span }) {
         </TabsList>
 
         <TabsContent value="run" className="flex flex-col gap-6">
-          <Collapsible title="Input">
-            <PayloadView value={span.input} argsStyle={argsStyle} />
-          </Collapsible>
-          <Collapsible title="Output">
-            <PayloadView value={output} />
-          </Collapsible>
+          {span.kind === "interrupt" ? (
+            <Collapsible title="Waiting for">
+              <InterruptView interrupt={interruptFromSpan(span)} />
+            </Collapsible>
+          ) : span.kind === "human" ? (
+            <>
+              <Collapsible title="Asked">
+                <InterruptView interrupt={span.input as InterruptSummary | null} />
+              </Collapsible>
+              <Collapsible title="Answer">
+                <ResumeView resume={span.output as ResumeSummary | null} />
+              </Collapsible>
+            </>
+          ) : (
+            <>
+              <Collapsible title="Input">
+                <PayloadView value={span.input} argsStyle={argsStyle} />
+              </Collapsible>
+              <Collapsible title="Output">
+                <PayloadView value={output} />
+              </Collapsible>
+            </>
+          )}
         </TabsContent>
         <TabsContent value="input">
           <PayloadView value={span.input} argsStyle={argsStyle} />
