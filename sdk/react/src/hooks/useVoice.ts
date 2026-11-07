@@ -44,6 +44,16 @@ function mergeTranscriptText(prev: string, next: string): string {
   return prev + (needSpace ? " " : "") + next;
 }
 
+function toSerializable(value: unknown): unknown {
+  if (value === undefined) return null;
+  try {
+    JSON.stringify(value);
+    return value;
+  } catch {
+    return String(value);
+  }
+}
+
 interface VoiceTranscriptValue {
   speaker: "user" | "agent";
   text: string;
@@ -69,7 +79,8 @@ interface VoiceTranscriptValue {
  * own — it's embedded and loaded via a Blob URL (see `voiceWorklets.ts`).
  */
 export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
-  const { defaultAgentId, fetchWithAuth, logger } = usePersonaContext();
+  const { defaultAgentId, fetchWithAuth, logger, toolRegistry } =
+    usePersonaContext();
   const voiceLogger = useMemo(() => logger.child("voice"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
@@ -383,11 +394,126 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
           );
           setState("error");
           break;
+        case "voice_frontend_tool_call": {
+          const callId = (msg.callId || msg.id) as string;
+          const name = msg.name as string;
+          const args = (msg.args || {}) as Record<string, unknown>;
+          upsertToolCall(callId, { name, status: "running" });
+
+          const entry = toolRegistry.getFrontendTool(name);
+          if (!entry) {
+            voiceLogger.warn("frontend tool not registered", { name });
+            const error = `Tool "${name}" isn't available in this app right now.`;
+            upsertToolCall(callId, { status: "error", summary: error });
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
+                JSON.stringify({
+                  type: "voice_frontend_tool_result",
+                  callId,
+                  error,
+                }),
+              );
+            }
+            break;
+          }
+
+          if (entry.kind === "component") {
+            upsertToolCall(callId, {
+              status: "done",
+              summary: "Displayed to the user.",
+            });
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
+                JSON.stringify({
+                  type: "voice_frontend_tool_result",
+                  callId,
+                  result: "Displayed to the user.",
+                }),
+              );
+            }
+            break;
+          }
+
+          if (entry.kind === "humanInTheLoop") {
+            toolRegistry.setResponder(callId, (value) => {
+              toolRegistry.clearResponder(callId);
+              upsertToolCall(callId, {
+                status: "done",
+                summary:
+                  typeof value === "string"
+                    ? value
+                    : JSON.stringify(value ?? ""),
+              });
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(
+                  JSON.stringify({
+                    type: "voice_frontend_tool_result",
+                    callId,
+                    result: toSerializable(value),
+                  }),
+                );
+              }
+            });
+            break;
+          }
+
+          Promise.resolve()
+            .then(() => entry.handler?.(args, { toolCallId: callId }))
+            .then((result) => {
+              upsertToolCall(callId, {
+                status: "done",
+                summary:
+                  typeof result === "string"
+                    ? result
+                    : JSON.stringify(result ?? ""),
+              });
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(
+                  JSON.stringify({
+                    type: "voice_frontend_tool_result",
+                    callId,
+                    result: toSerializable(result),
+                  }),
+                );
+              }
+            })
+            .catch((err) => {
+              const errorMessage =
+                err instanceof Error ? err.message : String(err);
+              voiceLogger.warn("frontend tool handler threw", {
+                name,
+                error: errorMessage,
+              });
+              upsertToolCall(callId, {
+                status: "error",
+                summary: errorMessage,
+              });
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(
+                  JSON.stringify({
+                    type: "voice_frontend_tool_result",
+                    callId,
+                    error: errorMessage,
+                  }),
+                );
+              }
+            });
+          break;
+        }
+        case "voice_frontend_tool_cancelled": {
+          const callId = (msg.callId || msg.id) as string;
+          toolRegistry.clearResponder(callId);
+          upsertToolCall(callId, {
+            status: "error",
+            summary: "Tool call cancelled by model",
+          });
+          break;
+        }
         default:
           break;
       }
     },
-    [handleCustomEvent, upsertToolCall, voiceLogger],
+    [handleCustomEvent, toolRegistry, upsertToolCall, voiceLogger],
   );
 
   const start = useCallback(async () => {
@@ -415,6 +541,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
     });
 
     try {
+      const frontendTools = toolRegistry.getFrontendToolDefinitions();
       const res = await fetchWithAuth("/voice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -423,6 +550,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
           ...(threadId ? { threadId } : {}),
           ...(contextOverride ? { contextOverride } : {}),
           ...(context ? { context } : {}),
+          ...(frontendTools.length > 0 ? { tools: frontendTools } : {}),
         }),
       });
       if (!res.ok) {
@@ -460,7 +588,7 @@ export function useVoice(options: UseVoiceOptions = {}): UseVoiceResult {
       }
       teardownAudio();
     }
-  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, teardownAudio, toolRegistry, voiceLogger]);
 
   const mute = useCallback((muted: boolean) => {
     setIsMuted(muted);

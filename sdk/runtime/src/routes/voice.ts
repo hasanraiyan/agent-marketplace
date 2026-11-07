@@ -28,10 +28,12 @@ export const createVoiceSession: RouteHandler = async (request, ctx) => {
   // never back through this route (see @personaai/sdk's VoiceResource doc
   // comment).
   const context = validateTurnContext(body.context);
+  const tools = Array.isArray(body.tools) ? body.tools : undefined;
   const ticket = await ctx.client.voice.createSession(agentId, {
     ...(threadId ? { threadId } : {}),
     ...(contextOverride ? { contextOverride } : {}),
     ...(context ? { context } : {}),
+    ...(tools ? { tools } : {}),
   });
 
   await ctx.hooks?.onVoiceSessionCreate?.({

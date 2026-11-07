@@ -2597,8 +2597,17 @@ function mergeTranscriptText(prev, next) {
   const needSpace = !/\s$/.test(prev) && !/^\s/.test(next);
   return prev + (needSpace ? " " : "") + next;
 }
+function toSerializable2(value) {
+  if (value === void 0) return null;
+  try {
+    JSON.stringify(value);
+    return value;
+  } catch {
+    return String(value);
+  }
+}
 function useVoice(options = {}) {
-  const { defaultAgentId, fetchWithAuth, logger } = usePersonaContext();
+  const { defaultAgentId, fetchWithAuth, logger, toolRegistry } = usePersonaContext();
   const voiceLogger = (0, import_react7.useMemo)(() => logger.child("voice"), [logger]);
   const agentId = options.agentId || defaultAgentId;
   const threadId = options.threadId;
@@ -2851,11 +2860,112 @@ function useVoice(options = {}) {
           );
           setState("error");
           break;
+        case "voice_frontend_tool_call": {
+          const callId = msg.callId || msg.id;
+          const name = msg.name;
+          const args = msg.args || {};
+          upsertToolCall(callId, { name, status: "running" });
+          const entry = toolRegistry.getFrontendTool(name);
+          if (!entry) {
+            voiceLogger.warn("frontend tool not registered", { name });
+            const error2 = `Tool "${name}" isn't available in this app right now.`;
+            upsertToolCall(callId, { status: "error", summary: error2 });
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
+                JSON.stringify({
+                  type: "voice_frontend_tool_result",
+                  callId,
+                  error: error2
+                })
+              );
+            }
+            break;
+          }
+          if (entry.kind === "component") {
+            upsertToolCall(callId, {
+              status: "done",
+              summary: "Displayed to the user."
+            });
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
+                JSON.stringify({
+                  type: "voice_frontend_tool_result",
+                  callId,
+                  result: "Displayed to the user."
+                })
+              );
+            }
+            break;
+          }
+          if (entry.kind === "humanInTheLoop") {
+            toolRegistry.setResponder(callId, (value) => {
+              toolRegistry.clearResponder(callId);
+              upsertToolCall(callId, {
+                status: "done",
+                summary: typeof value === "string" ? value : JSON.stringify(value ?? "")
+              });
+              if (wsRef.current?.readyState === WebSocket.OPEN) {
+                wsRef.current.send(
+                  JSON.stringify({
+                    type: "voice_frontend_tool_result",
+                    callId,
+                    result: toSerializable2(value)
+                  })
+                );
+              }
+            });
+            break;
+          }
+          Promise.resolve().then(() => entry.handler?.(args, { toolCallId: callId })).then((result) => {
+            upsertToolCall(callId, {
+              status: "done",
+              summary: typeof result === "string" ? result : JSON.stringify(result ?? "")
+            });
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
+                JSON.stringify({
+                  type: "voice_frontend_tool_result",
+                  callId,
+                  result: toSerializable2(result)
+                })
+              );
+            }
+          }).catch((err) => {
+            const errorMessage = err instanceof Error ? err.message : String(err);
+            voiceLogger.warn("frontend tool handler threw", {
+              name,
+              error: errorMessage
+            });
+            upsertToolCall(callId, {
+              status: "error",
+              summary: errorMessage
+            });
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(
+                JSON.stringify({
+                  type: "voice_frontend_tool_result",
+                  callId,
+                  error: errorMessage
+                })
+              );
+            }
+          });
+          break;
+        }
+        case "voice_frontend_tool_cancelled": {
+          const callId = msg.callId || msg.id;
+          toolRegistry.clearResponder(callId);
+          upsertToolCall(callId, {
+            status: "error",
+            summary: "Tool call cancelled by model"
+          });
+          break;
+        }
         default:
           break;
       }
     },
-    [handleCustomEvent, upsertToolCall, voiceLogger]
+    [handleCustomEvent, toolRegistry, upsertToolCall, voiceLogger]
   );
   const start = (0, import_react7.useCallback)(async () => {
     if (!agentId) {
@@ -2880,6 +2990,7 @@ function useVoice(options = {}) {
       hasContext: !!context
     });
     try {
+      const frontendTools = toolRegistry.getFrontendToolDefinitions();
       const res = await fetchWithAuth("/voice/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -2887,7 +2998,8 @@ function useVoice(options = {}) {
           agentId,
           ...threadId ? { threadId } : {},
           ...contextOverride ? { contextOverride } : {},
-          ...context ? { context } : {}
+          ...context ? { context } : {},
+          ...frontendTools.length > 0 ? { tools: frontendTools } : {}
         })
       });
       if (!res.ok) {
@@ -2923,7 +3035,7 @@ function useVoice(options = {}) {
       }
       teardownAudio();
     }
-  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, teardownAudio, voiceLogger]);
+  }, [agentId, threadId, contextOverride, context, fetchWithAuth, handleMessage, teardownAudio, toolRegistry, voiceLogger]);
   const mute = (0, import_react7.useCallback)((muted) => {
     setIsMuted(muted);
     streamRef.current?.getAudioTracks().forEach((track) => {

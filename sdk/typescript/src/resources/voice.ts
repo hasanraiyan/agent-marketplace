@@ -46,6 +46,12 @@ export interface CreateVoiceSessionOptions {
    * doc comment for why.
    */
   context?: Record<string, unknown>;
+  /**
+   * Browser-side client tool definitions (JSON schemas). If provided and the
+   * agent has frontend tools enabled, Gemini Live can invoke these tools in
+   * real time during the call via WebSocket message `voice_frontend_tool_call`.
+   */
+  tools?: unknown[];
 }
 
 /**
@@ -101,12 +107,15 @@ export class VoiceResource {
       {
         headers,
         body:
-          options.contextOverride !== undefined || options.context !== undefined
+          options.contextOverride !== undefined ||
+          options.context !== undefined ||
+          options.tools !== undefined
             ? {
                 ...(options.contextOverride !== undefined
                   ? { contextOverride: options.contextOverride }
                   : {}),
                 ...(options.context !== undefined ? { context: options.context } : {}),
+                ...(options.tools !== undefined ? { tools: options.tools } : {}),
               }
             : undefined,
       }
