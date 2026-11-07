@@ -5,6 +5,7 @@ import {
   type ChatInterrupt,
   type ChatResult,
   type SendMessageOptions,
+  withAttachments,
 } from '../types/chat.js';
 import type { PersonaRunErrorEvent } from '../types/aguiEvents.js';
 import { parseAguiEventStream } from './sse.js';
@@ -55,6 +56,7 @@ export class ChatClient {
       hasContextOverride: !!options.contextOverride,
       hasContext: !!options.context,
       toolCount: options.tools?.length ?? 0,
+      attachmentCount: options.attachments?.length ?? 0,
       messageCount: options.messages?.length ?? 0,
     });
     this.logger.trace('chat stream request', {
@@ -75,7 +77,7 @@ export class ChatClient {
       response = await this.http.request<Response>('POST', '/api/v1/developer/agui', {
         headers,
         body: {
-          messages: options.messages,
+          messages: withAttachments(options.messages, options.attachments),
           resume: options.resume,
           contextOverride: options.contextOverride,
           context: options.context,

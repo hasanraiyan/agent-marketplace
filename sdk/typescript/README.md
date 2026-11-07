@@ -84,6 +84,28 @@ if (result.interrupt) {
 }
 ```
 
+### Sending images
+
+Turn on the Agent's `imageInputEnabled` (and give it a vision-capable model), upload the image as
+the end user, then pass its id in `attachments`:
+
+```ts
+const file = await userClient.files.upload({
+  filename: 'receipt.jpg',
+  content: buffer,
+  contentType: 'image/jpeg',
+});
+const result = await userClient.chat.sendMessage(agent._id, {
+  messages: [{ role: 'user', content: 'How much did I spend?' }],
+  attachments: [{ fileId: file.id }],
+});
+```
+
+PNG, JPEG, WebP or GIF, up to 5 MB each and 4 per message (`IMAGE_ATTACHMENT_LIMITS`). The
+agent can also reopen every image from the thread in its read-only `/uploads/` folder. A bad image
+fails the run with `RUN_ERROR` code `INVALID_ATTACHMENT`; a model that can't read images,
+`MODEL_NO_VISION`.
+
 ## Resources
 
 | Client property | Wraps |

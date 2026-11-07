@@ -3,6 +3,25 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.19.0
+
+- **Images on user messages.** `chat.stream()` / `chat.sendMessage()` take
+  `attachments: [{ fileId }]` — ids of images uploaded with `files.upload()` — which are added
+  as image parts to the last user message. `ChatMessageInput.content` may also be an array of
+  parts directly: `{ type: "text", text }`, `{ type: "image", fileId }`, or AG-UI
+  `{ type: "image", source: { type: "data", value, mimeType } }`.
+  - Requires the Agent's new `imageInputEnabled` setting (`Agent`, `CreateAgentInput`,
+    `UpdateAgentInput`; default `false`) and a vision-capable model. While off, images are
+    dropped and the model is told one was attached.
+  - Limits in `IMAGE_ATTACHMENT_LIMITS`: PNG/JPEG/WebP/GIF (checked from the bytes), 5 MB each,
+    4 per message. Errors arrive as `RUN_ERROR` with code `INVALID_ATTACHMENT` or
+    `MODEL_NO_VISION`.
+  - New: `withAttachments()` helper; types `ChatContentPart`, `ChatTextPart`, `ChatImagePart`,
+    `ChatAttachmentInput`, `ChatAttachment` (the `attachments` entries on user messages in
+    `threads.messages()`), `ImageAttachmentMimeType`.
+  - No change for existing text-only callers. Requires a Persona backend with image input
+    (AG-UI schema 1.3.0).
+
 ## 0.18.0
 
 - **Frontend tools in `chat.stream()` / `chat.sendMessage()`.** Pass `tools` (AG-UI

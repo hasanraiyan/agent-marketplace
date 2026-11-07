@@ -149,10 +149,16 @@ export type {
 } from './types/message.js';
 export { ChatClient } from './chat/chat-client.js';
 export { ArchitectClient, type ArchitectMessageOptions } from './chat/architect-client.js';
-export { EventType } from './types/chat.js';
+export { EventType, IMAGE_ATTACHMENT_LIMITS, withAttachments } from './types/chat.js';
 export type {
   AguiEvent,
   ChatMessageInput,
+  ChatContentPart,
+  ChatTextPart,
+  ChatImagePart,
+  ChatAttachmentInput,
+  ChatAttachment,
+  ImageAttachmentMimeType,
   ChatResume,
   SendMessageOptions,
   ChatInterrupt,

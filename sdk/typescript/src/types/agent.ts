@@ -49,6 +49,8 @@ export interface Agent {
   sandboxEnabled: boolean;
   /** Accept tools supplied by the embedding client app that run in the end user's browser (`@personaai/react`'s `useFrontendTool` & co.). While `false`, client-supplied tools are ignored. */
   frontendToolsEnabled: boolean;
+  /** Accept images on end users' messages (needs a vision-capable model). While `false`, attached images are dropped. */
+  imageInputEnabled: boolean;
   visibility: AgentVisibility;
   category: AgentCategory;
   /** Bare id strings on `create`/`update`/`list`; populated objects on `get()`. */
@@ -89,6 +91,8 @@ export interface CreateAgentInput {
   sandboxEnabled?: boolean;
   /** @default false */
   frontendToolsEnabled?: boolean;
+  /** @default false */
+  imageInputEnabled?: boolean;
   /** @default 'private' */
   visibility?: AgentVisibility;
   /** @default 'other' */
@@ -123,6 +127,7 @@ export interface UpdateAgentInput {
   webSearchEnabled?: boolean;
   sandboxEnabled?: boolean;
   frontendToolsEnabled?: boolean;
+  imageInputEnabled?: boolean;
   /** Replaces the entire array — this is not a merge/append. */
   skills?: string[];
   /** Replaces the entire array — this is not a merge/append. */

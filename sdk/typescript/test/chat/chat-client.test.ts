@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { PersonaClient } from '../../src/client.js';
-import { EventType } from '../../src/types/chat.js';
+import { EventType, withAttachments } from '../../src/types/chat.js';
 
 function sseResponse(events: unknown[], status = 200) {
   const encoder = new TextEncoder();
@@ -147,6 +147,56 @@ describe('ChatClient', () => {
     await client.chat.sendMessage('agent-1', { messages: [{ role: 'user', content: 'hi' }] });
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect('tools' in body).toBe(false);
+  });
+
+  it('stream() adds `attachments` as image parts on the last user message', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      sseResponse([{ type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r1' }])
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+    const messages = [
+      { role: 'user' as const, content: 'first' },
+      { role: 'assistant' as const, content: 'ok' },
+      { role: 'user' as const, content: 'what is in these?' },
+    ];
+    await client.chat.sendMessage('agent-1', {
+      messages,
+      attachments: [{ fileId: 'f1' }, { fileId: 'f2' }],
+    });
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.messages).toEqual([
+      { role: 'user', content: 'first' },
+      { role: 'assistant', content: 'ok' },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: 'what is in these?' },
+          { type: 'image', fileId: 'f1' },
+          { type: 'image', fileId: 'f2' },
+        ],
+      },
+    ]);
+    expect('attachments' in body).toBe(false);
+    // The caller's array is not mutated.
+    expect(messages[2]!.content).toBe('what is in these?');
+  });
+
+  it('withAttachments(): image-only message, existing parts, and no user message', () => {
+    expect(withAttachments([{ role: 'user', content: '' }], [{ fileId: 'f1' }])).toEqual([
+      { role: 'user', content: [{ type: 'image', fileId: 'f1' }] },
+    ]);
+    expect(
+      withAttachments(
+        [{ role: 'user', content: [{ type: 'text', text: 'hi' }] }],
+        [{ fileId: 'f1' }]
+      )[0]!.content
+    ).toEqual([
+      { type: 'text', text: 'hi' },
+      { type: 'image', fileId: 'f1' },
+    ]);
+    const unchanged = [{ role: 'user' as const, content: 'hi' }];
+    expect(withAttachments(unchanged, [])).toBe(unchanged);
+    expect(() => withAttachments([], [{ fileId: 'f1' }])).toThrow(/user message/);
   });
 
   it('sendMessage() surfaces a frontend_tool_request CUSTOM event as a ChatInterrupt', async () => {

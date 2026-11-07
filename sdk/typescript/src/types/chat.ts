@@ -8,8 +8,83 @@ export { EventType };
 
 export interface ChatMessageInput {
   role: 'user' | 'assistant';
-  /** Plain text — this SDK doesn't yet support multi-part/multimodal content on the way in. */
-  content: string;
+  /**
+   * Plain text, or (user messages) text plus images — see {@link ChatContentPart}.
+   * Usually simpler: keep this a string and pass {@link SendMessageOptions.attachments}.
+   */
+  content: string | ChatContentPart[];
+}
+
+/**
+ * Image input limits enforced by the server (the Agent needs
+ * `imageInputEnabled`). The type is checked from the file's bytes, not its
+ * name or declared MIME type. Exported so clients can validate before upload.
+ */
+export const IMAGE_ATTACHMENT_LIMITS = Object.freeze({
+  maxImagesPerMessage: 4,
+  maxImageBytes: 5 * 1024 * 1024,
+  mimeTypes: Object.freeze(['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const),
+});
+
+export type ImageAttachmentMimeType = (typeof IMAGE_ATTACHMENT_LIMITS.mimeTypes)[number];
+
+/** A text part of a user message. */
+export interface ChatTextPart {
+  type: 'text';
+  text: string;
+}
+
+/**
+ * An image part of a user message: a file uploaded with `files.upload()`
+ * (`fileId`), or AG-UI inline data. `source.type: 'url'` is only accepted
+ * for hosts the server allowlists (`IMAGE_INPUT_URL_HOSTS`).
+ */
+export type ChatImagePart =
+  | { type: 'image'; fileId: string }
+  | {
+      type: 'image';
+      source:
+        | { type: 'data'; value: string; mimeType: string }
+        | { type: 'url'; value: string; mimeType?: string };
+    };
+
+export type ChatContentPart = ChatTextPart | ChatImagePart;
+
+/** An image to attach to the turn's user message — the id of a file from `files.upload()`. */
+export interface ChatAttachmentInput {
+  fileId: string;
+}
+
+/** An image attached to a user message, as returned in Thread history (`threads.messages()`). */
+export interface ChatAttachment {
+  fileId: string;
+  mimeType: string;
+  name?: string;
+}
+
+/**
+ * Adds `attachments` as image parts to the last user message of `messages`
+ * (returns a new array; the inputs are not changed). With no attachments
+ * the array is returned as-is.
+ */
+export function withAttachments(
+  messages: ChatMessageInput[],
+  attachments: ChatAttachmentInput[] | undefined
+): ChatMessageInput[] {
+  if (!attachments?.length) return messages;
+  const index = messages.map((m) => m.role).lastIndexOf('user');
+  if (index === -1) throw new Error('attachments need a user message to attach to');
+  const target = messages[index]!;
+  const parts: ChatContentPart[] =
+    typeof target.content === 'string'
+      ? target.content
+        ? [{ type: 'text', text: target.content }]
+        : []
+      : [...target.content];
+  for (const attachment of attachments) parts.push({ type: 'image', fileId: attachment.fileId });
+  const next = [...messages];
+  next[index] = { ...target, content: parts };
+  return next;
 }
 
 /**
@@ -94,6 +169,15 @@ export interface SendMessageOptions {
    * Ignored unless the Agent has `frontendToolsEnabled`.
    */
   tools?: FrontendToolDefinition[];
+  /**
+   * Images for this turn, added to the last user message — upload each one
+   * with `files.upload()` first and pass its id. Needs the Agent's
+   * `imageInputEnabled` (otherwise the images are dropped and the model is
+   * told one was attached). Limits: {@link IMAGE_ATTACHMENT_LIMITS}. An
+   * invalid image fails the run with a `RUN_ERROR` of code
+   * `INVALID_ATTACHMENT`; a model that can't read images, `MODEL_NO_VISION`.
+   */
+  attachments?: ChatAttachmentInput[];
   signal?: AbortSignal;
 }
 
