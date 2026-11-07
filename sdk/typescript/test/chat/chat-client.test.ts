@@ -115,6 +115,52 @@ describe('ChatClient', () => {
     });
   });
 
+  it('stream() sends `tools` and a toolResults resume in the request body', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      sseResponse([{ type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r1' }])
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+    const tools = [
+      {
+        name: 'open_page',
+        description: 'Open a page.',
+        parameters: { type: 'object', properties: { path: { type: 'string' } } },
+      },
+    ];
+
+    await client.chat.sendMessage('agent-1', {
+      messages: [],
+      tools,
+      resume: { toolResults: [{ toolCallId: 'call_1', result: { ok: true } }] },
+    });
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.tools).toEqual(tools);
+    expect(body.resume).toEqual({ toolResults: [{ toolCallId: 'call_1', result: { ok: true } }] });
+  });
+
+  it('stream() omits `tools` from the body when none are given', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      sseResponse([{ type: EventType.RUN_FINISHED, threadId: 't1', runId: 'r1' }])
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+    await client.chat.sendMessage('agent-1', { messages: [{ role: 'user', content: 'hi' }] });
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect('tools' in body).toBe(false);
+  });
+
+  it('sendMessage() surfaces a frontend_tool_request CUSTOM event as a ChatInterrupt', async () => {
+    const value = { calls: [{ toolCallId: 'call_1', name: 'open_page', args: { path: '/x' } }] };
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) =>
+      sseResponse([{ type: EventType.CUSTOM, name: 'frontend_tool_request', value }])
+    );
+    const client = makeClient(fetchMock as unknown as typeof fetch);
+    const result = await client.chat.sendMessage('agent-1', {
+      messages: [{ role: 'user', content: 'open x' }],
+    });
+    expect(result.interrupt).toEqual({ kind: 'frontend_tool', value });
+  });
+
   it('sendMessage() surfaces a clarification_request CUSTOM event as a ChatInterrupt', async () => {
     const events = [
       {

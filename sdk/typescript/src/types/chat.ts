@@ -18,7 +18,44 @@ export interface ChatMessageInput {
  * interrupt kind — see `ChatInterrupt`.
  */
 export type ChatResume =
-  { decisions: unknown[] } | { answers: unknown[]; text?: string } | Record<string, unknown>;
+  | { decisions: unknown[] }
+  | { answers: unknown[]; text?: string }
+  | { toolResults: FrontendToolResult[] }
+  | Record<string, unknown>;
+
+/**
+ * A tool your client app runs itself (e.g. in the end user's browser) that
+ * the Agent may call — the AG-UI `RunAgentInput.tools` shape. Only used when
+ * the Agent has `frontendToolsEnabled`; otherwise ignored. Names must match
+ * `^[a-zA-Z0-9_-]{1,64}$` and must not clash with the Agent's own tools (a
+ * clashing tool is dropped). At most 20 per run; `parameters` ≤ 8 KB.
+ */
+export interface FrontendToolDefinition {
+  name: string;
+  /** What the tool does and when to use it — the model reads this. */
+  description?: string;
+  /** JSON Schema of the arguments (`type: "object"`). Defaults to no arguments. */
+  parameters?: Record<string, unknown>;
+}
+
+/**
+ * Your answer for one paused frontend tool call — resume the Thread with
+ * `resume: { toolResults: [...] }`. Set `error` to report a failure (or the
+ * user declining); otherwise `result` (any JSON value) is returned to the model.
+ */
+export interface FrontendToolResult {
+  /** The `toolCallId` from the `frontend_tool_request` event. */
+  toolCallId: string;
+  result?: unknown;
+  error?: string;
+}
+
+/** One call in a `frontend_tool_request` CUSTOM event / `frontend_tool` interrupt. */
+export interface FrontendToolCall {
+  toolCallId: string | null;
+  name: string;
+  args: Record<string, unknown>;
+}
 
 export interface SendMessageOptions {
   messages: ChatMessageInput[];
@@ -49,6 +86,14 @@ export interface SendMessageOptions {
    * call does not carry forward a value from an earlier one.
    */
   context?: Record<string, unknown>;
+  /**
+   * Tools your app runs itself that the Agent may call this turn (see
+   * {@link FrontendToolDefinition}). When the model calls one, the run
+   * pauses with a `frontend_tool` interrupt; run the tool, then resume with
+   * `resume: { toolResults: [...] }` — send `tools` again on that resume.
+   * Ignored unless the Agent has `frontendToolsEnabled`.
+   */
+  tools?: FrontendToolDefinition[];
   signal?: AbortSignal;
 }
 
@@ -61,8 +106,11 @@ export interface SendMessageOptions {
  * shape applies).
  */
 export interface ChatInterrupt {
-  /** `hitl` → resume with `{ decisions: [...] }`. `clarification` → resume with `{ answers: [...], text? }`. */
-  kind: 'hitl' | 'clarification';
+  /**
+   * `hitl` → resume with `{ decisions: [...] }`. `clarification` → resume with `{ answers: [...], text? }`.
+   * `frontend_tool` → `value` is `{ calls: FrontendToolCall[] }`; resume with `{ toolResults: [...] }`.
+   */
+  kind: 'hitl' | 'clarification' | 'frontend_tool';
   value: unknown;
 }
 

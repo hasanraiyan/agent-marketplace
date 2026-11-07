@@ -157,6 +157,9 @@ export type {
   SendMessageOptions,
   ChatInterrupt,
   ChatResult,
+  FrontendToolDefinition,
+  FrontendToolResult,
+  FrontendToolCall,
 } from './types/chat.js';
 export {
   AGUI_SCHEMA_VERSION,

@@ -54,6 +54,7 @@ export class ChatClient {
       hasResume: !!options.resume,
       hasContextOverride: !!options.contextOverride,
       hasContext: !!options.context,
+      toolCount: options.tools?.length ?? 0,
       messageCount: options.messages?.length ?? 0,
     });
     this.logger.trace('chat stream request', {
@@ -78,6 +79,7 @@ export class ChatClient {
           resume: options.resume,
           contextOverride: options.contextOverride,
           context: options.context,
+          ...(options.tools?.length ? { tools: options.tools } : {}),
         },
         signal: options.signal,
       });
@@ -160,6 +162,9 @@ export class ChatClient {
         } else if (event.name === 'clarification_request') {
           interrupt = { kind: 'clarification', value: event.value };
           this.logger.info('chat interrupt — clarification_request', { agentId });
+        } else if (event.name === 'frontend_tool_request') {
+          interrupt = { kind: 'frontend_tool', value: event.value };
+          this.logger.info('chat interrupt — frontend_tool_request', { agentId });
         }
       } else if (event.type === EventType.RUN_ERROR) {
         // The base @ag-ui/core RunErrorEvent type only guarantees

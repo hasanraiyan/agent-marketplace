@@ -3,6 +3,22 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.18.0
+
+- **Frontend tools in `chat.stream()` / `chat.sendMessage()`.** Pass `tools` (AG-UI
+  `RunAgentInput.tools` shape: `{ name, description?, parameters? }`) for tools your app runs
+  itself. When the model calls one, the run pauses: `sendMessage()` returns
+  `interrupt: { kind: "frontend_tool", value: { calls: [{ toolCallId, name, args }] } }` (the raw
+  stream carries a `frontend_tool_request` CUSTOM event). Run the tools, then resume with
+  `resume: { toolResults: [{ toolCallId, result?, error? }] }` — and send the same `tools` again.
+  - Requires the Agent's `frontendToolsEnabled` (0.17.0); otherwise `tools` is ignored.
+  - Every pending call is always answered: a call you don't answer (or a plain new message sent
+    instead) is returned to the model as an error, so a paused thread can never get stuck.
+  - `tools` is omitted from the request body when empty — no change for existing callers.
+  - New types: `FrontendToolDefinition`, `FrontendToolResult`, `FrontendToolCall`;
+    `ChatInterrupt.kind` gains `"frontend_tool"`; `ChatResume` gains `{ toolResults }`.
+  - Requires a Persona backend with frontend tools (AG-UI schema 1.2.0).
+
 ## 0.17.0
 
 - **`frontendToolsEnabled` agent setting.** New per-Agent opt-in for frontend tools — tools the
