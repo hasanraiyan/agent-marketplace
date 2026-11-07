@@ -19,6 +19,16 @@ introduction — versions before 0.2.0 aren't backfilled.
   - New types: `PersonaAttachment`, `PersonaMessageAttachment`; `SendMessageOverride.attachments`.
   - Requires `@personaai/runtime` ≥ 0.20.0 (forwards `attachments`) and a Persona backend with
     image input.
+- **Frontend tools in voice calls (`useVoice`).** Tools registered with `useFrontendTool`,
+  `useHumanInTheLoop` and `useComponent` are now also offered to the agent during a voice call
+  (sent with the session), when the Agent has `frontendToolsEnabled`.
+  - A `useFrontendTool` handler runs and its result (or thrown error) goes back to the model; a
+    `useComponent` tool is reported as displayed; a `useHumanInTheLoop` tool waits for its
+    `respond()`. An unregistered tool name is answered with an error so the call never hangs.
+  - Each call shows in the voice tool-call list (running → done/error); a call the model
+    abandons is marked cancelled.
+  - Requires `@personaai/runtime` ≥ 0.21.0 (forwards voice `tools`) and a Persona backend with
+    voice frontend tools.
 
 ## 0.21.0
 
