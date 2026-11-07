@@ -14,7 +14,11 @@ import { GoogleGenAI } from '@google/genai';
  * @returns {Promise<import('@google/genai').Session>}
  */
 export async function connectGeminiLive({ apiKey, model, config, callbacks }) {
-  const ai = new GoogleGenAI({ apiKey });
+  // The Live endpoint answers 404 on the SDK's default v1beta path for every
+  // Live model (seen with @google/genai 3.0.0 and the newer `AQ.` keys);
+  // v1alpha works. Overridable without a deploy via GEMINI_LIVE_API_VERSION.
+  const apiVersion = process.env.GEMINI_LIVE_API_VERSION || 'v1alpha';
+  const ai = new GoogleGenAI({ apiKey, httpOptions: { apiVersion } });
   return ai.live.connect({ model, config, callbacks });
 }
 
