@@ -3,6 +3,20 @@
 All notable changes to `@personaai/sdk` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.17.0
+
+- **`frontendToolsEnabled` agent setting.** New per-Agent opt-in for frontend tools — tools the
+  embedding client app registers (via `@personaai/react`) that run in the end user's browser.
+  Defaults to `false`; while off, client-supplied tools are ignored at run time.
+  - `Agent` gains `frontendToolsEnabled: boolean`.
+  - `CreateAgentInput` and `UpdateAgentInput` accept optional `frontendToolsEnabled`, so
+    `agents.create({ ..., frontendToolsEnabled: true })` / `agents.update(id, { frontendToolsEnabled: true })`
+    turn it on.
+  - A thread's populated `agentId` now includes `frontendToolsEnabled` (optional — absent when the
+    backend predates this field).
+  - Requires a Persona backend that knows the field; older backends drop it silently.
+  - Additive only — no breaking changes.
+
 ## 0.16.0
 
 - **Telephony sessions & reply-only messaging (`voice.createTelephonySession`, `messages.generateReply`).**
