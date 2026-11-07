@@ -20,6 +20,11 @@ import {
   isToolPause,
   translateLangGraphStream,
 } from '../src/modules/agui/aguiTranslator.js';
+import { createAgent } from 'langchain';
+import { AIMessageChunk, HumanMessage } from '@langchain/core/messages';
+import { ChatGenerationChunk } from '@langchain/core/outputs';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import { createToolErrorFeedbackMiddleware } from '../src/modules/agents/toolErrorFeedback.middleware.js';
 
 function fakeStream(events, failWith) {
   return (async function* () {
@@ -325,6 +330,24 @@ describe('translateLangGraphStream — frontend tool pause', () => {
     expect(isToolPause(undefined)).toBe(false);
   });
 
+  test('isToolPause recognizes the STRING form streamEvents v2 actually delivers', () => {
+    // on_tool_error's data.error is a string: the interrupt list JSON, then
+    // the message again and the stack frames (captured from a real run).
+    const list = JSON.stringify(
+      [{ id: ID_A, value: { kind: 'frontend_tool', name: 'x' } }],
+      null,
+      2
+    );
+    const real = `${list}\n${list}\n    at interrupt (file:///node_modules/@langchain/langgraph/dist/interrupt.js:70:8)\n    at func (frontendTool.tool.js:150:24)`;
+    expect(isToolPause(real)).toBe(true);
+    expect(isToolPause(`GraphInterrupt: ${list}`)).toBe(true);
+    // Look-alikes that are NOT pauses stay errors.
+    expect(isToolPause('Error: connection interrupted\n    at fetch (x.js:1:1)')).toBe(false);
+    expect(isToolPause('[1, 2, 3]')).toBe(false);
+    expect(isToolPause('[]')).toBe(false);
+    expect(isToolPause('Validation failed: [{"value": 1}]')).toBe(false);
+  });
+
   test('emits frontend_tool_request, no error result for the paused call, no text notice', async () => {
     const events = [
       { event: 'on_tool_start', run_id: 'r1', name: 'open_page', data: { input: { path: '/x' } } },
@@ -378,5 +401,117 @@ describe('translateLangGraphStream — frontend tool pause', () => {
     const result = out.find((e) => e.type === 'TOOL_CALL_RESULT');
     expect(result).toBeDefined();
     expect(JSON.parse(result.content).status).toBe('error');
+  });
+});
+
+describe('frontend tools through a real langchain agent (createAgent)', () => {
+  // Regression: the paused stub surfaced as a TOOL_CALL_RESULT error (its
+  // on_tool_error payload is a string, which isToolPause didn't recognize),
+  // so the browser's card flipped to "complete" — a confirm card showed
+  // "Declined" before the user clicked anything.
+  function scriptedModel(script) {
+    let turn = 0;
+    class ScriptedModel extends BaseChatModel {
+      _llmType() {
+        return 'scripted';
+      }
+      bindTools() {
+        return this;
+      }
+      async _generate() {
+        throw new Error('stream only');
+      }
+      async *_streamResponseChunks() {
+        const step = script[turn++] ?? { text: '(done)' };
+        const message = step.call
+          ? new AIMessageChunk({
+              content: '',
+              tool_call_chunks: [
+                {
+                  id: step.call.id,
+                  name: step.call.name,
+                  args: JSON.stringify(step.call.args),
+                  index: 0,
+                  type: 'tool_call_chunk',
+                },
+              ],
+            })
+          : new AIMessageChunk({ content: step.text });
+        yield new ChatGenerationChunk({ text: step.text ?? '', message });
+      }
+    }
+    return new ScriptedModel({});
+  }
+
+  test('pause shows no result; "ask again" then Confirm reaches the model correctly', async () => {
+    const agent = createAgent({
+      model: scriptedModel([
+        { call: { id: 'call_A', name: 'confirm_action', args: { title: 'Start?' } } },
+        { call: { id: 'call_B', name: 'confirm_action', args: { title: 'Start? (again)' } } },
+        { text: 'Starting.' },
+      ]),
+      tools: [
+        createFrontendTool({
+          name: 'confirm_action',
+          description: 'Confirm.',
+          parameters: { type: 'object', properties: { title: { type: 'string' } } },
+        }),
+      ],
+      checkpointer: new MemorySaver(),
+      middleware: [createToolErrorFeedbackMiddleware()],
+    });
+    const thread = { configurable: { thread_id: 'real-agent' } };
+    const turn = (input, opts) =>
+      collect(
+        translateLangGraphStream(agent.streamEvents(input, { ...thread, version: 'v2' }), opts)
+      );
+    const pending = async () => {
+      const s = await agent.getState(thread);
+      return describeInterrupt((s.tasks || []).flatMap((t) => t.interrupts || []));
+    };
+    const requestOf = (out) =>
+      out.find((e) => e.type === 'CUSTOM' && e.name === 'frontend_tool_request');
+
+    // 1. The model calls the frontend tool: a card + a request, but NO result.
+    const run1 = await turn({ messages: [new HumanMessage('start a mock test')] });
+    expect(run1.some((e) => e.type === 'TOOL_CALL_RESULT')).toBe(false);
+    expect(requestOf(run1).value.calls.map((c) => c.toolCallId)).toEqual(['call_A']);
+
+    // 2. The user types instead of clicking: call_A is answered as not
+    //    completed, the model asks again — again with no stray result.
+    let p = await pending();
+    const run2 = await turn(new Command({ resume: buildResumeValue(p, undefined, 'ask again') }), {
+      replayedToolCalls: p.calls.map((c) => c.name),
+    });
+    expect(run2.some((e) => e.type === 'TOOL_CALL_RESULT')).toBe(false);
+    expect(requestOf(run2).value.calls.map((c) => c.toolCallId)).toEqual(['call_B']);
+
+    // 3. The user clicks Confirm.
+    p = await pending();
+    const run3 = await turn(
+      new Command({
+        resume: buildResumeValue(p, {
+          toolResults: [{ toolCallId: 'call_B', result: { confirmed: true } }],
+        }),
+      }),
+      { replayedToolCalls: p.calls.map((c) => c.name) }
+    );
+    expect(requestOf(run3)).toBeUndefined();
+    expect(run3.some((e) => e.type === 'TOOL_CALL_CHUNK' || e.type === 'TOOL_CALL_RESULT')).toBe(
+      false
+    ); // the replayed stub stays hidden
+
+    const state = await agent.getState(thread);
+    expect((state.tasks || []).flatMap((t) => t.interrupts || [])).toEqual([]);
+    const toolMessages = state.values.messages
+      .filter((m) => m.getType() === 'tool')
+      .map((m) => [m.tool_call_id, String(m.content)]);
+    expect(toolMessages).toEqual([
+      [
+        'call_A',
+        '{"status":"error","message":"The user did not complete this action and instead said: ask again"}',
+      ],
+      ['call_B', '{"confirmed":true}'],
+    ]);
   });
 });

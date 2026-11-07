@@ -464,13 +464,72 @@ function buildFrontendToolCustomEvent(interruptInfo) {
   };
 }
 
-// A tool that paused the graph (interrupt()) surfaces as on_tool_error with a
-// GraphInterrupt — that's a pause, not a failure, and must not be reported
-// to the client as an error result. Stricter than isInterruptError (no
-// message-text matching), so a real tool error mentioning "interrupt" still
-// shows as an error.
+// The first complete top-level JSON array in `text` (string-aware bracket
+// matching), or null. Everything after it is ignored.
+function leadingJsonArray(text) {
+  const start = text.indexOf('[');
+  if (start === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+    } else if (ch === '"') inString = true;
+    else if (ch === '[' || ch === '{') depth++;
+    else if (ch === ']' || ch === '}') {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+// A GraphInterrupt's message is its interrupt list serialized as JSON:
+// `[{ "id": "<32 hex>", "value": {...} }, ...]`. streamEvents hands it over
+// as a string that also carries more text after the list (the message again
+// plus the stack's `at …` frames), so only the leading JSON array is read —
+// and only if nothing but an optional "GraphInterrupt:" prefix precedes it.
+function isSerializedInterruptList(text) {
+  const prefixEnd = text.indexOf('[');
+  if (prefixEnd === -1 || !/^\s*(?:GraphInterrupt:?\s*)?$/.test(text.slice(0, prefixEnd))) {
+    return false;
+  }
+  const json = leadingJsonArray(text);
+  if (!json) return false;
+  try {
+    const list = JSON.parse(json);
+    return (
+      Array.isArray(list) &&
+      list.length > 0 &&
+      list.every(
+        (i) =>
+          i &&
+          typeof i === 'object' &&
+          'value' in i &&
+          (i.id === undefined || typeof i.id === 'string')
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
+// A tool that paused the graph (interrupt()) surfaces as on_tool_error —
+// that's a pause, not a failure, and must not be reported to the client as an
+// error result (a frontend tool's card would otherwise flip to "complete"
+// before the user did anything). streamEvents v2 delivers on_tool_error's
+// `data.error` as a plain STRING (the error's message, which for a
+// GraphInterrupt is the JSON interrupt list), not the Error object — so both
+// forms are recognized. Stricter than isInterruptError (no keyword
+// matching), so a real tool error mentioning "interrupt" still shows.
 export function isToolPause(err) {
-  return err?.name === 'GraphInterrupt' || extractGraphInterrupts(err) != null;
+  if (err == null) return false;
+  if (typeof err === 'string') return isSerializedInterruptList(err);
+  return err.name === 'GraphInterrupt' || extractGraphInterrupts(err) != null;
 }
 
 function buildClarificationCustomEvent(interruptInfo) {
