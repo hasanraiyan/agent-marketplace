@@ -85,6 +85,7 @@ export class VoiceSession {
     voiceName,
     liveConfig,
     toolsByName,
+    frontendToolNames,
     onTranscriptCommit,
     initialContext,
   }) {
@@ -95,6 +96,8 @@ export class VoiceSession {
     this.voiceName = voiceName;
     this.liveConfig = liveConfig;
     this.toolsByName = toolsByName || new Map();
+    this.frontendToolNames = frontendToolNames || new Set();
+    this.pendingFrontendToolCalls = new Map();
     // TURN_CONTEXT_RCP_RESOLVERS_PLAN.md's voice extension — read live by any
     // RCP tool's resolver via `configurable.turnContext` at actual invocation
     // time (see _invokeToolCallWithTimeout), never closed over. Seeded once
@@ -534,6 +537,10 @@ export class VoiceSession {
       return { id: fc.id, name: fc.name, cancelled: entry.cancelled, response: { output: 'ok' } };
     }
 
+    if (this.frontendToolNames && this.frontendToolNames.has(fc.name)) {
+      return await this._executeFrontendToolCall(fc, entry, controller);
+    }
+
     const tool = this.toolsByName.get(fc.name);
     let timeoutHandle;
     try {
@@ -569,7 +576,8 @@ export class VoiceSession {
       logger.info('[Voice] ✅ Tool execution succeeded', {
         toolName: fc.name,
         toolCallId: fc.id,
-        resultPreview: typeof result === 'string' ? result.slice(0, 150) : JSON.stringify(result)?.slice(0, 150),
+        resultPreview:
+          typeof result === 'string' ? result.slice(0, 150) : JSON.stringify(result)?.slice(0, 150),
       });
 
       const safeOutput = result !== undefined ? result : { status: 'ok' };
@@ -597,12 +605,71 @@ export class VoiceSession {
     }
   }
 
+  async _executeFrontendToolCall(fc, entry, controller) {
+    logger.info('[Voice] 🌐 Delegating frontend tool call to client', {
+      toolName: fc.name,
+      toolCallId: fc.id,
+      args: fc.args,
+    });
+
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.pendingFrontendToolCalls.delete(fc.id);
+        logger.warn('[Voice] frontend tool call timed out', {
+          toolCallName: fc.name,
+          toolCallId: fc.id,
+        });
+        resolve({
+          id: fc.id,
+          name: fc.name,
+          cancelled: entry.cancelled,
+          response: {
+            error: `Frontend tool "${fc.name}" timed out after ${TOOL_CALL_TIMEOUT_MS}ms`,
+          },
+        });
+      }, TOOL_CALL_TIMEOUT_MS);
+      if (timer?.unref) timer.unref();
+
+      this.pendingFrontendToolCalls.set(fc.id, {
+        resolve,
+        timer,
+        name: fc.name,
+        entry,
+        controller,
+      });
+
+      this._sendRaw({
+        type: 'voice_frontend_tool_call',
+        id: fc.id,
+        callId: fc.id,
+        name: fc.name,
+        args: fc.args ?? {},
+      });
+    });
+  }
+
   _handleToolCallCancellation(cancellation) {
     for (const id of cancellation.ids || []) {
       const pending = this.pendingToolCalls.get(id);
       if (pending) {
         pending.cancelled = true;
         pending.controller.abort();
+      }
+      const pendingFrontend = this.pendingFrontendToolCalls.get(id);
+      if (pendingFrontend) {
+        clearTimeout(pendingFrontend.timer);
+        this.pendingFrontendToolCalls.delete(id);
+        pendingFrontend.resolve({
+          id,
+          name: pendingFrontend.name,
+          cancelled: true,
+          response: { error: 'Tool call cancelled by model' },
+        });
+        this._sendRaw({
+          type: 'voice_frontend_tool_cancelled',
+          id,
+          callId: id,
+        });
       }
     }
   }
@@ -752,6 +819,46 @@ export class VoiceSession {
         // this route doesn't read yet.
         logger.debug('[Voice] voice.interrupt is a no-op under automatic VAD');
         break;
+      case 'voice.tool_result':
+      case 'voice_frontend_tool_result': {
+        const targetId = msg.callId || msg.id;
+        const pending = this.pendingFrontendToolCalls.get(targetId);
+        if (pending) {
+          clearTimeout(pending.timer);
+          this.pendingFrontendToolCalls.delete(targetId);
+          logger.info('[Voice] 📥 Received frontend tool result from client', {
+            toolName: pending.name,
+            toolCallId: targetId,
+            hasError: Boolean(msg.error),
+          });
+          if (msg.error) {
+            pending.resolve({
+              id: targetId,
+              name: pending.name,
+              cancelled: pending.entry?.cancelled,
+              response: {
+                error: typeof msg.error === 'string' ? msg.error : JSON.stringify(msg.error),
+              },
+            });
+          } else {
+            const safeOutput = msg.result !== undefined ? msg.result : { status: 'ok' };
+            pending.resolve({
+              id: targetId,
+              name: pending.name,
+              cancelled: pending.entry?.cancelled,
+              response: { output: safeOutput },
+            });
+          }
+        } else {
+          logger.warn(
+            '[Voice] received frontend tool result for unknown or already completed call',
+            {
+              toolCallId: targetId,
+            }
+          );
+        }
+        break;
+      }
       default:
         break;
     }
@@ -786,6 +893,22 @@ export class VoiceSession {
       }
     }
     this.pendingToolCalls.clear();
+
+    for (const [id, pending] of this.pendingFrontendToolCalls.entries()) {
+      clearTimeout(pending.timer);
+      try {
+        pending.controller?.abort();
+      } catch {
+        // ignore
+      }
+      pending.resolve({
+        id,
+        name: pending.name,
+        cancelled: true,
+        response: { error: 'Session closed' },
+      });
+    }
+    this.pendingFrontendToolCalls.clear();
 
     // Commit anything the agent said that never reached a turnComplete (call
     // ended mid-utterance) so the thread isn't left missing the last line.

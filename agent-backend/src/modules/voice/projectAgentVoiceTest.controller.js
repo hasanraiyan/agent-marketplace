@@ -7,6 +7,7 @@ import { successFormatter } from '../../utils/formatters/index.js';
 import { mintVoiceTicket } from './voiceTicket.service.js';
 import { resolveVoiceProvider, buildVoiceLiveConfig } from './voice.service.js';
 import { validateTurnContext } from '../agui/turnContext.js';
+import { normalizeFrontendTools } from '../tools/frontendTool.tool.js';
 import Conversation from '../threads/thread.model.js';
 import threadRepository from '../threads/thread.repository.js';
 import {
@@ -44,7 +45,7 @@ class ProjectAgentVoiceTestController {
     const { agentId } = req.params;
 
     try {
-      const { contextOverride, context: turnContext } = req.body || {};
+      const { contextOverride, context: turnContext, tools: clientTools } = req.body || {};
       if (contextOverride !== undefined) {
         if (typeof contextOverride !== 'string') {
           throw new BaseError('contextOverride must be a string', 400, 'INVALID_CONTEXT_OVERRIDE');
@@ -66,6 +67,11 @@ class ProjectAgentVoiceTestController {
         throw new NotFoundError('Agent not found');
       }
 
+      const frontendTools =
+        agent.frontendToolsEnabled && Array.isArray(clientTools)
+          ? normalizeFrontendTools(clientTools).tools
+          : [];
+
       let provider;
       try {
         provider = await resolveVoiceProvider(agent, context.domain);
@@ -79,7 +85,9 @@ class ProjectAgentVoiceTestController {
       let model;
       let voiceName;
       try {
-        ({ model, voiceName } = await buildVoiceLiveConfig(agent, context.domain, context));
+        ({ model, voiceName } = await buildVoiceLiveConfig(agent, context.domain, context, {
+          frontendTools,
+        }));
       } catch (err) {
         if (err.code === 'VOICE_INTERRUPT_ON_UNSUPPORTED') {
           throw new BaseError(err.message, 422, err.code);
@@ -120,6 +128,7 @@ class ProjectAgentVoiceTestController {
         threadId: langGraphThreadId,
         contextOverride,
         context: validatedTurnContext,
+        ...(frontendTools.length ? { frontendTools } : {}),
       });
 
       // req.protocol only reports 'https' when Express's `trust proxy` is

@@ -329,4 +329,73 @@ describe('VoiceSession Unit Tests', () => {
 
     expect(session.closed).toBe(true);
   });
+
+  test('dispatches frontend tool call to client and submits result back to Gemini', async () => {
+    session = new VoiceSession({
+      clientWs,
+      claims,
+      apiKey: 'test-key',
+      model: 'gemini-3.1-flash-live-preview',
+      voiceName: 'Puck',
+      liveConfig: { systemInstruction: 'Test' },
+      toolsByName: new Map(),
+      frontendToolNames: new Set(['changeTheme']),
+    });
+
+    await session.start();
+
+    // Model invokes frontend tool
+    const toolCallPromise = lastSessionCallbacks.onmessage({
+      toolCall: {
+        functionCalls: [
+          {
+            id: 'call_fe_1',
+            name: 'changeTheme',
+            args: { theme: 'dark' },
+          },
+        ],
+      },
+    });
+
+    // Check that clientWs received voice_frontend_tool_call
+    const feMsgRaw = clientWs.sent.find((s) => {
+      try {
+        const p = JSON.parse(s);
+        return p.type === 'voice_frontend_tool_call';
+      } catch {
+        return false;
+      }
+    });
+    expect(feMsgRaw).toBeDefined();
+    const feMsg = JSON.parse(feMsgRaw);
+    expect(feMsg.name).toBe('changeTheme');
+    expect(feMsg.args).toEqual({ theme: 'dark' });
+    expect(feMsg.callId).toBe('call_fe_1');
+
+    // Simulate client sending back voice_frontend_tool_result
+    clientWs.emit(
+      'message',
+      Buffer.from(
+        JSON.stringify({
+          type: 'voice_frontend_tool_result',
+          callId: 'call_fe_1',
+          result: { success: true },
+        })
+      ),
+      false
+    );
+
+    await toolCallPromise;
+
+    // Check that Gemini received sendToolResponse
+    expect(mockGeminiSession.sendToolResponse).toHaveBeenCalledWith({
+      functionResponses: [
+        {
+          id: 'call_fe_1',
+          name: 'changeTheme',
+          response: { output: { success: true } },
+        },
+      ],
+    });
+  });
 });

@@ -10,6 +10,7 @@ import threadService from '../threads/thread.service.js';
 import { mintVoiceTicket } from './voiceTicket.service.js';
 import { resolveVoiceProvider, buildVoiceLiveConfig } from './voice.service.js';
 import { validateTurnContext } from '../agui/turnContext.js';
+import { normalizeFrontendTools } from '../tools/frontendTool.tool.js';
 import {
   INPUT_SAMPLE_RATE,
   OUTPUT_SAMPLE_RATE,
@@ -105,7 +106,7 @@ class DeveloperVoiceController {
         throw new NotFoundError('Agent ID is required');
       }
 
-      const { contextOverride, context: turnContext } = req.body || {};
+      const { contextOverride, context: turnContext, tools: clientTools } = req.body || {};
       if (contextOverride !== undefined) {
         if (typeof contextOverride !== 'string') {
           throw new BaseError('contextOverride must be a string', 400, 'INVALID_CONTEXT_OVERRIDE');
@@ -138,6 +139,11 @@ class DeveloperVoiceController {
       if (!agent || !agentService.canUserExecuteAgent(agent, context)) {
         throw new NotFoundError('Agent not found');
       }
+
+      const frontendTools =
+        agent.frontendToolsEnabled && Array.isArray(clientTools)
+          ? normalizeFrontendTools(clientTools).tools
+          : [];
 
       // Was missing entirely — this route never populated any attached
       // resource before handing `agent` to buildVoiceLiveConfig ->
@@ -180,7 +186,9 @@ class DeveloperVoiceController {
         }
 
         try {
-          ({ model, voiceName } = await buildVoiceLiveConfig(agent, domain, context));
+          ({ model, voiceName } = await buildVoiceLiveConfig(agent, domain, context, {
+            frontendTools,
+          }));
         } catch (err) {
           if (err.code === 'VOICE_INTERRUPT_ON_UNSUPPORTED') {
             throw new BaseError(err.message, 422, err.code);
@@ -252,6 +260,7 @@ class DeveloperVoiceController {
         contextOverride,
         context: ticketContext,
         ...(telephony ? { telephony } : {}),
+        ...(frontendTools.length ? { frontendTools } : {}),
       });
 
       // req.protocol only reports 'https' when Express's `trust proxy` is

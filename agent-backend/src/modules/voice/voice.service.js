@@ -130,7 +130,7 @@ export function assertNoGuardedTools(agent) {
  *   ProjectRuntimeContext once the Phase 2 machine route lands)
  * @returns {Promise<{functionDeclarations: Array, toolsByName: Map<string, *>}>}
  */
-export async function resolveVoiceTools(agent, domain, context) {
+export async function resolveVoiceTools(agent, domain, context, { frontendTools = [] } = {}) {
   const { tools } = await resolveAgentTools(agent, domain, context);
   const executable = tools.filter((tool) => !EXCLUDED_VOICE_TOOL_NAMES.includes(tool.name));
 
@@ -142,8 +142,22 @@ export async function resolveVoiceTools(agent, domain, context) {
   }));
 
   const toolsByName = new Map(executable.map((tool) => [tool.name, tool]));
+  const frontendToolNames = new Set();
 
-  return { functionDeclarations, toolsByName };
+  if (agent?.frontendToolsEnabled && Array.isArray(frontendTools)) {
+    for (const ft of frontendTools) {
+      if (ft?.name && !toolsByName.has(ft.name)) {
+        functionDeclarations.push({
+          name: ft.name,
+          description: ft.description || '',
+          parameters: ft.parameters || { type: 'object', properties: {} },
+        });
+        frontendToolNames.add(ft.name);
+      }
+    }
+  }
+
+  return { functionDeclarations, toolsByName, frontendToolNames };
 }
 
 /**
@@ -159,16 +173,22 @@ export async function resolveVoiceTools(agent, domain, context) {
  * @param {*} agent - populated Agent document
  * @param {string} domain
  * @param {*} context
- * @returns {Promise<{model: string, voiceName: string, liveConfig: object, toolsByName: Map<string, *>}>}
+ * @param {{ frontendTools?: Array }} [options]
+ * @returns {Promise<{model: string, voiceName: string, liveConfig: object, toolsByName: Map<string, *>, frontendToolNames: Set<string>}>}
  */
-export async function buildVoiceLiveConfig(agent, domain, context) {
+export async function buildVoiceLiveConfig(agent, domain, context, { frontendTools = [] } = {}) {
   assertNoGuardedTools(agent);
 
   const model = DEFAULT_VOICE_MODEL;
   const voiceName = DEFAULT_VOICE_NAME;
   const systemInstruction = `${VOICE_MODE_PREAMBLE}\n\n${agent.systemPrompt || ''}`.trim();
 
-  const { functionDeclarations, toolsByName } = await resolveVoiceTools(agent, domain, context);
+  const { functionDeclarations, toolsByName, frontendToolNames } = await resolveVoiceTools(
+    agent,
+    domain,
+    context,
+    { frontendTools }
+  );
   // end_call is always present, regardless of the Agent's own configured
   // tools — every voice call needs a way to hang up. It's handled specially
   // in VoiceSession (never routed through `toolsByName`), so it's appended
@@ -210,7 +230,7 @@ export async function buildVoiceLiveConfig(agent, domain, context) {
     tools: [{ functionDeclarations: allDeclarations }],
   };
 
-  return { model, voiceName, liveConfig, toolsByName };
+  return { model, voiceName, liveConfig, toolsByName, frontendToolNames };
 }
 
 export default {

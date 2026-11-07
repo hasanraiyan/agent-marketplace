@@ -158,11 +158,9 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
   // than trusting a snapshot from up to 60s ago - also the only place the
   // decrypted apiKey exists, and it must never ride inside the ticket
   // itself (the ticket transits the browser as a URL query param).
-  const { model, voiceName, liveConfig, toolsByName } = await buildVoiceLiveConfig(
-    agent,
-    claims.domain,
-    context
-  );
+  const frontendTools = claims.frontendTools || [];
+  const { model, voiceName, liveConfig, toolsByName, frontendToolNames } =
+    await buildVoiceLiveConfig(agent, claims.domain, context, { frontendTools });
 
   // Caller-supplied contextOverride (developerVoice.controller.js), carried
   // in the signed ticket claims since the WS handshake can't take a request
@@ -226,6 +224,7 @@ async function handleVoiceUpgrade(req, socket, head, url, wss) {
       voiceName,
       liveConfig,
       toolsByName,
+      frontendToolNames,
       onTranscriptCommit: transcriptSink ? (role, text) => transcriptSink.commit(role, text) : null,
       // At-connect seed for TURN_CONTEXT_RCP_RESOLVERS_PLAN.md's voice
       // extension — VoiceSession keeps this live-refreshable for the rest
