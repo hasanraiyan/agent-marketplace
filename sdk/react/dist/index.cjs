@@ -22,6 +22,7 @@ var index_exports = {};
 __export(index_exports, {
   ANY_TOOL: () => ANY_TOOL,
   ARCHITECT_AGENT_ID: () => ARCHITECT_AGENT_ID,
+  ATTACHMENT_LIMITS: () => ATTACHMENT_LIMITS,
   PersonaProvider: () => PersonaProvider,
   PersonaToolCallView: () => PersonaToolCallView,
   PersonaToolRegistry: () => PersonaToolRegistry,
@@ -40,6 +41,8 @@ __export(index_exports, {
   supportsStreamingFetch: () => supportsStreamingFetch,
   useAgents: () => useAgents,
   useArchitectChat: () => useArchitectChat,
+  useAttachmentUrl: () => useAttachmentUrl,
+  useAttachments: () => useAttachments,
   useChat: () => useChat,
   useComponent: () => useComponent,
   useConnection: () => useConnection,
@@ -884,6 +887,7 @@ function useChat(options = {}) {
           createdAt: /* @__PURE__ */ new Date(),
           channel: m.channel ?? (m.id?.startsWith("voice-") ? "voice" : "web"),
           ...m.metadata ? { metadata: m.metadata } : {},
+          ...Array.isArray(m.attachments) && m.attachments.length > 0 ? { attachments: m.attachments } : {},
           toolCalls: m.toolCalls?.map((tc) => {
             const trace = subagentTraces[tc.toolCallId];
             return Array.isArray(trace) && trace.length > 0 ? {
@@ -1096,12 +1100,14 @@ function useChat(options = {}) {
         hasResume: !!overrideOptions?.resume,
         hasContextOverride: !!overrideOptions?.contextOverride
       });
+      const attachments = (overrideOptions?.attachments ?? []).filter((a) => !!a?.fileId);
       const userMessage = {
         id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         role: "user",
         content: prompt,
         createdAt: /* @__PURE__ */ new Date(),
-        channel: "web"
+        channel: "web",
+        ...attachments.length > 0 ? { attachments } : {}
       };
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const placeholderAssistant = {
@@ -1183,7 +1189,10 @@ function useChat(options = {}) {
             // Frontend tools (useFrontendTool & co.) — sent on every request,
             // resumes included, so the server's paused stub tools exist when
             // the run continues. Ignored unless the agent opted in.
-            ...frontendTools.length > 0 ? { tools: frontendTools } : {}
+            ...frontendTools.length > 0 ? { tools: frontendTools } : {},
+            // Images for this turn — added to the last user message by the
+            // runtime. Never on a silent frontend-tool resume (no new message).
+            ...!silent && attachments.length > 0 ? { attachments: attachments.map((a) => ({ fileId: a.fileId })) } : {}
           }),
           signal: controller.signal
         });
@@ -1402,7 +1411,8 @@ function useChat(options = {}) {
   const sendMessage = (0, import_react2.useCallback)(
     async (contentToSend, overrideOptions) => {
       const prompt = (contentToSend ?? input).trim();
-      if (!prompt || isStreaming) {
+      const hasAttachments = (overrideOptions?.attachments?.length ?? 0) > 0;
+      if (!prompt && !hasAttachments || isStreaming) {
         chatLogger.trace("sendMessage skipped", {
           hasPrompt: !!prompt,
           isStreaming
@@ -1456,7 +1466,11 @@ function useChat(options = {}) {
     chatLogger.debug("reload last user", {
       preview: lastUserMessage.content.slice(0, 100)
     });
-    return doSend(lastUserMessage.content, truncated);
+    return doSend(
+      lastUserMessage.content,
+      truncated,
+      lastUserMessage.attachments?.length ? { attachments: lastUserMessage.attachments } : void 0
+    );
   }, [isStreaming, messages, doSend, chatLogger]);
   const resumeInterrupt = (0, import_react2.useCallback)(
     (resume, displayContent) => {
@@ -4967,13 +4981,220 @@ function useComponent(config) {
   );
 }
 
+// src/hooks/useAttachments.ts
+var import_react24 = require("react");
+var ATTACHMENT_LIMITS = Object.freeze({
+  maxFiles: 4,
+  maxBytes: 5 * 1024 * 1024,
+  mimeTypes: Object.freeze(["image/png", "image/jpeg", "image/webp", "image/gif"])
+});
+var CACHE_MAX_BYTES = 40 * 1024 * 1024;
+var blobCache = /* @__PURE__ */ new Map();
+var cacheBytes = 0;
+function cacheBlob(fileId, blob) {
+  const existing = blobCache.get(fileId);
+  if (existing) {
+    blobCache.delete(fileId);
+    cacheBytes -= existing.size;
+  }
+  if (blob.size > CACHE_MAX_BYTES) return;
+  blobCache.set(fileId, blob);
+  cacheBytes += blob.size;
+  for (const [key, value] of blobCache) {
+    if (cacheBytes <= CACHE_MAX_BYTES) break;
+    blobCache.delete(key);
+    cacheBytes -= value.size;
+  }
+}
+function cachedBlob(fileId) {
+  const blob = blobCache.get(fileId);
+  if (blob) {
+    blobCache.delete(fileId);
+    blobCache.set(fileId, blob);
+  }
+  return blob;
+}
+var localSeq = 0;
+function useAttachments(options = {}) {
+  const { fetchWithAuth, logger } = usePersonaContext();
+  const log = (0, import_react24.useMemo)(() => logger.child("attachments"), [logger]);
+  const maxFiles = options.maxFiles ?? ATTACHMENT_LIMITS.maxFiles;
+  const maxBytes = options.maxBytes ?? ATTACHMENT_LIMITS.maxBytes;
+  const agentId = options.agentId;
+  const [attachments, setAttachments] = (0, import_react24.useState)([]);
+  const [error, setError] = (0, import_react24.useState)(null);
+  const attachmentsRef = (0, import_react24.useRef)(attachments);
+  attachmentsRef.current = attachments;
+  const controllers = (0, import_react24.useRef)(/* @__PURE__ */ new Map());
+  const update = (0, import_react24.useCallback)((id, patch) => {
+    setAttachments((prev) => prev.map((a) => a.id === id ? { ...a, ...patch } : a));
+  }, []);
+  const upload = (0, import_react24.useCallback)(
+    async (id, file) => {
+      const controller = new AbortController();
+      controllers.current.set(id, controller);
+      try {
+        const form = new FormData();
+        form.append("file", file, file.name);
+        if (agentId) form.append("agentId", agentId);
+        const res = await fetchWithAuth("/files", {
+          method: "POST",
+          body: form,
+          signal: controller.signal
+        });
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text ? `Upload failed (${res.status}): ${text.slice(0, 200)}` : `Upload failed (${res.status})`);
+        }
+        const body = await res.json();
+        const data = body?.data ?? body;
+        const fileId = data.id ?? data._id;
+        if (!fileId) throw new Error("Upload returned no file id");
+        cacheBlob(fileId, file);
+        update(id, { status: "ready", fileId });
+        log.debug("attachment uploaded", { fileId, size: file.size });
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        const message = err instanceof Error ? err.message : String(err);
+        log.warn("attachment upload failed", { error: message });
+        update(id, { status: "error", error: message });
+      } finally {
+        controllers.current.delete(id);
+      }
+    },
+    [agentId, fetchWithAuth, log, update]
+  );
+  const add = (0, import_react24.useCallback)(
+    (files) => {
+      const list = files ? Array.from(files) : [];
+      if (list.length === 0) return;
+      setError(null);
+      const room = maxFiles - attachmentsRef.current.length;
+      const rejected = [];
+      const accepted = [];
+      for (const file of list) {
+        if (!ATTACHMENT_LIMITS.mimeTypes.includes(file.type)) {
+          rejected.push(`${file.name}: only PNG, JPEG, WebP or GIF images`);
+          continue;
+        }
+        if (file.size > maxBytes) {
+          rejected.push(`${file.name}: larger than ${Math.round(maxBytes / (1024 * 1024))} MB`);
+          continue;
+        }
+        if (accepted.length >= room) {
+          rejected.push(`At most ${maxFiles} images per message`);
+          break;
+        }
+        accepted.push({
+          file,
+          entry: {
+            id: `att-${Date.now()}-${++localSeq}`,
+            name: file.name,
+            mimeType: file.type,
+            size: file.size,
+            previewUrl: URL.createObjectURL(file),
+            status: "uploading"
+          }
+        });
+      }
+      if (rejected.length > 0) setError(rejected.join(". "));
+      if (accepted.length === 0) return;
+      setAttachments((prev) => [...prev, ...accepted.map((a) => a.entry)]);
+      for (const { entry, file } of accepted) void upload(entry.id, file);
+    },
+    [maxBytes, maxFiles, upload]
+  );
+  const discard = (0, import_react24.useCallback)((items) => {
+    for (const item of items) {
+      controllers.current.get(item.id)?.abort();
+      controllers.current.delete(item.id);
+      URL.revokeObjectURL(item.previewUrl);
+    }
+  }, []);
+  const remove = (0, import_react24.useCallback)(
+    (id) => {
+      setError(null);
+      discard(attachmentsRef.current.filter((a) => a.id === id));
+      setAttachments((prev) => prev.filter((a) => a.id !== id));
+    },
+    [discard]
+  );
+  const clear = (0, import_react24.useCallback)(() => {
+    setError(null);
+    discard(attachmentsRef.current);
+    setAttachments([]);
+  }, [discard]);
+  (0, import_react24.useEffect)(() => () => discard(attachmentsRef.current), [discard]);
+  const ready = (0, import_react24.useMemo)(
+    () => attachments.filter((a) => a.status === "ready" && a.fileId).map((a) => ({ fileId: a.fileId, mimeType: a.mimeType, name: a.name })),
+    [attachments]
+  );
+  return {
+    attachments,
+    ready,
+    isUploading: attachments.some((a) => a.status === "uploading"),
+    error,
+    accept: ATTACHMENT_LIMITS.mimeTypes.join(","),
+    add,
+    remove,
+    clear
+  };
+}
+function useAttachmentUrl(fileId) {
+  const { fetchWithAuth } = usePersonaContext();
+  const [state, setState] = (0, import_react24.useState)({ url: null, isLoading: !!fileId, error: null });
+  (0, import_react24.useEffect)(() => {
+    if (!fileId) {
+      setState({ url: null, isLoading: false, error: null });
+      return;
+    }
+    let cancelled = false;
+    let objectUrl = null;
+    const show = (blob) => {
+      objectUrl = URL.createObjectURL(blob);
+      setState({ url: objectUrl, isLoading: false, error: null });
+    };
+    const hit = cachedBlob(fileId);
+    if (hit) {
+      show(hit);
+    } else {
+      setState({ url: null, isLoading: true, error: null });
+      const controller = new AbortController();
+      (async () => {
+        try {
+          const res = await fetchWithAuth(`/files/${encodeURIComponent(fileId)}`, { signal: controller.signal });
+          if (!res.ok) throw new Error(`Image unavailable (${res.status})`);
+          const blob = await res.blob();
+          if (cancelled) return;
+          cacheBlob(fileId, blob);
+          show(blob);
+        } catch (err) {
+          if (cancelled) return;
+          setState({ url: null, isLoading: false, error: err instanceof Error ? err : new Error(String(err)) });
+        }
+      })();
+      return () => {
+        cancelled = true;
+        controller.abort();
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      };
+    }
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [fileId, fetchWithAuth]);
+  return state;
+}
+
 // src/index.ts
 var import_logger2 = require("@personaai/logger");
-var VERSION = "0.21.0";
+var VERSION = "0.22.0";
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ANY_TOOL,
   ARCHITECT_AGENT_ID,
+  ATTACHMENT_LIMITS,
   PersonaProvider,
   PersonaToolCallView,
   PersonaToolRegistry,
@@ -4992,6 +5213,8 @@ var VERSION = "0.21.0";
   supportsStreamingFetch,
   useAgents,
   useArchitectChat,
+  useAttachmentUrl,
+  useAttachments,
   useChat,
   useComponent,
   useConnection,

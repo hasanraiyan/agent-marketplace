@@ -69,6 +69,8 @@ interface PersonaMessage {
     channel?: PersonaChannel;
     /** Channel-specific metadata (e.g. caller phone number, callSid, messageSid). */
     metadata?: Record<string, unknown>;
+    /** Images the user attached to this message (`role: 'user'` only). */
+    attachments?: PersonaMessageAttachment[];
     /**
      * @deprecated Model reasoning now streams as its own `role: 'reasoning'`
      * messages (one per phase, never merged). These fields are retained for
@@ -465,6 +467,34 @@ interface SendMessageOverride {
      * {@link UseChatOptions.context}.
      */
     context?: Record<string, unknown>;
+    /**
+     * Images for this turn — uploaded files, usually `useAttachments().ready`.
+     * Shown on the user's bubble and sent with the message; with attachments
+     * the text may be empty. Needs the Agent's `imageInputEnabled`. At most 4.
+     */
+    attachments?: PersonaMessageAttachment[];
+}
+/** An image on a user message (optimistic or from thread history). */
+interface PersonaMessageAttachment {
+    /** Id of the uploaded file — render it with `useAttachmentUrl(fileId)`. */
+    fileId: string;
+    mimeType?: string;
+    name?: string;
+}
+/** One image picked in `useAttachments`, before it is sent. */
+interface PersonaAttachment {
+    /** Local id (stable while picking); not the server file id. */
+    id: string;
+    name: string;
+    mimeType: string;
+    size: number;
+    /** Object URL for an instant preview; revoked when removed or cleared. */
+    previewUrl: string;
+    status: "uploading" | "ready" | "error";
+    /** Set once uploaded. */
+    fileId?: string;
+    /** Why this image was rejected or failed to upload. */
+    error?: string;
 }
 /**
  * `useVoice`'s call state, driven by `voice_activity` events from the
@@ -2129,6 +2159,59 @@ declare function useHumanInTheLoop<TArgs = Record<string, unknown>>(config: UseH
 declare function useComponent<TArgs = Record<string, unknown>>(config: UseComponentConfig<TArgs>): void;
 
 /**
+ * Image attachments for chat messages (the Agent needs `imageInputEnabled`).
+ *
+ * - `useAttachments()` — pick, check and upload images (through the runtime's
+ *   `POST /files`), with instant previews; pass `ready` to
+ *   `sendMessage(text, { attachments })`.
+ * - `useAttachmentUrl(fileId)` — an `<img src>` for an attached image. The
+ *   runtime's file download needs the auth header, so the image is fetched
+ *   with it and shown through an object URL.
+ *
+ * The server re-checks everything (type from the bytes, size, count,
+ * ownership); the checks here only give the user quick feedback.
+ */
+/** Same limits the server enforces (`IMAGE_ATTACHMENT_LIMITS` in @personaai/sdk). */
+declare const ATTACHMENT_LIMITS: Readonly<{
+    maxFiles: 4;
+    maxBytes: number;
+    mimeTypes: readonly string[];
+}>;
+interface UseAttachmentsOptions {
+    /** @default 4 (the server's per-message limit) */
+    maxFiles?: number;
+    /** @default 5 MB (the server's limit) */
+    maxBytes?: number;
+    /** Optional context recorded on the uploaded file. */
+    agentId?: string;
+}
+interface UseAttachmentsResult {
+    attachments: PersonaAttachment[];
+    /** Uploaded and ready to send — pass to `sendMessage(text, { attachments: ready })`. */
+    ready: PersonaMessageAttachment[];
+    isUploading: boolean;
+    /** The latest rejection (wrong type, too big, too many), cleared by the next add/remove/clear. */
+    error: string | null;
+    /** For `<input type="file" accept={accept}>`. */
+    accept: string;
+    /** Adds images (e.g. from a file input, paste or drop) and starts uploading them. */
+    add: (files: FileList | File[] | null | undefined) => void;
+    /** Removes one image (cancels its upload if still running). */
+    remove: (id: string) => void;
+    /** Removes all — call after sending. */
+    clear: () => void;
+}
+declare function useAttachments(options?: UseAttachmentsOptions): UseAttachmentsResult;
+interface UseAttachmentUrlResult {
+    /** Object URL for `<img src>`, or null while loading / on error. */
+    url: string | null;
+    isLoading: boolean;
+    error: Error | null;
+}
+/** An `<img src>` for an attached image, fetched with the user's auth. */
+declare function useAttachmentUrl(fileId: string | null | undefined): UseAttachmentUrlResult;
+
+/**
  * Parse a JSON value that may be truncated. Returns the most complete value
  * recoverable from the prefix, or `undefined` if nothing usable is there yet.
  * Complete JSON is returned exactly as `JSON.parse` would.
@@ -2192,6 +2275,6 @@ declare function supportsStreamingFetch(): boolean;
  */
 declare function openSSEStream(opts: OpenSSEOptions): Promise<SSEStream>;
 
-declare const VERSION = "0.21.0";
+declare const VERSION = "0.22.0";
 
-export { ANY_TOOL, ARCHITECT_AGENT_ID, type CreatePersonaAgentInput, type CreatePersonaKnowledgeBaseInput, type CreatePersonaMcpInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreatePersonaWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentMessageDelivery, type PersonaAgentSnapshot, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaBulkDeleteResult, type PersonaChannel, type PersonaClarificationQuestion, type PersonaDeleteDocumentResult, type PersonaFailureResponse, type PersonaFileItem, type PersonaFrontendToolCall, type PersonaFrontendToolContext, type PersonaFrontendToolDefinition, type PersonaFrontendToolEntry, type PersonaFrontendToolKind, type PersonaFrontendToolResult, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaHttpFailureInfo, type PersonaInterrupt, type PersonaKnowledgeBase, type PersonaKnowledgeBaseUsage, type PersonaKnowledgeDocument, type PersonaKnowledgeSearchResult, type PersonaMcp, type PersonaMcpAuthMode, type PersonaMcpAuthRequiredServer, type PersonaMcpAuthType, type PersonaMcpConnection, type PersonaMcpConnectionStatus, type PersonaMcpOAuthConfig, type PersonaMcpOAuthInput, type PersonaMcpResourceSummary, type PersonaMcpResourceTemplate, type PersonaMcpTestConnectionResult, type PersonaMcpTool, type PersonaMcpTransport, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaMessageChannel, type PersonaMessageDelivery, type PersonaNodeOnErrorAction, type PersonaNodeRetryPolicy, type PersonaNodeRun, type PersonaNodeRunState, type PersonaNodeRunStatus, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaToolCallStatus, PersonaToolCallView, type PersonaToolCallViewProps, type PersonaToolParameters, PersonaToolRegistry, type PersonaToolRenderFn, type PersonaToolRenderProps, type PersonaUploadDocumentsResult, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeData, type PersonaWorkflowNodeType, type PersonaWorkflowOwnerType, type PersonaWorkflowRun, type PersonaWorkflowRunStatus, type PersonaWorkflowTrigger, type PersonaWorkflowTriggerType, type PersonaWorkflowUsage, type PersonaWorkflowVersion, type PersonaWorkflowVisibility, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type SendPersonaAgentMessageInput, type SendPersonaMessageInput, type UpdatePersonaAgentInput, type UpdatePersonaKnowledgeBaseInput, type UpdatePersonaMcpInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdatePersonaWorkflowInput, type UploadKnowledgeDocumentInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseChatOptions, type UseComponentConfig, type UseFrontendToolConfig, type UseHumanInTheLoopConfig, type UseKnowledgeBasesOptions, type UseMcpAdminOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseMessagesResult, type UseRcpSourcesOptions, type UseRenderToolConfig, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, buildToolRenderProps, getChannelBadgeLabel, getToolCallStatus, openSSEStream, parsePartialJson, resolveToolParameters, supportsStreamingFetch, useAgents, useArchitectChat, useChat, useComponent, useConnection, useFiles, useFrontendTool, useHumanInTheLoop, useKnowledgeBases, useMcp, useMcpAdmin, useMcpConnections, useMemory, useMessages, usePersonaContext, useRcpSources, useRenderTool, useRenderToolCall, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows, useWorkspaceFiles };
+export { ANY_TOOL, ARCHITECT_AGENT_ID, ATTACHMENT_LIMITS, type CreatePersonaAgentInput, type CreatePersonaKnowledgeBaseInput, type CreatePersonaMcpInput, type CreatePersonaRcpSourceInput, type CreatePersonaSkillInput, type CreatePersonaWorkflowInput, type OpenSSEOptions, type PersonaAgent, type PersonaAgentCategory, type PersonaAgentMessageDelivery, type PersonaAgentSnapshot, type PersonaAgentSocialLinks, type PersonaAgentVisibility, type PersonaAttachment, type PersonaBulkDeleteResult, type PersonaChannel, type PersonaClarificationQuestion, type PersonaDeleteDocumentResult, type PersonaFailureResponse, type PersonaFileItem, type PersonaFrontendToolCall, type PersonaFrontendToolContext, type PersonaFrontendToolDefinition, type PersonaFrontendToolEntry, type PersonaFrontendToolKind, type PersonaFrontendToolResult, type PersonaHealthInfo, type PersonaHitlActionRequest, type PersonaHttpFailureInfo, type PersonaInterrupt, type PersonaKnowledgeBase, type PersonaKnowledgeBaseUsage, type PersonaKnowledgeDocument, type PersonaKnowledgeSearchResult, type PersonaMcp, type PersonaMcpAuthMode, type PersonaMcpAuthRequiredServer, type PersonaMcpAuthType, type PersonaMcpConnection, type PersonaMcpConnectionStatus, type PersonaMcpOAuthConfig, type PersonaMcpOAuthInput, type PersonaMcpResourceSummary, type PersonaMcpResourceTemplate, type PersonaMcpTestConnectionResult, type PersonaMcpTool, type PersonaMcpTransport, type PersonaMemoryAgentGroup, type PersonaMemoryFile, type PersonaMemoryList, type PersonaMessage, type PersonaMessageAttachment, type PersonaMessageChannel, type PersonaMessageDelivery, type PersonaNodeOnErrorAction, type PersonaNodeRetryPolicy, type PersonaNodeRun, type PersonaNodeRunState, type PersonaNodeRunStatus, type PersonaPagination, type PersonaPresentedFile, PersonaProvider, type PersonaProviderProps, type PersonaRcpParamContextMapEntry, type PersonaRcpSource, type PersonaRcpSourceTestResult, type PersonaRcpSourceToolParamSummary, type PersonaRcpSourceToolSummary, type PersonaResourceUsage, type PersonaResumeValue, type PersonaRole, type PersonaSandboxCommand, type PersonaSkill, type PersonaSkillFile, type PersonaSkillUsage, type PersonaStreamingEvent, type PersonaSubagentActivityEntry, type PersonaThread, type PersonaTodo, type PersonaToolCall, type PersonaToolCallStatus, PersonaToolCallView, type PersonaToolCallViewProps, type PersonaToolParameters, PersonaToolRegistry, type PersonaToolRenderFn, type PersonaToolRenderProps, type PersonaUploadDocumentsResult, type PersonaVoiceEndReason, type PersonaVoiceState, type PersonaVoiceToolCall, type PersonaVoiceTranscriptLine, type PersonaWorkflow, type PersonaWorkflowDraft, type PersonaWorkflowEdge, type PersonaWorkflowNode, type PersonaWorkflowNodeData, type PersonaWorkflowNodeType, type PersonaWorkflowOwnerType, type PersonaWorkflowRun, type PersonaWorkflowRunStatus, type PersonaWorkflowTrigger, type PersonaWorkflowTriggerType, type PersonaWorkflowUsage, type PersonaWorkflowVersion, type PersonaWorkflowVisibility, type PersonaWorkspaceFile, type SSEReader, type SSEStream, type SendArchitectMessageOverride, type SendMessageOverride, type SendPersonaAgentMessageInput, type SendPersonaMessageInput, type UpdatePersonaAgentInput, type UpdatePersonaKnowledgeBaseInput, type UpdatePersonaMcpInput, type UpdatePersonaRcpSourceInput, type UpdatePersonaSkillInput, type UpdatePersonaWorkflowInput, type UploadKnowledgeDocumentInput, type UseAgentsOptions, type UseArchitectChatOptions, type UseAttachmentUrlResult, type UseAttachmentsOptions, type UseAttachmentsResult, type UseChatOptions, type UseComponentConfig, type UseFrontendToolConfig, type UseHumanInTheLoopConfig, type UseKnowledgeBasesOptions, type UseMcpAdminOptions, type UseMcpConnectionsOptions, type UseMcpOptions, type UseMessagesResult, type UseRcpSourcesOptions, type UseRenderToolConfig, type UseSkillsOptions, type UseVoiceOptions, type UseVoiceResult, type UseWorkflowOptions, type UseWorkflowRunsOptions, type UseWorkflowStreamOptions, type UseWorkflowStreamResult, type UseWorkflowsOptions, VERSION, type WorkflowsPagination, buildToolRenderProps, getChannelBadgeLabel, getToolCallStatus, openSSEStream, parsePartialJson, resolveToolParameters, supportsStreamingFetch, useAgents, useArchitectChat, useAttachmentUrl, useAttachments, useChat, useComponent, useConnection, useFiles, useFrontendTool, useHumanInTheLoop, useKnowledgeBases, useMcp, useMcpAdmin, useMcpConnections, useMemory, useMessages, usePersonaContext, useRcpSources, useRenderTool, useRenderToolCall, useSkills, useThreads, useVoice, useWorkflow, useWorkflowRuns, useWorkflowStream, useWorkflows, useWorkspaceFiles };

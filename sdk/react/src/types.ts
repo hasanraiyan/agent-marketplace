@@ -82,6 +82,8 @@ export interface PersonaMessage {
   channel?: PersonaChannel;
   /** Channel-specific metadata (e.g. caller phone number, callSid, messageSid). */
   metadata?: Record<string, unknown>;
+  /** Images the user attached to this message (`role: 'user'` only). */
+  attachments?: PersonaMessageAttachment[];
   /**
    * @deprecated Model reasoning now streams as its own `role: 'reasoning'`
    * messages (one per phase, never merged). These fields are retained for
@@ -486,6 +488,38 @@ export interface SendMessageOverride {
    * {@link UseChatOptions.context}.
    */
   context?: Record<string, unknown>;
+  /**
+   * Images for this turn — uploaded files, usually `useAttachments().ready`.
+   * Shown on the user's bubble and sent with the message; with attachments
+   * the text may be empty. Needs the Agent's `imageInputEnabled`. At most 4.
+   */
+  attachments?: PersonaMessageAttachment[];
+}
+
+// ---- Image attachments (useAttachments) -----------------------------------
+
+/** An image on a user message (optimistic or from thread history). */
+export interface PersonaMessageAttachment {
+  /** Id of the uploaded file — render it with `useAttachmentUrl(fileId)`. */
+  fileId: string;
+  mimeType?: string;
+  name?: string;
+}
+
+/** One image picked in `useAttachments`, before it is sent. */
+export interface PersonaAttachment {
+  /** Local id (stable while picking); not the server file id. */
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  /** Object URL for an instant preview; revoked when removed or cleared. */
+  previewUrl: string;
+  status: "uploading" | "ready" | "error";
+  /** Set once uploaded. */
+  fileId?: string;
+  /** Why this image was rejected or failed to upload. */
+  error?: string;
 }
 
 // ---- Voice (useVoice) ----------------------------------------------------

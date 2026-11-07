@@ -73,6 +73,53 @@ function Chat() {
 | `useFrontendTool`    | Give the agent a tool that runs in the browser (navigate, open a modal, …) — see below           |
 | `useHumanInTheLoop`  | A frontend tool that waits for the user's answer (`respond()`)                                   |
 | `useComponent`       | Generative UI — the agent shows one of your components in the chat                              |
+| `useAttachments`     | Pick, check and upload images to send with a message — see below                                |
+| `useAttachmentUrl`   | `<img src>` for an attached image (fetched with the user's auth)                                 |
+
+## Images (`useAttachments`, `useAttachmentUrl`)
+
+Turn on the Agent's **Image Input** setting (platform → Agent, or `imageInputEnabled`) and give
+it a vision-capable model. Then:
+
+```tsx
+function Composer() {
+  const chat = useChat();
+  const att = useAttachments();
+
+  const send = async () => {
+    const ok = await chat.sendMessage(chat.input, { attachments: att.ready });
+    if (ok) att.clear();
+  };
+
+  return (
+    <>
+      <input type="file" accept={att.accept} multiple onChange={(e) => att.add(e.target.files)} />
+      {att.attachments.map((a) => (
+        <img key={a.id} src={a.previewUrl} alt={a.name} onClick={() => att.remove(a.id)} />
+      ))}
+      {att.error && <p>{att.error}</p>}
+      <textarea value={chat.input} onChange={chat.handleInputChange} />
+      <button onClick={send} disabled={att.isUploading}>Send</button>
+    </>
+  );
+}
+
+// In the transcript (sent messages and thread history):
+function MessageImage({ fileId, name }: { fileId: string; name?: string }) {
+  const { url } = useAttachmentUrl(fileId);
+  return url ? <img src={url} alt={name ?? "image"} /> : null;
+}
+// …message.attachments?.map((a) => <MessageImage key={a.fileId} {...a} />)
+```
+
+- PNG, JPEG, WebP or GIF; up to 5 MB each and 4 per message (`ATTACHMENT_LIMITS`). The server
+  checks the real type from the bytes, ownership and size again.
+- Uploads go through the runtime's `POST /files` as the signed-in end user. An image-only
+  message (empty text) is allowed; `reload()` resends the last message's images.
+- `useAttachmentUrl` reuses the bytes of an image this tab just uploaded, so the sent bubble
+  shows instantly; other images are downloaded once and cached (40 MB cap).
+- The agent also keeps every image from the thread in its read-only `/uploads/` folder.
+- Errors come back as a run error: `INVALID_ATTACHMENT` (bad image) or `MODEL_NO_VISION`.
 
 ## Frontend tools (`useFrontendTool`, `useHumanInTheLoop`, `useComponent`)
 

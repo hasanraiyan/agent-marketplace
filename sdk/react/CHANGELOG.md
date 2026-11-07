@@ -3,6 +3,23 @@
 All notable changes to `@personaai/react` are documented here, starting from this file's
 introduction — versions before 0.2.0 aren't backfilled.
 
+## 0.22.0
+
+- **Images in chat — `useAttachments`, `useAttachmentUrl`.** Users can attach images to a
+  message (the Agent needs `imageInputEnabled` and a vision-capable model).
+  - `useAttachments()` checks (PNG/JPEG/WebP/GIF, 5 MB, 4 per message — `ATTACHMENT_LIMITS`)
+    and uploads picked images through the runtime's `POST /files`, with instant `previewUrl`s;
+    `ready` is what you pass to `sendMessage`. `remove`/`clear` cancel uploads and release the
+    previews.
+  - `useChat().sendMessage(text, { attachments })` sends them; the user bubble gets
+    `message.attachments` (`PersonaMessageAttachment[]`), an image-only message is allowed, and
+    `reload()` resends the images. Thread history returns `attachments` too.
+  - `useAttachmentUrl(fileId)` gives an `<img src>` for an attached image, fetched with the
+    user's auth (a just-uploaded image is reused without downloading it again).
+  - New types: `PersonaAttachment`, `PersonaMessageAttachment`; `SendMessageOverride.attachments`.
+  - Requires `@personaai/runtime` ≥ 0.20.0 (forwards `attachments`) and a Persona backend with
+    image input.
+
 ## 0.21.0
 
 - **Frontend tools & generative UI — `useFrontendTool`, `useHumanInTheLoop`, `useComponent`.**

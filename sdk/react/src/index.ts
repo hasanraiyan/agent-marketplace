@@ -22,6 +22,14 @@ export * from "./hooks/useWorkflowStream.js";
 export * from "./hooks/useWorkflowRuns.js";
 export * from "./hooks/useRenderTool.js";
 export * from "./hooks/useFrontendTool.js";
+export {
+  ATTACHMENT_LIMITS,
+  useAttachments,
+  useAttachmentUrl,
+  type UseAttachmentsOptions,
+  type UseAttachmentsResult,
+  type UseAttachmentUrlResult,
+} from "./hooks/useAttachments.js";
 export * from "./tools/registry.js";
 export { parsePartialJson } from "./tools/partialJson.js";
 export * from "./streaming.js";
@@ -39,4 +47,4 @@ export type {
   CreateLoggerOptions,
 } from "@personaai/logger";
 
-export const VERSION = "0.21.0";
+export const VERSION = "0.22.0";

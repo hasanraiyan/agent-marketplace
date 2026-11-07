@@ -9,6 +9,7 @@ import type {
   PersonaInterrupt,
   PersonaMcpAuthRequiredServer,
   PersonaMessage,
+  PersonaMessageAttachment,
   PersonaPresentedFile,
   PersonaResumeValue,
   PersonaRole,
@@ -300,6 +301,7 @@ export function useChat(options: UseChatOptions = {}) {
           toolCalls?: PersonaToolCall[];
           channel?: PersonaMessage["channel"];
           metadata?: Record<string, unknown>;
+          attachments?: PersonaMessageAttachment[];
         }>;
         const subagentTraces = (data?.subagentTraces ?? {}) as Record<
           string,
@@ -312,6 +314,9 @@ export function useChat(options: UseChatOptions = {}) {
           createdAt: new Date(),
           channel: m.channel ?? (m.id?.startsWith("voice-") ? "voice" : "web"),
           ...(m.metadata ? { metadata: m.metadata } : {}),
+          ...(Array.isArray(m.attachments) && m.attachments.length > 0
+            ? { attachments: m.attachments }
+            : {}),
           toolCalls: m.toolCalls?.map((tc) => {
             const trace = subagentTraces[tc.toolCallId];
             return Array.isArray(trace) && trace.length > 0
@@ -595,12 +600,14 @@ export function useChat(options: UseChatOptions = {}) {
         hasContextOverride: !!overrideOptions?.contextOverride,
       });
 
+      const attachments = (overrideOptions?.attachments ?? []).filter((a) => !!a?.fileId);
       const userMessage: PersonaMessage = {
         id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         role: "user",
         content: prompt,
         createdAt: new Date(),
         channel: "web",
+        ...(attachments.length > 0 ? { attachments } : {}),
       };
 
       const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -694,6 +701,11 @@ export function useChat(options: UseChatOptions = {}) {
             // resumes included, so the server's paused stub tools exist when
             // the run continues. Ignored unless the agent opted in.
             ...(frontendTools.length > 0 ? { tools: frontendTools } : {}),
+            // Images for this turn — added to the last user message by the
+            // runtime. Never on a silent frontend-tool resume (no new message).
+            ...(!silent && attachments.length > 0
+              ? { attachments: attachments.map((a) => ({ fileId: a.fileId })) }
+              : {}),
           }),
           signal: controller.signal,
         });
@@ -922,7 +934,9 @@ export function useChat(options: UseChatOptions = {}) {
   const sendMessage = useCallback(
     async (contentToSend?: string, overrideOptions?: SendMessageOverride): Promise<boolean> => {
       const prompt = (contentToSend ?? input).trim();
-      if (!prompt || isStreaming) {
+      // An image-only message (no text) is a valid turn.
+      const hasAttachments = (overrideOptions?.attachments?.length ?? 0) > 0;
+      if ((!prompt && !hasAttachments) || isStreaming) {
         chatLogger.trace("sendMessage skipped", {
           hasPrompt: !!prompt,
           isStreaming,
@@ -980,7 +994,11 @@ export function useChat(options: UseChatOptions = {}) {
     chatLogger.debug("reload last user", {
       preview: lastUserMessage.content.slice(0, 100),
     });
-    return doSend(lastUserMessage.content, truncated);
+    return doSend(
+      lastUserMessage.content,
+      truncated,
+      lastUserMessage.attachments?.length ? { attachments: lastUserMessage.attachments } : undefined,
+    );
   }, [isStreaming, messages, doSend, chatLogger]);
 
   // Unpauses a paused HITL/clarification run. `displayContent` becomes the
