@@ -50,7 +50,7 @@ describe('traceSerializer', () => {
     expect(out).toMatch(/truncated/);
   });
 
-  test('contentToText joins text blocks', () => {
+  test('contentToText joins text blocks and labels non-text parts', () => {
     expect(contentToText('a')).toBe('a');
     expect(
       contentToText([
@@ -59,6 +59,22 @@ describe('traceSerializer', () => {
         { type: 'text', text: 'b' },
       ])
     ).toBe('ab');
+    expect(contentToText([{ type: 'image', name: 'photo.png' }])).toBe('[image: photo.png]');
+    expect(contentToText([{ type: 'image', mimeType: 'image/jpeg' }])).toBe('[image: image/jpeg]');
     expect(contentToText(null)).toBe('');
+  });
+
+  test('prunes raw base64 data and image objects', () => {
+    const rawB64 = 'A'.repeat(2000);
+    const out = serializeForTrace({
+      msg: {
+        type: 'image',
+        mimeType: 'image/png',
+        data: rawB64,
+      },
+      standaloneB64: rawB64,
+    });
+    expect(out.msg.data).toBe('[image/png base64, 2000 chars]');
+    expect(out.standaloneB64).toBe('[base64 data, 2000 chars]');
   });
 });

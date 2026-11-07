@@ -322,6 +322,22 @@ export async function* runAgentAsAguiEvents({
   // Built-in tracing (Developer Platform Projects only — see trace.service.js):
   // records every LLM/tool/subagent step for the platform's Traces page.
   // Fail-soft: null when disabled, and its DB writes never throw into the run.
+  const traceInput = (() => {
+    if (typeof humanContent === 'string' && humanContent) return humanContent;
+    if (Array.isArray(humanContent)) {
+      const text = humanContent.find((p) => p?.type === 'text')?.text || '';
+      const images = humanContent.filter((p) => p?.type === 'image');
+      if (images.length > 0) {
+        const labels = images
+          .map((img) => `[image: ${img.name || img.mimeType || 'image'}]`)
+          .join(' ');
+        return text ? `${text} ${labels}` : labels;
+      }
+      if (text) return text;
+    }
+    return content;
+  })();
+
   const trace = traceService.begin({
     executionContext,
     agentId,
@@ -329,7 +345,7 @@ export async function* runAgentAsAguiEvents({
     providerConfig,
     threadId: threadDbId || thread?._id || langGraphThreadId,
     channel: turnChannel || 'web',
-    input: content,
+    input: traceInput,
     // A resumed run is its own trace, linked to the paused one, and records
     // the human's decision (approve/reject/edit, answers, client tool results).
     resume: isResuming ? { pending: pendingInterrupt, value: resumeValue } : undefined,

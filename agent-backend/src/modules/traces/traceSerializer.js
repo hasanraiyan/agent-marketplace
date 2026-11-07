@@ -44,6 +44,9 @@ function truncateString(str, max = MAX_STRING_CHARS) {
     const mime = str.slice(5, str.indexOf(';') > 0 ? str.indexOf(';') : 30);
     return `[${mime || 'data'} data URL, ${str.length} chars]`;
   }
+  if (str.length > 500 && !/\s/.test(str) && /^[A-Za-z0-9+/=_-]+$/.test(str)) {
+    return `[base64 data, ${str.length} chars]`;
+  }
   if (str.length <= max) return str;
   return `${str.slice(0, max)}… [${str.length - max} more chars]`;
 }
@@ -99,6 +102,15 @@ function prune(value, depth, seen) {
         out[key] = '***';
         continue;
       }
+      if (
+        (key === 'data' || key === 'base64') &&
+        typeof value[key] === 'string' &&
+        value[key].length > 100 &&
+        (value.type === 'image' || value.type === 'base64' || value.mimeType || value.media_type)
+      ) {
+        out[key] = `[${value.mimeType || value.media_type || 'image'} base64, ${value[key].length} chars]`;
+        continue;
+      }
       const v = prune(value[key], depth + 1, seen);
       if (v !== undefined) out[key] = v;
     }
@@ -136,14 +148,27 @@ export function serializeForTrace(value, maxChars = 16000) {
 
 /**
  * Plain text of a message `content` (string, or an array of content blocks).
+ * When only non-text parts (like images) exist, returns descriptive labels.
  */
 export function contentToText(content) {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
-    return content
+    const texts = content
       .map((part) => (typeof part === 'string' ? part : part?.type === 'text' ? part.text : ''))
-      .filter(Boolean)
-      .join('');
+      .filter(Boolean);
+    if (texts.length > 0) return texts.join('');
+    const nonText = content
+      .map((part) => {
+        if (!part || typeof part !== 'object') return '';
+        if (part.type === 'image' || part.type === 'image_url') {
+          const name = part.name || part.filename || part.mimeType || '';
+          return name ? `[image: ${name}]` : '[image]';
+        }
+        if (part.type && part.type !== 'text') return `[${part.type}]`;
+        return '';
+      })
+      .filter(Boolean);
+    if (nonText.length > 0) return nonText.join(' ');
   }
   return '';
 }

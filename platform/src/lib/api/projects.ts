@@ -93,7 +93,7 @@ export const bulkDeleteProjectProviders = (projectId: string, ids: string[]) =>
   api.post(`/projects/${projectId}/providers/bulk-delete`, { ids });
 // Pre-save credential test — proxies to POST /providers/test-connection (persona scope, no project needed).
 // Mirrors frontend/src/lib/api/providers.js testProviderCredentials used by developer provider editor.
-export const testProviderCredentials = (type: string, baseURL: string | undefined, apiKey: string) =>
+export const testProviderCredentials = (type: string, baseURL?: string, apiKey?: string) =>
   api.post("/providers/test-connection", { type, baseURL, apiKey: apiKey || "ollama" });
 
 // Skill full CRUD. No single-item GET route — same find-by-id-from-list
@@ -233,6 +233,9 @@ export const getProjectTrace = (projectId: string, traceId: string) =>
 // with the Clerk token as a Blob — a plain <audio src> can't send it.
 export const getProjectTraceAudio = (projectId: string, traceId: string) =>
   api.get<Blob>(`/projects/${projectId}/traces/${traceId}/audio`, { responseType: "blob" });
+// An attachment / image referenced in a trace. Fetched with the Clerk token as a Blob.
+export const getProjectTraceFile = (projectId: string, fileId: string) =>
+  api.get<Blob>(`/projects/${projectId}/traces/files/${fileId}`, { responseType: "blob" });
 
 // REST API Tool Builder — no single-item GET route.
 export const getProjectRestTools = (projectId: string) =>

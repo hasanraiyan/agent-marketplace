@@ -1,4 +1,7 @@
 import traceService from './trace.service.js';
+import fileRepository from '../files/file.repository.js';
+import fileService from '../files/file.service.js';
+import NotFoundError from '../../utils/errors/NotFoundError.js';
 import { paginationEnvelope } from '../../utils/pagination.js';
 
 const MAX_LIMIT = 100;
@@ -85,6 +88,32 @@ class TraceController {
         res.setHeader('Content-Length', String(size));
       }
       const stream = traceService.openAudioStream(key, range || undefined);
+      stream.on('error', (err) => (res.headersSent ? res.destroy(err) : next(err)));
+      return stream.pipe(res);
+    } catch (error) {
+      return next(error);
+    }
+  }
+
+  /** Streams an attachment or image referenced in a trace for this Project domain. */
+  async file(req, res, next) {
+    try {
+      const { fileId } = req.params;
+      const domain = req.projectAdminContext.domain;
+      const file = await fileRepository.findById(fileId);
+      if (!file || file.domain !== domain) {
+        throw new NotFoundError('File not found');
+      }
+      const { stream, contentType, contentLength } = await fileService.getFileReadStream(file);
+      res.setHeader('Content-Type', file.mimeType || contentType || 'application/octet-stream');
+      res.setHeader(
+        'Content-Disposition',
+        `inline; filename="${encodeURIComponent(file.originalName)}"`
+      );
+      res.setHeader('Cache-Control', 'private, max-age=86400');
+      if (contentLength) {
+        res.setHeader('Content-Length', String(contentLength));
+      }
       stream.on('error', (err) => (res.headersSent ? res.destroy(err) : next(err)));
       return stream.pipe(res);
     } catch (error) {

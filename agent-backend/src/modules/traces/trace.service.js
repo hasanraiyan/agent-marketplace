@@ -10,6 +10,7 @@ import { TRACE_STATUS } from './trace.model.js';
 import { TraceRecorder } from './TraceRecorder.js';
 import { SPAN_KIND } from './traceSpan.model.js';
 import { summarizeInterrupt, summarizeResume } from './traceInterrupts.js';
+import { contentToText } from './traceSerializer.js';
 import { VoiceCallTracer } from './VoiceCallTracer.js';
 import traceAudioStore from './traceAudioStore.js';
 
@@ -182,7 +183,9 @@ class TraceService {
               ? resumeSummary.summary
               : typeof input === 'string'
                 ? input.slice(0, 16000)
-                : null,
+                : input
+                  ? (contentToText(input) || (typeof input === 'object' ? JSON.stringify(input) : String(input))).slice(0, 16000)
+                  : null,
             resume: resumeSummary,
             resumedFromTraceId: prev?._id ? String(prev._id) : null,
             startedAt,

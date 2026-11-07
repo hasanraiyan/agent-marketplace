@@ -735,6 +735,34 @@ adminRouter.get('/traces/:traceId', traceController.get);
 adminRouter.get('/traces/:traceId/audio', traceController.audio);
 
 /**
+ * @openapi
+ * /api/v1/projects/{projectId}/traces/files/{fileId}:
+ *   get:
+ *     tags: [Projects]
+ *     summary: Stream an attachment or image referenced in a Project trace
+ *     security: [{ clerkAuth: [] }]
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: path
+ *         name: fileId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: The file content
+ *         content:
+ *           application/octet-stream:
+ *             schema: { type: string, format: binary }
+ *       401: { description: Unauthorized }
+ *       403: { description: Not an Admin of this Project }
+ *       404: { description: File not found }
+ */
+adminRouter.get('/traces/files/:fileId', traceController.file);
+
+/**
  * Full create/edit/delete for a Project's own Skills/Knowledge/MCP/
  * Providers from Developer Studio (Phase 11.5) — the read-only PR-55
  * `list*` routes above stay as-is; these are new siblings on the same

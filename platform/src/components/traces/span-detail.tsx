@@ -74,7 +74,7 @@ function newOutputMessages(input: unknown, output: unknown): unknown {
 }
 
 /** A subagent (deepagents `task`): the task it was given, its answer, and its total cost. */
-function SubagentRun({ span }: { span: Span }) {
+function SubagentRun({ span, projectId }: { span: Span; projectId?: string }) {
   const md = span.metadata ?? {};
   const rollup = md.rollup as SubagentRollup | undefined;
   const description =
@@ -104,16 +104,16 @@ function SubagentRun({ span }: { span: Span }) {
       )}
       <Collapsible title="Task">
         {description ? (
-          <PayloadView value={{ role: "task", content: description, name: md.subagentType ? `→ ${String(md.subagentType)}` : undefined }} />
+          <PayloadView value={{ role: "task", content: description, name: md.subagentType ? `→ ${String(md.subagentType)}` : undefined }} projectId={projectId} />
         ) : (
-          <PayloadView value={span.input} argsStyle />
+          <PayloadView value={span.input} argsStyle projectId={projectId} />
         )}
       </Collapsible>
       <Collapsible title="Answer">
         {typeof span.output === "string" ? (
-          <PayloadView value={{ role: "assistant", content: span.output }} />
+          <PayloadView value={{ role: "assistant", content: span.output }} projectId={projectId} />
         ) : (
-          <PayloadView value={span.output} />
+          <PayloadView value={span.output} projectId={projectId} />
         )}
       </Collapsible>
     </>
@@ -132,10 +132,12 @@ function interruptFromSpan(span: Span): InterruptSummary {
 export function SpanDetail({
   span,
   onPlay,
+  projectId,
 }: {
   span: Span;
   /** Voice traces: play this step's part of the call recording. */
   onPlay?: (offset: AudioOffset) => void;
+  projectId?: string;
 }) {
   const meta = kindMeta(span.kind);
   const md = span.metadata ?? {};
@@ -212,14 +214,14 @@ export function SpanDetail({
             <BargeInView droppedAgentMs={typeof md.droppedAgentMs === "number" ? md.droppedAgentMs : undefined} />
           ) : isVoice && span.kind === "human" ? (
             <Collapsible title={span.name}>
-              <PayloadView value={span.output} />
+              <PayloadView value={span.output} projectId={projectId} />
             </Collapsible>
           ) : span.kind === "interrupt" ? (
             <Collapsible title="Waiting for">
               <InterruptView interrupt={interruptFromSpan(span)} />
             </Collapsible>
           ) : span.kind === "subagent" ? (
-            <SubagentRun span={span} />
+            <SubagentRun span={span} projectId={projectId} />
           ) : span.kind === "human" ? (
             <>
               <Collapsible title="Asked">
@@ -232,19 +234,19 @@ export function SpanDetail({
           ) : (
             <>
               <Collapsible title="Input">
-                <PayloadView value={span.input} argsStyle={argsStyle} />
+                <PayloadView value={span.input} argsStyle={argsStyle} projectId={projectId} />
               </Collapsible>
               <Collapsible title="Output">
-                <PayloadView value={output} />
+                <PayloadView value={output} projectId={projectId} />
               </Collapsible>
             </>
           )}
         </TabsContent>
         <TabsContent value="input">
-          <PayloadView value={span.input} argsStyle={argsStyle} />
+          <PayloadView value={span.input} argsStyle={argsStyle} projectId={projectId} />
         </TabsContent>
         <TabsContent value="output">
-          <PayloadView value={output} />
+          <PayloadView value={output} projectId={projectId} />
         </TabsContent>
 
         <TabsContent value="attributes" className="flex flex-col gap-4">

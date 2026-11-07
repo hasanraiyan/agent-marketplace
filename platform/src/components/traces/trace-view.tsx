@@ -343,6 +343,7 @@ export function TraceView({
               key={selected.spanId}
               span={selected}
               onPlay={voice && trace.audio?.status === "ready" ? playSegment : undefined}
+              projectId={projectId}
             />
           ) : (
             <p className="text-xs text-muted-foreground">Select a step to inspect it.</p>
