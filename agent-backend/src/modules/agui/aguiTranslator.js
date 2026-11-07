@@ -650,6 +650,12 @@ export function buildFilesTodosSnapshot(stateValues) {
  *                                          (HITL-guarded tools: the graph pauses before
  *                                          executing them, so a streamed card would be
  *                                          stranded in "running" across the interrupt).
+ * @param {string[]} [opts.replayedToolCalls]  names of tool calls being re-run by
+ *                                          this resume (one entry per call). Resuming
+ *                                          paused frontend tools re-executes their stub
+ *                                          tools; the client already shows those calls
+ *                                          (with the result it produced), so the replay
+ *                                          is not surfaced again as a second card.
  * @returns {AsyncGenerator} AG-UI events.
  */
 export async function* translateLangGraphStream(stream, opts = {}) {
@@ -663,6 +669,11 @@ export async function* translateLangGraphStream(stream, opts = {}) {
     runScopeTracker,
   } = opts;
   const suppressArgStreaming = new Set(opts.suppressArgStreamingFor || []);
+  // name → how many replayed (not newly model-called) runs of it to hide.
+  const replayBudget = new Map();
+  for (const name of opts.replayedToolCalls || []) {
+    replayBudget.set(name, (replayBudget.get(name) || 0) + 1);
+  }
 
   // Read authoritative graph state and emit a STATE_SNAPSHOT of { files, todos }.
   // Never throws — a state-read failure must not abort the event stream.
@@ -1000,6 +1011,18 @@ export async function* translateLangGraphStream(stream, opts = {}) {
             name: toolName,
             toolCallId: streamedId,
           });
+        } else if (!isNestedNamespace(event) && replayBudget.get(toolName) > 0) {
+          // A resumed frontend tool re-running (its args were never streamed
+          // this run — the model didn't call it again). Track it so its end
+          // event is consumed, but surface nothing: the client already has it.
+          replayBudget.set(toolName, replayBudget.get(toolName) - 1);
+          pendingToolCalls.set(event.run_id, {
+            name: toolName,
+            toolCallId: event.run_id,
+            hidden: true,
+          });
+          logger?.debug('[AG-UI] hiding replayed tool call', { name: toolName });
+          continue;
         } else {
           pendingToolCalls.set(event.run_id, { name: toolName, toolCallId: event.run_id });
           logger?.debug('[AG-UI] tool call', {
@@ -1115,6 +1138,10 @@ export async function* translateLangGraphStream(stream, opts = {}) {
         }
 
         const tc = pendingToolCalls.get(event.run_id);
+        if (tc?.hidden) {
+          pendingToolCalls.delete(event.run_id);
+          continue;
+        }
         if (tc) {
           pendingToolCalls.delete(event.run_id);
           const isError = event.event === 'on_tool_error';

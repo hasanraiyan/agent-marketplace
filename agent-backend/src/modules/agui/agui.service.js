@@ -251,6 +251,12 @@ export async function* runAgentAsAguiEvents({
     mcpAppMap,
     runScopeTracker,
     suppressArgStreamingFor: guardedToolNames,
+    // Resuming paused frontend tools re-runs their stubs; the client already
+    // shows those calls with the results it produced — don't duplicate them.
+    replayedToolCalls:
+      isResuming && pendingInterrupt?.kind === 'frontend_tool'
+        ? pendingInterrupt.calls.map((c) => c.name)
+        : undefined,
     getState: langGraphThreadId
       ? async () => {
           const snap = await agentInstance.getState({

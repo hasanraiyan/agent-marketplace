@@ -289,6 +289,35 @@ describe('frontend tools through a real LangGraph graph', () => {
 describe('translateLangGraphStream — frontend tool pause', () => {
   const pauseError = () => Object.assign(new Error('GraphInterrupt'), { name: 'GraphInterrupt' });
 
+  test('on resume, replayed frontend stub runs are hidden; a new call of the same tool is not', async () => {
+    const events = [
+      // the paused call re-running on resume (no streamed args this run)
+      {
+        event: 'on_tool_start',
+        run_id: 'replay',
+        name: 'open_page',
+        data: { input: { path: '/x' } },
+      },
+      { event: 'on_tool_end', run_id: 'replay', name: 'open_page', data: { output: 'opened' } },
+      { event: 'on_chat_model_stream', data: { chunk: { content: 'Opened it.' } } },
+      // the model then calls the same tool again — a genuinely new call
+      {
+        event: 'on_tool_start',
+        run_id: 'fresh',
+        name: 'open_page',
+        data: { input: { path: '/y' } },
+      },
+      { event: 'on_tool_end', run_id: 'fresh', name: 'open_page', data: { output: 'opened y' } },
+    ];
+    const out = await collect(
+      translateLangGraphStream(fakeStream(events), { replayedToolCalls: ['open_page'] })
+    );
+    const chunks = out.filter((e) => e.type === 'TOOL_CALL_CHUNK');
+    const results = out.filter((e) => e.type === 'TOOL_CALL_RESULT');
+    expect(chunks.map((e) => e.toolCallId)).toEqual(['fresh']);
+    expect(results.map((e) => e.content)).toEqual(['opened y']);
+  });
+
   test('isToolPause only matches real interrupts', () => {
     expect(isToolPause(pauseError())).toBe(true);
     expect(isToolPause({ interrupts: [{ value: {} }] })).toBe(true);
